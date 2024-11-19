@@ -1,0 +1,44 @@
+name: Run tests and upload coverage
+
+on:
+  push
+
+jobs:
+  test:
+    if: github.ref == 'refs/heads/main'
+    name: Run tests on previous python versions
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11, 3.12]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+
+      - name: Install test dependencies
+        run: pip install pytest
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Get data for binary use case
+        run:
+          wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.zip
+
+      - name: Get data for potts use case
+        run:
+          wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.fasta
+
+      - name: Extract binary data
+        run:
+          unzip dummy.zip
+
+      - name: Run tests
+        run: pytest tests/
