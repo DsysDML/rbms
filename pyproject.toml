@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rbms"
+version = "0.1"
+authors = [
+  {name="Nicolas Béreux", email="nicolas.bereux@gmail.com"},
+  {name="Aurélien Decelle"},
+  {name="Cyril Furtlehner"},
+  {name="Alfonso Navas"},
+  {name="Lorenzo Rosset"},
+  {name="Beatriz Seoane"},
+]
+maintainers = [
+  {name = "Nicolas Béreux", email = "nicolas.bereux@gmail.com"},
+  {name = "Lorenzo Rosset"},
+]
+description = "Training and analyzing Restricted Boltzmann Machines in PyTorch"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "h5py>=3.12.0",
+  "numpy>=2.0.0, <=2.1.2",
+  "seaborn>=0.13.0",
+  "matplotlib>=3.8.0",
+  "scikit-learn==1.5.2",
+  "torch>=2.0.0, <=2.5.0",
+  "tqdm>=4.65.0",
+]
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+keywords = ["rbm", "Restricted Boltzmann Machine"]
+
+[project.scripts]
+train_rbm="rbms.scripts.train_rbm:main"
+pt_sampling="rbms.scripts.pt_sampling:main"
+
+[project.urls]
+Homepage = "https://github.com/DsysDML/rbms"
+Issues = "https://github.com/DsysDML/rbms/issues"
+
+[tool.ruff]
+
+line-length = 90
+indent-width = 4
+
+# Assume Python 3.11
+target-version = "py311"
+
+[tool.ruff.lint]
+exclude = ["*.ipynb"]
+
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E501"]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
+[tool.ruff.format]
+exclude = ["*.ipynb"]
+
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+# Enable auto-formatting of code examples in docstrings. Markdown,
+# reStructuredText code/literal blocks and doctests are all supported.
+#
+# This is currently disabled by default, but it is planned for this
+# to be opt-out in the future.
+docstring-code-format = false
