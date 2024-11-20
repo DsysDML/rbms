@@ -16,10 +16,24 @@ jobs:
       - name: Install dependencies
         run: |
           pip install sphinx sphinx_rtd_theme myst_parser sphinxcontrib-bibtex sphinx-gallery matplotlib
-      
       - name: Install package
         run: pip install .
       
+      - name: Get data for example
+        run:
+          cd examples && wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.zip
+      
+      - name: Get RBM for example
+        run:
+          cd examples && wget https://nextcloud.lisn.upsaclay.fr/index.php/s/6w3S9tfHtk6q53A/download/RBM.zip
+
+      - name: Extract binary data
+        run:
+          cd examples && unzip dummy.zip
+
+      - name: Extract binary data
+        run:
+          cd examples && unzip RBM.zip
       - name: Sphinx build
         run: |
           cd docs
