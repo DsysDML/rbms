@@ -3,11 +3,11 @@
 ![Static Badge](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-green)
 
 
-# TorchRBM
+# RBMs
 
 ## Overview
 
-TorchRBM is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
+`rbms` is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
 Features:
 
  - GPU Acceleration through PyTorch.
@@ -19,7 +19,7 @@ Features:
 To install TorchRBM, you can use pip:
 
 ```bash
-pip install torchrbm
+pip install .
 ```
 
 ## Dependencies
@@ -29,18 +29,18 @@ The dependencies are included in the pyproject.toml file and should be compiled 
 ## Usage
 
 Main Classes and Functions:
- - RBM: An abstract class that provides the basic structure and methods for RBMs.
- - BBRBM: A concrete implementation of the Bernoulli-Bernoulli RBM.
- - PBRBM: A concrete implementation of the Potts-Bernoulli RBM.
- - torchrbm.sampling: Submodule for sampling methods.
- - torchrbm.training: Submodule for training algorithms.
+ - `RBM`: An abstract class that provides the basic structure and methods for RBMs.
+ - `BBRBM`: A concrete implementation of the Bernoulli-Bernoulli RBM.
+ - `PBRBM`: A concrete implementation of the Potts-Bernoulli RBM.
+ - `rbms.sampling`: Submodule for sampling methods.
+ - `rbms.training`: Submodule for training algorithms.
 
 ## Basic Example
 
-(We will add a basic example here later.)
-Examples and Tutorials
-
-(We will add specific examples and tutorials here later.)
+Train a RBM on MNIST-01 with PCD-100 for 10 000 steps, using 200 hidden nodes and 2000 permanent chains:
+```bash
+rbms train  -d ./data/MNIST.h5 --subset_labels 0 1 --num_hiddens 200 --gibbs_steps 100 --num_chains 2000 --num_updates 10000 --filename ./RBM_MNIST01.h5
+```
 ## Contributing
 
 We welcome contributions to the development of TorchRBM. Here's how you can contribute:
@@ -57,4 +57,4 @@ We welcome contributions to the development of TorchRBM. Here's how you can cont
 If you encounter any issues, please open an issue on the main repository.
 
 ## License
-TorchRBM is released under the MIT License.
+`rbms` is released under the MIT License.
