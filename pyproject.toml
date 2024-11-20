@@ -38,8 +38,7 @@ classifiers = [
 keywords = ["rbm", "Restricted Boltzmann Machine"]
 
 [project.scripts]
-train_rbm="rbms.scripts.train_rbm:main"
-pt_sampling="rbms.scripts.pt_sampling:main"
+rbms="rbms.scripts.entrypoint:main"
 
 [project.urls]
 Homepage = "https://github.com/DsysDML/rbms"
