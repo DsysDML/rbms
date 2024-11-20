@@ -46,7 +46,7 @@ print(f"Saved updates: {saved_updates}")
 # Now we will load the last saved model as well as the permanent chains during training
 # Only the configurations associated to the last saved model have been saved for the permanent chains.
 # We also get access to the hyperparameters of the RBM training as well as the time elapsed during the training.
-from rbms.bernoulli_bernoulli.utils import load_model
+from rbms.io import load_model
 
 params, permanent_chains, training_time, hyperparameters = load_model(
     filename=filename, index=saved_updates[-1], device=device, dtype=dtype
@@ -74,7 +74,7 @@ fig.show()
 # principal components of the dataset.
 from rbms.plot import plot_PCA
 
-proj_pc = permanent_chains.visible @ V_dataT.mT / num_visibles**0.5
+proj_pc = permanent_chains["visible"] @ V_dataT.mT / num_visibles**0.5
 
 plot_PCA(
     proj_data,
@@ -91,7 +91,7 @@ from rbms.sampling.gibbs import sample_state
 
 num_samples = 2000
 chains = params.init_chains(num_samples=num_samples)
-proj_gen_init = chains.visible @ V_dataT.mT / num_visibles**0.5
+proj_gen_init = chains["visible"] @ V_dataT.mT / num_visibles**0.5
 plot_PCA(
     proj_data,
     proj_gen_init.cpu().numpy(),
@@ -104,7 +104,7 @@ plt.tight_layout()
 n_steps = 100
 chains = sample_state(gibbs_steps=n_steps, chains=chains, params=params)
 
-proj_gen = chains.visible @ V_dataT.mT / num_visibles**0.5
+proj_gen = chains["visible"] @ V_dataT.mT / num_visibles**0.5
 plot_PCA(
     proj_data,
     proj_gen.cpu().numpy(),

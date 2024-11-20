@@ -25,7 +25,7 @@ jobs:
       
       - name: Get RBM for example
         run:
-          cd examples && wget https://nextcloud.lisn.upsaclay.fr/index.php/s/6w3S9tfHtk6q53A/download/RBM.zip
+          cd examples && wget https://github.com/nbereux/data_test/raw/refs/heads/main/RBM.zip
 
       - name: Extract binary data
         run:
