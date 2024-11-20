@@ -41,6 +41,11 @@ Train a RBM on MNIST-01 with PCD-100 for 10 000 steps, using 200 hidden nodes an
 ```bash
 rbms train  -d ./data/MNIST.h5 --subset_labels 0 1 --num_hiddens 200 --gibbs_steps 100 --num_chains 2000 --num_updates 10000 --filename ./RBM_MNIST01.h5
 ```
+
+## Documentation
+
+The documentation is available at [https://dsysdml.github.io/rbms/](https://dsysdml.github.io/rbms/)
+
 ## Contributing
 
 We welcome contributions to the development of TorchRBM. Here's how you can contribute:
