@@ -9,7 +9,9 @@ from rbms.utils import check_file_existence, get_saved_updates, load_params
 
 
 def create_parser():
-    parser = argparse.ArgumentParser("Parallel Tempering sampling on the provided model")
+    parser = argparse.ArgumentParser(
+        "Parallel Tempering sampling on the provided model"
+    )
     parser.add_argument("-i", "--filename", type=str, help="Model to use for sampling")
     parser.add_argument(
         "-o", "--out_file", type=str, help="Path to save the samples after generation"
@@ -104,3 +106,7 @@ def main():
         device=args["device"],
         dtype=args["dtype"],
     )
+
+
+if __name__ == "__main__":
+    main()

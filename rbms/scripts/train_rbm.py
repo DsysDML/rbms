@@ -67,3 +67,7 @@ def main():
         case "double":
             args["dtype"] = torch.float64
     train_rbm(args=args)
+
+
+if __name__ == "__main__":
+    main()

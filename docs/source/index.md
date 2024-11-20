@@ -1,6 +1,6 @@
  # Welcome to TorchRBM
 
-TorchRBM is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
+`rbms` is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
 
 ## Features
 
@@ -14,7 +14,7 @@ TorchRBM is a GPU-accelerated package designed to train and analyze Restricted B
 To install TorchRBM, you can use pip:
 
 ```bash
-pip install torchrbm
+pip install .
 ```
 
 ## What's New
