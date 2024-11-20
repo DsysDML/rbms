@@ -1,4 +1,4 @@
-[![codecov](https://codecov.io/gh/DsysDML/test_rbm_workflows/graph/badge.svg?token=QS0Q8BJO09)](https://codecov.io/gh/DsysDML/test_rbm_workflows) 
+[![codecov](https://codecov.io/gh/DsysDML/rbms/graph/badge.svg?token=HRWJLZRBDD)](https://codecov.io/gh/DsysDML/rbms)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 ![Static Badge](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-green)
 
