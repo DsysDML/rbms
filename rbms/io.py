@@ -38,7 +38,8 @@ def save_model(
         params = checkpoint.create_group("params")
         for n, p in named_params.items():
             params[n] = p.detach().cpu().numpy()
-
+            # This is for retrocompatibility purpose
+            checkpoint[n] = h5py.SoftLink(f"update_{num_updates}/params/{n}")
         # Save current random state
         checkpoint["torch_rng_state"] = torch.get_rng_state()
         checkpoint["numpy_rng_arg0"] = np.random.get_state()[0]
@@ -59,6 +60,8 @@ def save_model(
         flag = checkpoint.create_group("flags")
         for fl in flags:
             flag[fl] = True
+            # This is for retrocompatibility purpose
+            checkpoint[f"save_{fl}"] = True
 
 
 def load_params(
