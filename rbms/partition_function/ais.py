@@ -26,7 +26,7 @@ def update_weights_ais(
     Returns:
         Tuple[Tensor, dict[str, Tensor]]: A tuple containing the updated log weights and the updated chains.
     """
-    chains = sample_state(gibbs_steps=n_steps, chains=chains, params=curr_params)
+    chains = sample_state(gibbs_steps=n_steps, chains=chains, params=prev_params)
     energy_prev = prev_params.compute_energy_visibles(v=chains["visible"])
     energy_curr = curr_params.compute_energy_visibles(v=chains["visible"])
     log_weights += -energy_curr + energy_prev
