@@ -16,7 +16,7 @@ def load_dataset(
     use_weights: bool = False,
     train_size: float = 0.6,
     test_size: Optional[float] = None,
-    binarize: bool = True,
+    binarize: bool = False,
     alphabet="protein",
     seed: int = 19023741073419046239412739401234901,
     device: str = "cpu",
