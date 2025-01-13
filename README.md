@@ -55,7 +55,9 @@ Main Classes and Functions:
 
 Train a RBM on MNIST-01 with PCD-100 for 10 000 steps, using 200 hidden nodes and 2000 permanent chains:
 ```bash
-rbms train  -d ./data/MNIST.h5 --subset_labels 0 1 --num_hiddens 200 --gibbs_steps 100 --num_chains 2000 --num_updates 10000 --filename ./RBM_MNIST01.h5
+rbms train  -d ./data/MNIST.h5 --subset_labels 0 1 \
+--num_hiddens 200 --gibbs_steps 100 --num_chains 2000 \ 
+--num_updates 10000 --filename ./RBM_MNIST01.h5
 ```
 
 ## Documentation
