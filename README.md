@@ -16,11 +16,27 @@ Features:
 
 ## Installation
 
-To install TorchRBM, you can use pip:
-
+### PyPI
+`rbms` can be installed from PyPI:
 ```bash
-pip install .
+pip install rbms
 ```
+The last version on PyPI corresponds to the main branch of this repo. To update the installed package run
+```bash
+pip install rbms --upgrade
+```
+
+### Github
+If you want a more up-to-date version or wish to contribute, you can install the package directly from this repository:
+```bash
+git clone git@github.com:DsysDML/rbms.git
+cd rbms && pip install -e .
+```
+If you want to update the package run 
+```bash
+git pull
+```
+from inside the cloned repo.
 
 ## Dependencies
 
