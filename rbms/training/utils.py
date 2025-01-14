@@ -25,7 +25,7 @@ def setup_training(
     num_updates = updates[-1]
     if args["num_updates"] <= num_updates:
         raise RuntimeError(
-            f"The parameter /'num_updates/' ({args['num_updates']}) must be greater than the previous number of epochs ({num_updates})."
+            f"The parameter /'num_updates/' ({args['num_updates']}) must be greater than the previous number of updates ({num_updates})."
         )
 
     params, parallel_chains, elapsed_time, hyperparameters = load_model(
@@ -154,6 +154,8 @@ def get_checkpoints(num_updates: int, n_save: int, spacing: str = "exp") -> np.n
         case "linear":
             checkpoints = np.linspace(1, num_updates, n_save).astype(np.int32)
         case _:
-            raise ValueError(f"spacing should be one of ('exp', 'linear'), got {spacing}")
+            raise ValueError(
+                f"spacing should be one of ('exp', 'linear'), got {spacing}"
+            )
     checkpoints = np.unique(np.append(checkpoints, num_updates))
     return checkpoints
