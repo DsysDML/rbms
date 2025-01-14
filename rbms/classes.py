@@ -24,7 +24,9 @@ class RBM(ABC):
         ...
 
     @abstractmethod
-    def sample_visibles(self, chains: dict[str, Tensor], beta: float = 1.0):
+    def sample_visibles(
+        self, chains: dict[str, Tensor], beta: float = 1.0
+    ) -> dict[str, Tensor]:
         """Sample the visible layer conditionally to the hidden one.
 
         Args:
@@ -32,20 +34,22 @@ class RBM(ABC):
             beta (float, optional): The inverse temperature. Defaults to 1.0.
 
         Returns:
-            Chain: The updated chains with sampled hidden states.
+            dict[str, Tensor]: The updated chains with sampled hidden states.
         """
         ...
 
     @abstractmethod
-    def sample_hiddens(self, chains: dict[str, Tensor], beta: float = 1.0):
+    def sample_hiddens(
+        self, chains: dict[str, Tensor], beta: float = 1.0
+    ) -> dict[str, Tensor]:
         """Sample the hidden layer conditionally to the visible one.
 
         Args:
-            chains (Chain): The parallel chains used for sampling.
+            chains (dict[str, Tensor]): The parallel chains used for sampling.
             beta (float, optional): The inverse temperature. Defaults to 1.0.
 
         Returns:
-            Chain: The updated chains with sampled hidden states.
+            dict[str, Tensor]: The updated chains with sampled hidden states.
         """
         ...
 
