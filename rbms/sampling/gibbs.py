@@ -17,7 +17,10 @@ def sample_state(
     Returns:
         dict[str, Tensor]: The updated chains after performing the Gibbs steps.
     """
-    new_chains = {"visible": chains["visible"].clone()}
+    new_chains = {
+        "visible": chains["visible"].clone(),
+        "weights": chains["weights"].clone(),
+    }
     for _ in range(gibbs_steps):
         new_chains = params.sample_hiddens(chains=new_chains, beta=beta)
         new_chains = params.sample_visibles(chains=new_chains, beta=beta)
