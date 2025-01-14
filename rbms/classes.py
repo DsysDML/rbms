@@ -102,7 +102,7 @@ class RBM(ABC):
             start_v (Tensor, optional): The initial visible states. Defaults to None.
 
         Returns:
-            Chain: The initialized Markov chain.
+            dict[str, Tensor]: The initialized Markov chain.
 
         Notes:
             - If start_v is specified, its number of samples will override the num_samples argument.
@@ -116,8 +116,8 @@ class RBM(ABC):
         """Compute the gradient for each of the parameters and attach it.
 
         Args:
-            data (Chain): The data state.
-            chains (Chain): The parallel chains used for gradient computation.
+            data (dict[str, Tensor]): The data state.
+            chains (dict[str, Tensor]): The parallel chains used for gradient computation.
             centered (bool, optional): Whether to use centered gradients. Defaults to True.
         """
         ...
