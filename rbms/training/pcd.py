@@ -112,6 +112,9 @@ def train(
 
     optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
 
+    for k, v in args.items():
+        print(f"{k} : {v}")
+
     # Continue the training
     with torch.no_grad():
         for idx in range(num_updates + 1, args["num_updates"] + 1):
