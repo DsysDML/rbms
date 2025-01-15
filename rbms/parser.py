@@ -56,7 +56,6 @@ def add_args_saves(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default=0.7,
         help="(Defaults to 0.75). Minimum PTT acceptance to save configurations for ll file.",
     )
-
     save_args.add_argument(
         "--spacing",
         type=str,
@@ -66,6 +65,12 @@ def add_args_saves(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     )
     save_args.add_argument(
         "--log", default=False, action="store_true", help="Log metrics during training."
+    )
+    save_args.add_argument(
+        "--overwrite",
+        default=True,
+        action="store_true",
+        help="(Defaults to False). Force overwrite of save file if it already exists without asking for confirmation.",
     )
     return parser
 
