@@ -14,7 +14,7 @@ from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.sampling.gibbs import sample_state
 from rbms.training.utils import create_machine, setup_training
-from rbms.utils import log_to_csv
+from rbms.utils import check_file_existence, log_to_csv
 
 
 def fit_batch_pcd(
@@ -74,6 +74,8 @@ def train(
         checkpoints (np.ndarray): An array of checkpoints for saving model states.
     """
     filename = args["filename"]
+    if not (args["overwrite"]):
+        check_file_existence(filename)
 
     num_visibles = dataset.get_num_visibles()
 
@@ -111,6 +113,9 @@ def train(
     ) = setup_training(args)
 
     optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
+
+    for k, v in args.items():
+        print(f"{k} : {v}")
 
     # Continue the training
     with torch.no_grad():
