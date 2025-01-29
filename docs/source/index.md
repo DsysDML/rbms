@@ -1,4 +1,4 @@
- # Welcome to TorchRBM
+ # Welcome to Restricted Boltzmann Machines (RBM) in PyTorch 
 
 `rbms` is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
 
@@ -11,13 +11,17 @@
 
 ## Installation
 
-To install TorchRBM, you can use pip:
+To install `rbms`, you can use pip:
 
 ```bash
-pip install .
+pip install rbms
 ```
 
 ## What's New
+
+### Version 0.1.1
+ - Fix an error biasing the estimation of the LL using Annealed Importance Sampling
+
 ### Version 0.1
 
 - Initial release of TorchRBM.
