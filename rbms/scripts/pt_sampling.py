@@ -91,6 +91,8 @@ def main():
     match args["dtype"]:
         case "int":
             args["dtype"] = torch.int64
+        case "half":
+            args["dtype"] = torch.float16
         case "float":
             args["dtype"] = torch.float32
         case "double":

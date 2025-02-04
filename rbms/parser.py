@@ -17,7 +17,7 @@ def add_args_pytorch(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     pytorch_args.add_argument(
         "--dtype",
         type=str,
-        choices=["int", "float", "double"],
+        choices=["int", "half", "float", "double"],
         default="float",
         help="(Defaults to float). The dtype to use in PyTorch.",
     )
