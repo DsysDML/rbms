@@ -63,6 +63,7 @@ def train(
     args: dict,
     dtype: torch.dtype,
     checkpoints: np.ndarray,
+    map_model: dict[str, RBM] = map_model,
 ) -> None:
     """Train the Bernoulli-Bernoulli RBM model.
 
