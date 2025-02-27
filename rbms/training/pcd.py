@@ -23,6 +23,7 @@ def fit_batch_pcd(
     params: RBM,
     gibbs_steps: int,
     beta: float,
+    centered: bool = True,
 ) -> Tuple[dict[str, Tensor], dict]:
     """Sample the RBM and compute the gradient.
 
@@ -50,7 +51,7 @@ def fit_batch_pcd(
         params=params,
         beta=beta,
     )
-    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=True)
+    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=centered)
     logs = {}
     return parallel_chains, logs
 
@@ -62,6 +63,7 @@ def train(
     args: dict,
     dtype: torch.dtype,
     checkpoints: np.ndarray,
+    map_model: dict[str, RBM] = map_model,
 ) -> None:
     """Train the Bernoulli-Bernoulli RBM model.
 
@@ -110,7 +112,7 @@ def train(
         elapsed_time,
         log_filename,
         pbar,
-    ) = setup_training(args)
+    ) = setup_training(args, map_model=map_model)
 
     optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
 

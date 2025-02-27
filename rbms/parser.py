@@ -1,4 +1,7 @@
 import argparse
+from typing import Any
+
+import torch
 
 
 def add_args_pytorch(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -150,3 +153,16 @@ def remove_argument(parser, arg):
             if (opts and opts[0] == arg) or group_action.dest == arg:
                 action._group_actions.remove(group_action)
                 return
+
+
+def match_args_dtype(args: dict[str, Any]) -> dict[str, Any]:
+    match args["dtype"]:
+        case "int":
+            args["dtype"] = torch.int64
+        case "half":
+            args["dtype"] = torch.float16
+        case "float":
+            args["dtype"] = torch.float32
+        case "double":
+            args["dtype"] = torch.float64
+    return args

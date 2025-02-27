@@ -4,10 +4,12 @@ import torch
 
 from rbms.dataset import load_dataset
 from rbms.dataset.parser import add_args_dataset
+from rbms.map_model import map_model
 from rbms.parser import (
     add_args_pytorch,
     add_args_rbm,
     add_args_saves,
+    match_args_dtype,
     remove_argument,
 )
 from rbms.training.pcd import train
@@ -51,6 +53,7 @@ def train_rbm(args: dict):
         args=args,
         dtype=args["dtype"],
         checkpoints=checkpoints,
+        map_model=map_model,
     )
 
 
@@ -59,15 +62,7 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     args = vars(args)
-    match args["dtype"]:
-        case "int":
-            args["dtype"] = torch.int64
-        case "half":
-            args["dtype"] = torch.float16
-        case "float":
-            args["dtype"] = torch.float32
-        case "double":
-            args["dtype"] = torch.float64
+    args = match_args_dtype(args)
     train_rbm(args=args)
 
 
