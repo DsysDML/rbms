@@ -9,6 +9,7 @@ from rbms.parser import (
     add_args_pytorch,
     add_args_rbm,
     add_args_saves,
+    match_args_dtype,
     remove_argument,
 )
 from rbms.training.pcd import train
@@ -61,15 +62,7 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     args = vars(args)
-    match args["dtype"]:
-        case "int":
-            args["dtype"] = torch.int64
-        case "half":
-            args["dtype"] = torch.float16
-        case "float":
-            args["dtype"] = torch.float32
-        case "double":
-            args["dtype"] = torch.float64
+    args = match_args_dtype(args)
     train_rbm(args=args)
 
 
