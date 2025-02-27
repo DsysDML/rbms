@@ -23,6 +23,7 @@ def fit_batch_pcd(
     params: RBM,
     gibbs_steps: int,
     beta: float,
+    centered: bool = True,
 ) -> Tuple[dict[str, Tensor], dict]:
     """Sample the RBM and compute the gradient.
 
@@ -50,7 +51,7 @@ def fit_batch_pcd(
         params=params,
         beta=beta,
     )
-    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=True)
+    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=centered)
     logs = {}
     return parallel_chains, logs
 
