@@ -112,7 +112,7 @@ def train(
         elapsed_time,
         log_filename,
         pbar,
-    ) = setup_training(args)
+    ) = setup_training(args, map_model=map_model)
 
     optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
 

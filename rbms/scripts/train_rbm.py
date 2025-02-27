@@ -4,6 +4,7 @@ import torch
 
 from rbms.dataset import load_dataset
 from rbms.dataset.parser import add_args_dataset
+from rbms.map_model import map_model
 from rbms.parser import (
     add_args_pytorch,
     add_args_rbm,
@@ -51,6 +52,7 @@ def train_rbm(args: dict):
         args=args,
         dtype=args["dtype"],
         checkpoints=checkpoints,
+        map_model=map_model,
     )
 
 
