@@ -147,6 +147,7 @@ def sample_args(tmp_path):
         "num_updates": 3,
         "filename": filename,
         "beta": 1.0,
+        "overwrite": True,
     }
 
 
