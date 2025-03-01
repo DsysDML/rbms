@@ -1,11 +1,13 @@
 import argparse
 
 import h5py
-import torch
 
-from rbms.parser import add_args_pytorch
+from rbms.classes import RBM
+from rbms.io import load_params
+from rbms.map_model import map_model
+from rbms.parser import add_args_pytorch, match_args_dtype
 from rbms.sampling.pt import pt_sampling
-from rbms.utils import check_file_existence, get_saved_updates, load_params
+from rbms.utils import check_file_existence, get_saved_updates
 
 
 def create_parser():
@@ -61,11 +63,14 @@ def run_pt(
     save_index: bool,
     device,
     dtype,
+    map_model: dict[str, RBM] = map_model,
 ):
     check_file_existence(out_file)
 
     age = get_saved_updates(filename)[-1]
-    params = load_params(filename=filename, index=age, device=device, dtype=dtype)
+    params = load_params(
+        filename=filename, index=age, device=device, dtype=dtype, map_model=map_model
+    )
 
     list_chains, inverse_temperatures, index = pt_sampling(
         it_mcmc=it_mcmc,
@@ -88,13 +93,7 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     args = vars(args)
-    match args["dtype"]:
-        case "int":
-            args["dtype"] = torch.int64
-        case "float":
-            args["dtype"] = torch.float32
-        case "double":
-            args["dtype"] = torch.float64
+    args = match_args_dtype(args)
     run_pt(
         filename=args["filename"],
         out_file=args["out_file"],
@@ -105,6 +104,7 @@ def main():
         save_index=args["index"],
         device=args["device"],
         dtype=args["dtype"],
+        map_model=map_model,
     )
 
 

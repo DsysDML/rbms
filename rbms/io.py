@@ -39,7 +39,7 @@ def save_model(
         for n, p in named_params.items():
             params[n] = p.detach().cpu().numpy()
             # This is for retrocompatibility purpose
-            checkpoint[n] = h5py.SoftLink(f"update_{num_updates}/params/{n}")
+            checkpoint[n] = params[n]
         # Save current random state
         checkpoint["torch_rng_state"] = torch.get_rng_state()
         checkpoint["numpy_rng_arg0"] = np.random.get_state()[0]
@@ -65,7 +65,11 @@ def save_model(
 
 
 def load_params(
-    filename: str, index: int, device: torch.device, dtype: torch.dtype
+    filename: str,
+    index: int,
+    device: torch.device,
+    dtype: torch.dtype,
+    map_model: dict[str, RBM] = map_model,
 ) -> RBM:
     """Load the parameters of the RBM from the specified archive at the given update index.
 
@@ -95,6 +99,7 @@ def load_model(
     device: torch.device,
     dtype: torch.dtype,
     restore: bool = False,
+    map_model: dict[str, RBM] = map_model,
 ) -> Tuple[RBM, dict[str, Tensor], float, dict]:
     """Load a RBM from a h5 archive.
 
@@ -126,7 +131,9 @@ def load_model(
             f["hyperparameters"]["learning_rate"][()]
         )
 
-    params = load_params(filename=filename, index=index, device=device, dtype=dtype)
+    params = load_params(
+        filename=filename, index=index, device=device, dtype=dtype, map_model=map_model
+    )
     perm_chains = params.init_chains(visible.shape[0], start_v=visible)
 
     if restore:

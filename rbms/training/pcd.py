@@ -14,7 +14,7 @@ from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.sampling.gibbs import sample_state
 from rbms.training.utils import create_machine, setup_training
-from rbms.utils import log_to_csv
+from rbms.utils import check_file_existence, log_to_csv
 
 
 def fit_batch_pcd(
@@ -23,6 +23,7 @@ def fit_batch_pcd(
     params: RBM,
     gibbs_steps: int,
     beta: float,
+    centered: bool = True,
 ) -> Tuple[dict[str, Tensor], dict]:
     """Sample the RBM and compute the gradient.
 
@@ -50,7 +51,7 @@ def fit_batch_pcd(
         params=params,
         beta=beta,
     )
-    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=True)
+    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=centered)
     logs = {}
     return parallel_chains, logs
 
@@ -62,6 +63,7 @@ def train(
     args: dict,
     dtype: torch.dtype,
     checkpoints: np.ndarray,
+    map_model: dict[str, RBM] = map_model,
 ) -> None:
     """Train the Bernoulli-Bernoulli RBM model.
 
@@ -74,6 +76,8 @@ def train(
         checkpoints (np.ndarray): An array of checkpoints for saving model states.
     """
     filename = args["filename"]
+    if not (args["overwrite"]):
+        check_file_existence(filename)
 
     num_visibles = dataset.get_num_visibles()
 
@@ -108,9 +112,12 @@ def train(
         elapsed_time,
         log_filename,
         pbar,
-    ) = setup_training(args)
+    ) = setup_training(args, map_model=map_model)
 
     optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
+
+    for k, v in args.items():
+        print(f"{k} : {v}")
 
     # Continue the training
     with torch.no_grad():

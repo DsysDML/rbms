@@ -254,8 +254,12 @@ def swap_chains(
         idx_vis_mean = idx_vis
     idx_hid = idx.unsqueeze(1).repeat(1, chain_1["hidden"].shape[1])
 
-    new_chain_1["visible"] = torch.where(idx_vis, chain_2["visible"], chain_1["visible"])
-    new_chain_2["visible"] = torch.where(idx_vis, chain_1["visible"], chain_2["visible"])
+    new_chain_1["visible"] = torch.where(
+        idx_vis, chain_2["visible"], chain_1["visible"]
+    )
+    new_chain_2["visible"] = torch.where(
+        idx_vis, chain_1["visible"], chain_2["visible"]
+    )
 
     new_chain_1["visible_mag"] = torch.where(
         idx_vis_mean, chain_2["visible_mag"], chain_1["visible_mag"]

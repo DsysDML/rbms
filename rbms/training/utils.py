@@ -11,12 +11,14 @@ from tqdm import tqdm
 from rbms.classes import RBM
 from rbms.const import LOG_FILE_HEADER
 from rbms.io import load_model, save_model
+from rbms.map_model import map_model
 from rbms.sampling.gibbs import sample_state
 from rbms.utils import get_saved_updates
 
 
 def setup_training(
     args: dict,
+    map_model: dict[str, RBM] = map_model,
 ) -> Tuple[
     RBM, dict[str, Tensor], dict[str, Any], float, int, float, float, pathlib.Path, tqdm
 ]:
@@ -34,6 +36,7 @@ def setup_training(
         device=args["device"],
         dtype=args["dtype"],
         restore=True,
+        map_model=map_model,
     )
 
     # Hyperparameters
@@ -154,6 +157,8 @@ def get_checkpoints(num_updates: int, n_save: int, spacing: str = "exp") -> np.n
         case "linear":
             checkpoints = np.linspace(1, num_updates, n_save).astype(np.int32)
         case _:
-            raise ValueError(f"spacing should be one of ('exp', 'linear'), got {spacing}")
+            raise ValueError(
+                f"spacing should be one of ('exp', 'linear'), got {spacing}"
+            )
     checkpoints = np.unique(np.append(checkpoints, num_updates))
     return checkpoints

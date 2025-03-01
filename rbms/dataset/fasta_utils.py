@@ -6,9 +6,9 @@ import torch
 
 ArrayLike = Tuple[np.ndarray, List]
 
-TOKENS_PROTEIN = "ACDEFGHIKLMNPQRSTVWY-"
-TOKENS_RNA = "ACGU-"
-TOKENS_DNA = "ACGT-"
+TOKENS_PROTEIN = "-ACDEFGHIKLMNPQRSTVWY"
+TOKENS_RNA = "-ACGU"
+TOKENS_DNA = "-ACGT"
 
 
 def get_tokens(alphabet: str):

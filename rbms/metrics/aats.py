@@ -25,8 +25,7 @@ def compute_aats(
             AAsyn (float): AATS score for the second sample set.
     """
     # Concatenate data
-    full_data = torch.cat((sample_data[:n_sample], sample_gen[:n_sample]), 1)
-
+    full_data = torch.cat((sample_data[:n_sample], sample_gen[:n_sample]), 0)
     # Compute distance matrix
     match dist:
         case "euclid":
