@@ -7,8 +7,8 @@ from torch import Tensor
 from rbms.dataset.dataset_class import RBMDataset
 
 
-class RBM(ABC):
-    """An abstract class representing the parameters of a RBM."""
+class EBM(ABC):
+    """An abstract class representing the parameters of an Energy-Based Model."""
 
     @abstractmethod
     def __init__(self): ...
@@ -39,34 +39,6 @@ class RBM(ABC):
         ...
 
     @abstractmethod
-    def sample_hiddens(
-        self, chains: dict[str, Tensor], beta: float = 1.0
-    ) -> dict[str, Tensor]:
-        """Sample the hidden layer conditionally to the visible one.
-
-        Args:
-            chains (dict[str, Tensor]): The parallel chains used for sampling.
-            beta (float, optional): The inverse temperature. Defaults to 1.0.
-
-        Returns:
-            dict[str, Tensor]: The updated chains with sampled hidden states.
-        """
-        ...
-
-    @abstractmethod
-    def compute_energy(self, v: Tensor, h: Tensor) -> Tensor:
-        """Compute the energy of the RBM on the visible and hidden variables.
-
-        Args:
-            v (Tensor): Visible configurations.
-            h (Tensor): Hidden configurations.
-
-        Returns:
-            Tensor: The computed energy.
-        """
-        ...
-
-    @abstractmethod
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
         """Returns the marginalized energy of the model computed on the visible configurations
 
@@ -75,15 +47,6 @@ class RBM(ABC):
 
         Returns:
             Tensor: The computed energy.
-        """
-        ...
-
-    @abstractmethod
-    def compute_energy_hiddens(self, h: Tensor) -> Tensor:
-        """Returns the marginalized energy of the model computed on hidden configurations
-
-        Args:
-            h (Tensor): The computed energy
         """
         ...
 
@@ -206,11 +169,6 @@ class RBM(ABC):
         ...
 
     @abstractmethod
-    def num_hiddens(self) -> int:
-        """Number of hidden units"""
-        ...
-
-    @abstractmethod
     def ref_log_z(self) -> float:
         """Reference log partition function with weights set to 0 (except for the visible bias)."""
         ...
@@ -218,3 +176,49 @@ class RBM(ABC):
     @abstractmethod
     def independent_model(self) -> Self:
         """Independent model where only local fields are preserved."""
+
+
+class RBM(EBM):
+    """An abstract class representing the parameters of a RBM."""
+
+    @abstractmethod
+    def sample_hiddens(
+        self, chains: dict[str, Tensor], beta: float = 1.0
+    ) -> dict[str, Tensor]:
+        """Sample the hidden layer conditionally to the visible one.
+
+        Args:
+            chains (dict[str, Tensor]): The parallel chains used for sampling.
+            beta (float, optional): The inverse temperature. Defaults to 1.0.
+
+        Returns:
+            dict[str, Tensor]: The updated chains with sampled hidden states.
+        """
+        ...
+
+    @abstractmethod
+    def compute_energy(self, v: Tensor, h: Tensor) -> Tensor:
+        """Compute the energy of the RBM on the visible and hidden variables.
+
+        Args:
+            v (Tensor): Visible configurations.
+            h (Tensor): Hidden configurations.
+
+        Returns:
+            Tensor: The computed energy.
+        """
+        ...
+
+    @abstractmethod
+    def compute_energy_hiddens(self, h: Tensor) -> Tensor:
+        """Returns the marginalized energy of the model computed on hidden configurations
+
+        Args:
+            h (Tensor): The computed energy
+        """
+        ...
+
+    @abstractmethod
+    def num_hiddens(self) -> int:
+        """Number of hidden units"""
+        ...
