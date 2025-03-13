@@ -5,6 +5,7 @@ import torch
 from torch import Tensor
 
 from rbms.dataset.dataset_class import RBMDataset
+from rbms.sampling.gibbs import sample_state
 
 
 class EBM(ABC):
@@ -181,13 +182,14 @@ class EBM(ABC):
 
     @abstractmethod
     def sample_state(
-        self, chains: dict[str, Tensor], n_steps: int
+        self, chains: dict[str, Tensor], n_steps: int, beta: float = 1.0
     ) -> dict[str, Tensor]:
         """Sample the model for n_steps
 
         Args:
             chains (): The starting position of the chains.
             n_steps (int): The number of sampling steps.
+            beta (float, optional): The inverse temperature. Defaults to 1.0
 
         Returns:
             dict[str, Tensor]: The updated chains after n_steps of sampling.
@@ -239,3 +241,6 @@ class RBM(EBM):
     def num_hiddens(self) -> int:
         """Number of hidden units"""
         ...
+
+    def sample_state(self, chains, n_steps, beta=1.0):
+        return sample_state(gibbs_steps=n_steps, chains=chains, params=self, beta=beta)
