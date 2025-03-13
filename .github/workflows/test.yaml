@@ -1,11 +1,10 @@
 name: Run tests and upload coverage
 
-on:
-  push
+on: push
 
 jobs:
   test:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/develop'
     name: Run tests on previous python versions
     runs-on: ubuntu-latest
     strategy:
@@ -29,16 +28,13 @@ jobs:
         run: pip install .
 
       - name: Get data for binary use case
-        run:
-          wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.zip
+        run: wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.zip
 
       - name: Get data for potts use case
-        run:
-          wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.fasta
+        run: wget https://github.com/nbereux/data_test/raw/refs/heads/main/dummy.fasta
 
       - name: Extract binary data
-        run:
-          unzip dummy.zip
+        run: unzip dummy.zip
 
       - name: Run tests
         run: pytest tests/
