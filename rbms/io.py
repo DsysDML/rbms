@@ -5,14 +5,14 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 from rbms.map_model import map_model
 from rbms.utils import restore_rng_state
 
 
 def save_model(
     filename: str,
-    params: RBM,
+    params: EBM,
     chains: dict[str, Tensor],
     num_updates: int,
     time: float,
@@ -35,11 +35,11 @@ def save_model(
         checkpoint = f.create_group(f"update_{num_updates}")
 
         # Save the parameters of the model
-        params = checkpoint.create_group("params")
+        params_ckpt = checkpoint.create_group("params")
         for n, p in named_params.items():
-            params[n] = p.detach().cpu().numpy()
+            params_ckpt[n] = p.detach().cpu().numpy()
             # This is for retrocompatibility purpose
-            checkpoint[n] = params[n]
+            checkpoint[n] = params_ckpt[n]
         # Save current random state
         checkpoint["torch_rng_state"] = torch.get_rng_state()
         checkpoint["numpy_rng_arg0"] = np.random.get_state()[0]
@@ -69,8 +69,8 @@ def load_params(
     index: int,
     device: torch.device,
     dtype: torch.dtype,
-    map_model: dict[str, RBM] = map_model,
-) -> RBM:
+    map_model: dict[str, EBM] = map_model,
+) -> EBM:
     """Load the parameters of the RBM from the specified archive at the given update index.
 
     Args:
@@ -99,8 +99,8 @@ def load_model(
     device: torch.device,
     dtype: torch.dtype,
     restore: bool = False,
-    map_model: dict[str, RBM] = map_model,
-) -> Tuple[RBM, dict[str, Tensor], float, dict]:
+    map_model: dict[str, EBM] = map_model,
+) -> Tuple[EBM, dict[str, Tensor], float, dict]:
     """Load a RBM from a h5 archive.
 
     Args:
@@ -112,7 +112,7 @@ def load_model(
             Useful for restoring training. Defaults to False.
 
     Returns:
-        Tuple[BBRBM, dict[str, Tensor], float, dict]: A tuple containing the loaded RBM parameters,
+        Tuple[EBM, dict[str, Tensor], float, dict]: A tuple containing the loaded RBM parameters,
         the parallel chains, the time taken, and the model's hyperparameters.
     """
     last_file_key = f"update_{index}"
