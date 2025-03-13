@@ -1,4 +1,4 @@
-# Welcome to `rbms`
+# Welcome to Restricted Boltzmann Machines (RBM) in PyTorch
 
 `rbms` is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
 

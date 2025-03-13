@@ -31,9 +31,8 @@ with h5py.File("my_dataset.h5", "w") as f:
 ## Command line arguments
 
 When running a script requiring a dataset, you have several flags:
- - `-d` or `--data` The path to the dataset. It can either be the full or relative path to the .h5/fasta file (`-d ./data/dataset.h5`) or, if it's an included dataset (check ), you can just use the key of the dataset (`-d HGD` will load the Human Genome Dataset`).
- - `--variable_type` Can be one of `Bernoulli`, `Ising`, `Continuous`or `Potts`.
- - `--subset_labels` For datasets with labels specified, it allows to select only a subset of the dataset matching the specified labels. For example setting `-d MNIST --subset_labels 0 1` will load the $0$ and $1$ digits of the MNIST dataset (what we refer to as `MNIST-01` dataset)
+ - `-d` or `--data` The path to the dataset (e.g.`-d ./data/dataset.h5`).
+ - `--subset_labels` For datasets with labels specified, it allows to select only a subset of the dataset matching the specified labels. For example setting `-d MNIST --subset_labels 0 1` will load the $0$ and $1$ digits of the MNIST dataset (what we refer to as `MNIST-01` dataset). If specified in a dataset without labels, the full dataset is selected.
  - `--train_size` The proportion of the dataset to use as training dataset. It can go from $0$ to $1$ and the default is $0.6$.
  - `--test_size` Same as above, but for the test dataset. Defaults to $1-$ train size
  - `--use_weights` Compute the weights for protein sequences.
