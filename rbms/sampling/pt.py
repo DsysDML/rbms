@@ -4,14 +4,14 @@ import h5py
 import torch
 from torch import Tensor
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 from rbms.sampling.gibbs import sample_state
 from rbms.utils import swap_chains
 
 
 def swap_configurations(
     chains: List[dict[str, Tensor]],
-    params: RBM,
+    params: EBM,
     inverse_temperatures: Tensor,
     index: Optional[List[Tensor]] = None,
 ):
@@ -30,7 +30,7 @@ def swap_configurations(
             - Tensor of acceptance rates for each swap.
             - Updated list of indices if provided, otherwise None.
     """
-    n_chains, L = chains[0].visible.shape
+    n_chains, L = chains[0]["visible"].shape
     acc_rate = torch.zeros(inverse_temperatures.shape[0] - 1)
     for idx in range(inverse_temperatures.shape[0] - 1):
         energy_0 = params.compute_energy(v=chains[idx].visible, h=chains[idx].hidden)
@@ -60,7 +60,7 @@ def swap_configurations(
     return chains, acc_rate, index
 
 
-def find_inverse_temperatures(target_acc_rate: float, params: RBM) -> Tensor:
+def find_inverse_temperatures(target_acc_rate: float, params: EBM) -> Tensor:
     """
     Finds a sequence of inverse temperatures for a given target acceptance rate.
 
@@ -78,22 +78,19 @@ def find_inverse_temperatures(target_acc_rate: float, params: RBM) -> Tensor:
     """
     inverse_temperatures = torch.linspace(0, 1, 1000)
     selected_temperatures = [0]
-    num_visibles, num_hidden = params.weight_matrix.shape
     n_chains = 100
     prev_chains = params.init_chains(num_samples=n_chains)
     new_chains = params.init_chains(num_samples=n_chains)
 
     for i in range(len(inverse_temperatures) - 1):
-        prev_chains = sample_state(
-            gibbs_steps=10,
+        prev_chains = params.sample_state(
+            n_steps=10,
             chains=prev_chains,
-            params=params,
             beta=selected_temperatures[-1],
         )
-        new_chains = sample_state(
-            gibbs_steps=10,
+        new_chains = params.sample_state(
+            n_steps=10,
             chains=new_chains,
-            params=params,
             beta=inverse_temperatures[i],
         )
 
@@ -117,7 +114,7 @@ def pt_sampling(
     increment: int,
     target_acc_rate: float,
     num_chains: int,
-    params: RBM,
+    params: EBM,
     out_file: str,
     save_index: bool,
 ):
@@ -148,15 +145,16 @@ def pt_sampling(
         index = []
     for i in range(inverse_temperatures.shape[0]):
         for j in range(i, inverse_temperatures.shape[0]):
-            list_chains[j] = sample_state(
-                gibbs_steps=increment,
+            list_chains[j] = params.sample_state(
+                n_steps=increment,
                 chains=list_chains[j],
-                params=params,
                 beta=inverse_temperatures[i],
             )
         if save_index:
             index.append(
-                torch.ones(list_chains[i].visible.shape[0], device=list_chains[i].device)
+                torch.ones(
+                    list_chains[i].visible.shape[0], device=list_chains[i].device
+                )
                 * i
             )
 
@@ -165,10 +163,9 @@ def pt_sampling(
         counts += increment
         # Iterate chains
         for i in range(len(list_chains)):
-            list_chains[i] = sample_state(
-                gibbs_steps=increment,
+            list_chains[i] = params.sample_state(
+                n_steps=increment,
                 chains=list_chains[i],
-                params=params,
                 beta=inverse_temperatures[i],
             )
 
