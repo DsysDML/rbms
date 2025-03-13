@@ -55,6 +55,7 @@ def test_use_case_train_bbrbm():
         "n_save": 50,
         "spacing": "exp",
         "binarize": False,
+        "overwrite": True,
     }
     train_rbm(args)
 

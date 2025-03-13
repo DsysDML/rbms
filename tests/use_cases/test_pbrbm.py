@@ -55,6 +55,7 @@ def test_use_case_train_pbrbm_no_weights():
         "n_save": 50,
         "spacing": "exp",
         "binarize": False,
+        "overwrite": True,
     }
     train_rbm(args)
 
@@ -125,6 +126,7 @@ def test_use_case_train_pbrbm_weights():
         "n_save": 50,
         "spacing": "exp",
         "binarize": False,
+        "overwrite": True,
     }
     train_rbm(args)
 
