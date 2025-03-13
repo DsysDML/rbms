@@ -45,7 +45,7 @@ def fit_batch_pcd(
     )
     # sample permanent chains
     parallel_chains = params.sample_state(
-        chains=parallel_chains, gibbs_steps=gibbs_steps, beta=beta
+        chains=parallel_chains, n_steps=gibbs_steps, beta=beta
     )
     params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=centered)
     logs = {}
