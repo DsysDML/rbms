@@ -10,6 +10,8 @@ from rbms.dataset.dataset_class import RBMDataset
 class EBM(ABC):
     """An abstract class representing the parameters of an Energy-Based Model."""
 
+    device: torch.device
+
     @abstractmethod
     def __init__(self): ...
 
@@ -176,6 +178,21 @@ class EBM(ABC):
     @abstractmethod
     def independent_model(self) -> Self:
         """Independent model where only local fields are preserved."""
+
+    @abstractmethod
+    def sample_state(
+        self, chains: dict[str, Tensor], n_steps: int
+    ) -> dict[str, Tensor]:
+        """Sample the model for n_steps
+
+        Args:
+            chains (): The starting position of the chains.
+            n_steps (int): The number of sampling steps.
+
+        Returns:
+            dict[str, Tensor]: The updated chains after n_steps of sampling.
+        """
+        ...
 
 
 class RBM(EBM):
