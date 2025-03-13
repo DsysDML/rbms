@@ -4,7 +4,6 @@ on: [push, pull_request, workflow_dispatch]
 
 jobs:
   test:
-    if: github.ref == 'refs/heads/develop'
     name: Run tests on previous python versions
     runs-on: ubuntu-latest
     strategy:
