@@ -6,13 +6,12 @@ import torch
 from torch import Tensor
 from torch.optim import SGD
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model
 from rbms.map_model import map_model
 from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
-from rbms.sampling.gibbs import sample_state
 from rbms.training.utils import create_machine, setup_training
 from rbms.utils import check_file_existence, log_to_csv
 
@@ -20,7 +19,7 @@ from rbms.utils import check_file_existence, log_to_csv
 def fit_batch_pcd(
     batch: Tuple[Tensor, Tensor],
     parallel_chains: dict[str, Tensor],
-    params: RBM,
+    params: EBM,
     gibbs_steps: int,
     beta: float,
     centered: bool = True,
@@ -45,11 +44,8 @@ def fit_batch_pcd(
         start_v=v_data,
     )
     # sample permanent chains
-    parallel_chains = sample_state(
-        gibbs_steps=gibbs_steps,
-        chains=parallel_chains,
-        params=params,
-        beta=beta,
+    parallel_chains = params.sample_state(
+        chains=parallel_chains, gibbs_steps=gibbs_steps, beta=beta
     )
     params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=centered)
     logs = {}
@@ -63,7 +59,7 @@ def train(
     args: dict,
     dtype: torch.dtype,
     checkpoints: np.ndarray,
-    map_model: dict[str, RBM] = map_model,
+    map_model: dict[str, EBM] = map_model,
 ) -> None:
     """Train the Bernoulli-Bernoulli RBM model.
 
