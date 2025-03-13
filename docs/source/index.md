@@ -16,7 +16,7 @@ To install `rbms`, you can use pip:
 pip install rbms
 ```
 
-## What's New
+## [What's New](whats_new.rst)
 
 ### Version 0.2
 
