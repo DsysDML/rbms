@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from rbms.dataset.dataset_class import RBMDataset
-from rbms.sampling.gibbs import sample_state
 
 
 class EBM(ABC):
@@ -243,4 +242,11 @@ class RBM(EBM):
         ...
 
     def sample_state(self, chains, n_steps, beta=1.0):
-        return sample_state(gibbs_steps=n_steps, chains=chains, params=self, beta=beta)
+        new_chains = {
+            "visible": chains["visible"].clone(),
+            "weights": chains["weights"].clone(),
+        }
+        for _ in range(n_steps):
+            new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
+            new_chains = self.sample_visibles(chains=new_chains, beta=beta)
+        return new_chains

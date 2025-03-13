@@ -1,10 +1,10 @@
 from torch import Tensor
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 
 
 def sample_state(
-    gibbs_steps: int, chains: dict[str, Tensor], params: RBM, beta: float = 1.0
+    gibbs_steps: int, chains: dict[str, Tensor], params: EBM, beta: float = 1.0
 ) -> dict[str, Tensor]:
     """Update the state of the Markov chain according to the parameters of the RBM.
 
@@ -17,11 +17,4 @@ def sample_state(
     Returns:
         dict[str, Tensor]: The updated chains after performing the Gibbs steps.
     """
-    new_chains = {
-        "visible": chains["visible"].clone(),
-        "weights": chains["weights"].clone(),
-    }
-    for _ in range(gibbs_steps):
-        new_chains = params.sample_hiddens(chains=new_chains, beta=beta)
-        new_chains = params.sample_visibles(chains=new_chains, beta=beta)
-    return new_chains
+    return params.sample_state(n_steps=gibbs_steps, chains=chains, beta=beta)
