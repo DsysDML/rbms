@@ -4,13 +4,12 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import RBM
-from rbms.sampling.gibbs import sample_state
+from rbms.classes import EBM
 
 
 def update_weights_ais(
-    prev_params: RBM,
-    curr_params: RBM,
+    prev_params: EBM,
+    curr_params: EBM,
     chains: dict[str, Tensor],
     log_weights: Tensor,
     n_steps: int = 1,
@@ -26,22 +25,24 @@ def update_weights_ais(
     Returns:
         Tuple[Tensor, dict[str, Tensor]]: A tuple containing the updated log weights and the updated chains.
     """
-    chains = sample_state(gibbs_steps=n_steps, chains=chains, params=prev_params)
+    chains = prev_params.sample_state(n_steps=n_steps, chains=chains)
     energy_prev = prev_params.compute_energy_visibles(v=chains["visible"])
     energy_curr = curr_params.compute_energy_visibles(v=chains["visible"])
     log_weights += -energy_curr + energy_prev
     return log_weights, chains
 
 
-def interpolate_rbm(
-    params_1: RBM, params_2: RBM, steps: Tensor
-) -> Generator[RBM, None, None]:
+def interpolate_ebm(
+    params_1: EBM, params_2: EBM, steps: Tensor
+) -> Generator[EBM, None, None]:
     """Interpolates between two RBMs"""
     for step in steps:
         yield params_1 * (1 - step) + params_2 * step
 
 
-def compute_partition_function_ais(num_chains: int, num_beta: int, params: RBM) -> float:
+def compute_partition_function_ais(
+    num_chains: int, num_beta: int, params: EBM
+) -> float:
     """Compute the log partition function using Annealed Importance Sampling with temperature.
 
     Args:
@@ -53,7 +54,7 @@ def compute_partition_function_ais(num_chains: int, num_beta: int, params: RBM) 
     Returns:
         float: The computed log partition function.
     """
-    device = params.weight_matrix.device
+    device = params.device
 
     all_betas = torch.linspace(start=0, end=1, steps=num_beta)
 
@@ -67,7 +68,7 @@ def compute_partition_function_ais(num_chains: int, num_beta: int, params: RBM) 
 
     log_weights = torch.zeros(num_chains, device=device)
 
-    interpolator = interpolate_rbm(params_ref, params, steps=all_betas)
+    interpolator = interpolate_ebm(params_ref, params, steps=all_betas)
 
     curr_params = next(interpolator)
     for i in range(len(all_betas) - 1):
