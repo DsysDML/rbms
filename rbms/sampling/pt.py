@@ -5,7 +5,6 @@ import torch
 from torch import Tensor
 
 from rbms.classes import EBM
-from rbms.sampling.gibbs import sample_state
 from rbms.utils import swap_chains
 
 
@@ -163,7 +162,7 @@ def pt_sampling(
         counts += increment
         # Iterate chains
         for i in range(len(list_chains)):
-            list_chains[i] = params.sample_state(
+            list_chains[i] = params.clonesample_state(
                 n_steps=increment,
                 chains=list_chains[i],
                 beta=inverse_temperatures[i],
