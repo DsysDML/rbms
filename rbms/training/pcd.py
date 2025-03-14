@@ -61,7 +61,7 @@ def train(
     checkpoints: np.ndarray,
     map_model: dict[str, EBM] = map_model,
 ) -> None:
-    """Train the Bernoulli-Bernoulli RBM model.
+    """Train an EBM.
 
     Args:
         dataset (RBMDataset): The training dataset.
