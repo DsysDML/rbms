@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Tuple
 
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
 
 from rbms.dataset.fasta_utils import (
     compute_weights,
@@ -11,6 +10,8 @@ from rbms.dataset.fasta_utils import (
     import_from_fasta,
     validate_alphabet,
 )
+from rbms.custom_fn import one_hot
+import torch
 
 
 def load_FASTA(
@@ -51,13 +52,11 @@ def load_FASTA(
     weights = weights.squeeze(-1)
     if binarize:
         num_categories = len(np.unique(dataset))
-        num_visibles = dataset.shape[1]
-        categories = (
-            np.arange(num_categories)
-            .repeat(num_visibles, axis=0)
-            .reshape(-1, num_visibles)
-            .T
+        dataset_oh = (
+            one_hot(torch.from_numpy(dataset).int(), num_classes=num_categories)
+            .view(dataset.shape[0], -1)
+            .numpy()
         )
-        enc = OneHotEncoder(categories=categories.tolist())
-        dataset = enc.fit_transform(dataset).toarray()
+        print("ici")
+        assert np.allclose(dataset, dataset_oh)
     return dataset, weights, names
