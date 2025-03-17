@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 from matplotlib.gridspec import GridSpec
 
 
@@ -36,7 +35,9 @@ def plot_scatter_labels(ax, data_proj, gen_data_proj, proj1, proj2, labels):
     )
 
 
-def plot_hist(ax, data_proj, gen_data_proj, color, proj, labels, orientation="vertical"):
+def plot_hist(
+    ax, data_proj, gen_data_proj, color, proj, labels, orientation="vertical"
+):
     """Args:
     ax
     data_proj
@@ -128,7 +129,9 @@ def plot_image(
         display[
             (idx * shape[0]) : ((idx + 1) * shape[0]),
             (idy * shape[1]) : ((idy + 1) * shape[1]),
-        ] = sample[id_s].reshape(shape)  # Directly reshape to `shape`
+        ] = sample[id_s].reshape(
+            shape
+        )  # Directly reshape to `shape`
 
     # Plot the display image
     fig, ax = plt.subplots(1, 1)
@@ -142,44 +145,3 @@ def plot_image(
 
         # Gridlines based on minor ticks
         ax.grid(which="minor", color="gray", linestyle="-", linewidth=2)
-
-
-def plot_trajectories(
-    ax,
-    data_proj,
-    traj,
-    p1: int,
-    p2: int,
-    colors: list = ["#BB342F", "#DDA448"],
-    title: str = None,
-):
-    """Args:
-    ax
-    data_proj
-    traj
-    p1: int:
-    p2: int:
-    colors: list:  (Default value = ["#BB342F")
-    "#DDA448"]
-    title: str:  (Default value = None)
-    """
-    lw = 0.8
-    alpha = 1.0
-    col_data = "#343633"
-    nch = len(colors)
-
-    ax.set_title(title)
-    ax.set_xlabel(f"PC {p1 + 1}")
-    ax.set_ylabel(f"PC {p2 + 1}")
-
-    sns.kdeplot(
-        x=data_proj[:, p1],
-        y=data_proj[:, p2],
-        ax=ax,
-        levels=5,
-        color=col_data,
-        linewidths=0.7,
-        bw_adjust=0.3,
-    )
-    for i, chs in enumerate(traj[:nch]):
-        ax.plot(chs[:, p1], chs[:, p2], lw=lw, c=colors[i], alpha=alpha)

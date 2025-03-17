@@ -8,26 +8,25 @@ import torch
 from torch import Tensor
 from tqdm import tqdm
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 from rbms.const import LOG_FILE_HEADER
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
-from rbms.sampling.gibbs import sample_state
 from rbms.utils import get_saved_updates
 
 
 def setup_training(
     args: dict,
-    map_model: dict[str, RBM] = map_model,
+    map_model: dict[str, EBM] = map_model,
 ) -> Tuple[
-    RBM, dict[str, Tensor], dict[str, Any], float, int, float, float, pathlib.Path, tqdm
+    EBM, dict[str, Tensor], dict[str, Any], float, int, float, float, pathlib.Path, tqdm
 ]:
     # Retrieve the the number of training updates already performed on the model
     updates = get_saved_updates(filename=args["filename"])
     num_updates = updates[-1]
     if args["num_updates"] <= num_updates:
         raise RuntimeError(
-            f"The parameter /'num_updates/' ({args['num_updates']}) must be greater than the previous number of epochs ({num_updates})."
+            f"The parameter /'num_updates/' ({args['num_updates']}) must be greater than the previous number of updates ({num_updates})."
         )
 
     params, parallel_chains, elapsed_time, hyperparameters = load_model(
@@ -58,7 +57,7 @@ def setup_training(
         dynamic_ncols=True,
         ascii="-#",
     )
-    pbar.set_description("Training RBM")
+    pbar.set_description(f"Training {params.name}")
 
     # Initialize gradients for the parameters
     for p in params.parameters():
@@ -82,7 +81,7 @@ def setup_training(
 
 def create_machine(
     filename: str,
-    params: RBM,
+    params: EBM,
     num_visibles: int,
     num_hiddens: int,
     num_chains: int,
@@ -107,9 +106,7 @@ def create_machine(
     """
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
-    parallel_chains = sample_state(
-        gibbs_steps=1000, chains=parallel_chains, params=params
-    )
+    parallel_chains = params.sample_state(chains=parallel_chains, n_steps=gibbs_steps)
     with h5py.File(filename, "w") as file_model:
         hyperparameters = file_model.create_group("hyperparameters")
         hyperparameters["num_hiddens"] = num_hiddens

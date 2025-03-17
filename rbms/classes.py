@@ -7,8 +7,10 @@ from torch import Tensor
 from rbms.dataset.dataset_class import RBMDataset
 
 
-class RBM(ABC):
-    """An abstract class representing the parameters of a RBM."""
+class EBM(ABC):
+    """An abstract class representing the parameters of an Energy-Based Model."""
+
+    device: torch.device
 
     @abstractmethod
     def __init__(self): ...
@@ -39,34 +41,6 @@ class RBM(ABC):
         ...
 
     @abstractmethod
-    def sample_hiddens(
-        self, chains: dict[str, Tensor], beta: float = 1.0
-    ) -> dict[str, Tensor]:
-        """Sample the hidden layer conditionally to the visible one.
-
-        Args:
-            chains (dict[str, Tensor]): The parallel chains used for sampling.
-            beta (float, optional): The inverse temperature. Defaults to 1.0.
-
-        Returns:
-            dict[str, Tensor]: The updated chains with sampled hidden states.
-        """
-        ...
-
-    @abstractmethod
-    def compute_energy(self, v: Tensor, h: Tensor) -> Tensor:
-        """Compute the energy of the RBM on the visible and hidden variables.
-
-        Args:
-            v (Tensor): Visible configurations.
-            h (Tensor): Hidden configurations.
-
-        Returns:
-            Tensor: The computed energy.
-        """
-        ...
-
-    @abstractmethod
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
         """Returns the marginalized energy of the model computed on the visible configurations
 
@@ -75,15 +49,6 @@ class RBM(ABC):
 
         Returns:
             Tensor: The computed energy.
-        """
-        ...
-
-    @abstractmethod
-    def compute_energy_hiddens(self, h: Tensor) -> Tensor:
-        """Returns the marginalized energy of the model computed on hidden configurations
-
-        Args:
-            h (Tensor): The computed energy
         """
         ...
 
@@ -206,11 +171,6 @@ class RBM(ABC):
         ...
 
     @abstractmethod
-    def num_hiddens(self) -> int:
-        """Number of hidden units"""
-        ...
-
-    @abstractmethod
     def ref_log_z(self) -> float:
         """Reference log partition function with weights set to 0 (except for the visible bias)."""
         ...
@@ -218,3 +178,75 @@ class RBM(ABC):
     @abstractmethod
     def independent_model(self) -> Self:
         """Independent model where only local fields are preserved."""
+
+    @abstractmethod
+    def sample_state(
+        self, chains: dict[str, Tensor], n_steps: int, beta: float = 1.0
+    ) -> dict[str, Tensor]:
+        """Sample the model for n_steps
+
+        Args:
+            chains (): The starting position of the chains.
+            n_steps (int): The number of sampling steps.
+            beta (float, optional): The inverse temperature. Defaults to 1.0
+
+        Returns:
+            dict[str, Tensor]: The updated chains after n_steps of sampling.
+        """
+        ...
+
+
+class RBM(EBM):
+    """An abstract class representing the parameters of a RBM."""
+
+    @abstractmethod
+    def sample_hiddens(
+        self, chains: dict[str, Tensor], beta: float = 1.0
+    ) -> dict[str, Tensor]:
+        """Sample the hidden layer conditionally to the visible one.
+
+        Args:
+            chains (dict[str, Tensor]): The parallel chains used for sampling.
+            beta (float, optional): The inverse temperature. Defaults to 1.0.
+
+        Returns:
+            dict[str, Tensor]: The updated chains with sampled hidden states.
+        """
+        ...
+
+    @abstractmethod
+    def compute_energy(self, v: Tensor, h: Tensor) -> Tensor:
+        """Compute the energy of the RBM on the visible and hidden variables.
+
+        Args:
+            v (Tensor): Visible configurations.
+            h (Tensor): Hidden configurations.
+
+        Returns:
+            Tensor: The computed energy.
+        """
+        ...
+
+    @abstractmethod
+    def compute_energy_hiddens(self, h: Tensor) -> Tensor:
+        """Returns the marginalized energy of the model computed on hidden configurations
+
+        Args:
+            h (Tensor): The computed energy
+        """
+        ...
+
+    @abstractmethod
+    def num_hiddens(self) -> int:
+        """Number of hidden units"""
+        ...
+
+    def sample_state(self, chains, n_steps, beta=1.0):
+        new_chains = {
+            "visible": chains["visible"].clone(),
+            "weights": chains["weights"].clone(),
+        }
+        for _ in range(n_steps):
+            new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
+            new_chains = self.sample_visibles(chains=new_chains, beta=beta)
+        return new_chains

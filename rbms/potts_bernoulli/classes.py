@@ -111,7 +111,7 @@ class PBRBM(RBM):
             mh_data=data["hidden_mag"],
             w_data=data["weights"],
             v_chain=chains["visible"],
-            h_chain=chains["hidden"],
+            h_chain=chains["hidden_mag"],
             w_chain=chains["weights"],
             vbias=self.vbias,
             hbias=self.hbias,
@@ -158,7 +158,11 @@ class PBRBM(RBM):
             dtype=dtype,
             var_init=var_init,
         )
-        return PBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+        params = PBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+        from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
+
+        ensure_zero_sum_gauge(params)
+        return params
 
     def named_parameters(self):
         return {
