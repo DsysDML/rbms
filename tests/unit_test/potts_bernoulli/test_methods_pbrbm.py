@@ -86,6 +86,9 @@ def test_pb_rbm_compute_gradient(
     for params in pb_rbm.parameters():
         params.grad = torch.zeros_like(params)
 
+    # For realistic values
+    chains = pb_rbm.sample_state(chains, 1)
+
     pb_rbm.compute_gradient(data, chains)
 
     # If the value has been updated, the norm should be != 0

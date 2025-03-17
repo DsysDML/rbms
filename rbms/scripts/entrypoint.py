@@ -28,8 +28,8 @@ def main():
 
     # Run the corresponding Python script with the remaining optional arguments
     script_path = os.path.join(SCRIPT_DIR, SCRIPT)
-    command = " ".join([sys.executable, script_path] + sys.argv[2:])
-    print(command)
+    # command = " ".join([sys.executable, script_path] + sys.argv[2:])
+    # print(command)
     proc = subprocess.call(
         [sys.executable, script_path] + sys.argv[2:],
     )

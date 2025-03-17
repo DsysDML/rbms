@@ -1,4 +1,4 @@
- # Welcome to TorchRBM
+# Welcome to Restricted Boltzmann Machines (RBM) in PyTorch
 
 `rbms` is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.
 
@@ -8,23 +8,22 @@
 - **Multiple RBM Types**: Supports Bernoulli-Bernoulli RBM and Potts-Bernoulli RBM.
 - **Extensible Design**: Provides an abstract class `RBM` with methods that can be implemented for new types of RBMs, minimizing the need to reimplement training algorithms, analysis methods, and sampling methods.
 
-
 ## Installation
 
-To install TorchRBM, you can use pip:
+To install `rbms`, you can use pip:
 
 ```bash
-pip install .
+pip install rbms
 ```
 
-## What's New
-### Version 0.1
+## [What's New](whats_new.rst)
 
-- Initial release of TorchRBM.
-- Support for Bernoulli-Bernoulli RBM and Potts-Bernoulli RBM.
-- Abstract class RBM for easy extension to new RBM types.
-- GPU acceleration for training and analysis.
-- Comprehensive sampling and training submodules.
+### Version 0.2
+
+- EBM abstract class for more generic EBMs.
+-
+
+See [Releases](https://github.com/DsysDML/rbms/releases)
 
 ## [Restricted Boltzmann Machines](rbm.md)
 
@@ -34,10 +33,7 @@ pip install .
 
 ## [API](api.md)
 
-
-
 ```{toctree}
 :caption: 'Contents:'
 :maxdepth: 4
 ```
-

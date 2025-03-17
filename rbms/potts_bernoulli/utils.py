@@ -7,4 +7,7 @@ def ensure_zero_sum_gauge(params: PBRBM) -> None:
     Args:
         params (PBRBM): The parameters of the RBM.
     """
-    params.weight_matrix -= params.weight_matrix.mean(1, keepdim=True)
+    mean_W = params.weight_matrix.mean(1, keepdim=True)
+    params.weight_matrix -= mean_W
+    params.hbias += mean_W.squeeze().sum(0)
+    params.vbias -= params.vbias.mean(1, keepdim=True)
