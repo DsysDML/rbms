@@ -5,6 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rbms"
 version = "0.2.0"
+
 authors = [
   {name="Nicolas Béreux", email="nicolas.bereux@gmail.com"},
   {name="Aurélien Decelle"},
