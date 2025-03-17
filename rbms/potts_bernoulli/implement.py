@@ -211,7 +211,7 @@ def _init_parameters(
     _, num_visibles = data.shape
     eps = 1e-7
     num_states = int(torch.max(data) + 1)
-    all_states = torch.arange(num_states).reshape(-1, 1, 1).to(device)
+    all_states = torch.arange(num_states).reshape(-1, 1, 1).to(data.device)
     frequencies = (data == all_states).type(torch.float32).mean(1).to(device)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
     vbias = (
