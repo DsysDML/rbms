@@ -69,7 +69,9 @@ def _compute_energy_visibles(
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
     field = v_oh @ vbias_oh
     exponent = hbias + (v_oh @ weight_matrix_oh)
-    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
+    log_term = torch.where(
+        exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent
+    )
     return -field - log_term.sum(1)
 
 
@@ -112,11 +114,11 @@ def _compute_gradient(
     w_data_norm = w_data.sum()
     # Averages over data and generated samples
     v_data_mean = (v_data_one_hot * w_data).sum(0) / w_data_norm
-    torch.clamp_(v_data_mean, min=1e-7, max=(1.0 - 1e-7))
     h_data_mean = (mh_data * w_data.view(-1, 1)).sum(0) / w_data_norm
     v_gen_mean = (v_gen_one_hot * chain_weights).sum(0) / w_chain_norm
-    torch.clamp_(v_gen_mean, min=1e-7, max=(1.0 - 1e-7))
     h_gen_mean = (h_chain * chain_weights.view(-1, 1)).sum(0) / w_chain_norm
+    torch.clamp_(v_data_mean, min=1e-7, max=(1.0 - 1e-7))
+    torch.clamp_(v_gen_mean, min=1e-7, max=(1.0 - 1e-7))
     if centered:
         # Centered variables
         v_data_centered = v_data_one_hot - v_data_mean
@@ -125,16 +127,25 @@ def _compute_gradient(
         h_gen_centered = h_chain - h_data_mean
 
         # Gradient
-        grad_weight_matrix = torch.tensordot(
-            (v_data_centered * w_data),
-            h_data_centered,
-            dims=[[0], [0]],
-        ) / w_data_norm - torch.tensordot(
-            (v_gen_centered * chain_weights),
-            h_gen_centered,
-            dims=[[0], [0]],
+        grad_weight_matrix = (
+            torch.tensordot(
+                v_data_centered,
+                h_data_centered,
+                dims=[[0], [0]],
+            )
+            / v_data.shape[0]
+            - torch.tensordot(
+                v_gen_centered,
+                h_gen_centered,
+                dims=[[0], [0]],
+            )
+            / v_chain.shape[0]
         )
-        grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ h_data_mean)
+        grad_vbias = (
+            v_data_mean
+            - v_gen_mean
+            - torch.tensordot(grad_weight_matrix, h_data_mean, dims=[[2], [0]])
+        )
         grad_hbias = (
             h_data_mean
             - h_gen_mean
@@ -198,17 +209,19 @@ def _init_parameters(
     var_init: float = 1e-4,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
+    eps = 1e-7
     num_states = int(torch.max(data) + 1)
-
-    int_dtype = torch.int32
-    eps = 1e-4
-    dataset_oh = torch.eye(num_states, device=device, dtype=dtype)[data.to(int_dtype)]
-    frequencies = dataset_oh.mean(0)
+    all_states = torch.arange(num_states).reshape(-1, 1, 1).to(device)
+    frequencies = (data == all_states).type(torch.float32).mean(1).to(device)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
-
     vbias = (
-        torch.log(frequencies) - 1.0 / num_states * torch.sum(torch.log(frequencies), 0)
-    ).to(device=device, dtype=dtype)
+        (
+            torch.log(frequencies)
+            - 1.0 / num_states * torch.sum(torch.log(frequencies), 0)
+        )
+        .to(device=device, dtype=dtype)
+        .T
+    )
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
     weight_matrix = (
         torch.randn(
