@@ -15,7 +15,7 @@ pytest.BATCH_SIZE = 17
 pytest.GIBBS_STEPS = 19
 
 
-pytest.DEVICE_CUDA = "meta"
+pytest.DEVICE_CUDA = "cuda"
 pytest.LEARNING_RATE = 0.03
 
 

@@ -27,7 +27,7 @@ def test_use_case_train_bbrbm():
     NUM_UPDATES = 100
     SUBSET_LABELS = [0, 1]
 
-    DEVICE = torch.device("cpu")
+    DEVICE = torch.device("cuda")
     DTYPE = torch.float32
 
     BATCH_SIZE = 300
@@ -60,7 +60,7 @@ def test_use_case_train_bbrbm():
     train_rbm(args)
 
     train_dataset, test_dataset = load_dataset(
-        "dummy.h5", subset_labels=SUBSET_LABELS, use_weights=False
+        "dummy.h5", subset_labels=SUBSET_LABELS, use_weights=False, device=DEVICE
     )
 
     params, chains, train_time, hyperparameters = load_model(
