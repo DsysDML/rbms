@@ -1,0 +1,161 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Restricted Boltzmann Machines (RBM) in PyTorch &mdash; Torch RBM 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            Torch RBM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Welcome to Restricted Boltzmann Machines (RBM) in PyTorch</a><ul>
+<li><a class="reference internal" href="#features">Features</a></li>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#what-s-new"><span class="xref myst">What’s New</span></a><ul>
+<li><a class="reference internal" href="#version-0-2">Version 0.2</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#restricted-boltzmann-machines"><span class="xref myst">Restricted Boltzmann Machines</span></a></li>
+<li><a class="reference internal" href="#example-gallery"><span class="xref myst">Example gallery</span></a></li>
+<li><a class="reference internal" href="#tutorials"><span class="xref myst">Tutorials</span></a></li>
+<li><a class="reference internal" href="#api"><span class="xref myst">API</span></a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Torch RBM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Welcome to Restricted Boltzmann Machines (RBM) in PyTorch</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="welcome-to-restricted-boltzmann-machines-rbm-in-pytorch">
+<h1>Welcome to Restricted Boltzmann Machines (RBM) in PyTorch<a class="headerlink" href="#welcome-to-restricted-boltzmann-machines-rbm-in-pytorch" title="Link to this heading"></a></h1>
+<p><code class="docutils literal notranslate"><span class="pre">rbms</span></code> is a GPU-accelerated package designed to train and analyze Restricted Boltzmann Machines (RBMs). It is intended for students and researchers who need an efficient tool for working with RBMs.</p>
+<section id="features">
+<h2>Features<a class="headerlink" href="#features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>GPU Acceleration</strong>.</p></li>
+<li><p><strong>Multiple RBM Types</strong>: Supports Bernoulli-Bernoulli RBM and Potts-Bernoulli RBM.</p></li>
+<li><p><strong>Extensible Design</strong>: Provides an abstract class <code class="docutils literal notranslate"><span class="pre">RBM</span></code> with methods that can be implemented for new types of RBMs, minimizing the need to reimplement training algorithms, analysis methods, and sampling methods.</p></li>
+</ul>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h2>
+<p>To install <code class="docutils literal notranslate"><span class="pre">rbms</span></code>, you can use pip:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>rbms
+</pre></div>
+</div>
+</section>
+<section id="what-s-new">
+<h2><a class="reference internal" href="whats_new.html"><span class="std std-doc">What’s New</span></a><a class="headerlink" href="#what-s-new" title="Link to this heading"></a></h2>
+<section id="version-0-2">
+<h3>Version 0.2<a class="headerlink" href="#version-0-2" title="Link to this heading"></a></h3>
+<ul class="simple">
+<li><p>EBM abstract class for more generic EBMs.</p></li>
+<li></li>
+</ul>
+<p>See <a class="reference external" href="https://github.com/DsysDML/rbms/releases">Releases</a></p>
+</section>
+</section>
+<section id="restricted-boltzmann-machines">
+<h2><a class="reference internal" href="rbm.html"><span class="std std-doc">Restricted Boltzmann Machines</span></a><a class="headerlink" href="#restricted-boltzmann-machines" title="Link to this heading"></a></h2>
+</section>
+<section id="example-gallery">
+<h2><a class="reference internal" href="auto_examples/index.html"><span class="std std-doc">Example gallery</span></a><a class="headerlink" href="#example-gallery" title="Link to this heading"></a></h2>
+</section>
+<section id="tutorials">
+<h2><a class="reference internal" href="tutorials.html"><span class="std std-doc">Tutorials</span></a><a class="headerlink" href="#tutorials" title="Link to this heading"></a></h2>
+</section>
+<section id="api">
+<h2><a class="reference internal" href="api.html"><span class="std std-doc">API</span></a><a class="headerlink" href="#api" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Nicolas Béreux.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

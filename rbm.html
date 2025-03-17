@@ -1,0 +1,258 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Restricted Boltzmann Machines &mdash; Torch RBM 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=d2d258e8" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+      <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=2709fde1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Torch RBM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Restricted Boltzmann Machines</a><ul>
+<li><a class="reference internal" href="#model">Model</a></li>
+<li><a class="reference internal" href="#log-likelihood-and-gradient-update">Log-likelihood and gradient update</a></li>
+<li><a class="reference internal" href="#sampling">Sampling</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Torch RBM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Restricted Boltzmann Machines</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/rbm.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="restricted-boltzmann-machines">
+<h1>Restricted Boltzmann Machines<a class="headerlink" href="#restricted-boltzmann-machines" title="Link to this heading"></a></h1>
+<p>The RBMs are generative models, part of the Energy Based Models family. They first appeared in 1986 under the name of Harmonium <span id="id1">[<a class="reference internal" href="#id10" title="David E Rumelhart, James L McClelland, and CORPORATE PDP Research Group. Parallel distributed processing: Explorations in the microstructure of cognition, Vol. 1: Foundations. MIT press, 1986.">Rumelhart <em>et al.</em>, 1986</a>]</span>. They were popularized after the introduction of the Contrastive Divergence by Hinton <span id="id2">[<a class="reference internal" href="#id13" title="Geoffrey E Hinton. Training products of experts by minimizing contrastive divergence. Neural computation, 14(8):1771–1800, 2002.">Hinton, 2002</a>]</span>, a training algorithm that allowed to train the machine on MNIST (a handwritten digit dataset).</p>
+<p>One of the main advantages of the RBMs over other generative models is the simplicity of its structure allowing one to compute conditional probabilities of variables given others and extract multi-body interactions learned by the model <span id="id3">[<a class="reference internal" href="#id38" title="Aurélien Decelle, Cyril Furtlehner, Alfonso De Jesus Navas Gómez, and Beatriz Seoane. Inferring effective couplings with restricted boltzmann machines. arXiv preprint arXiv:2309.02292, 2023.">Decelle <em>et al.</em>, 2023</a>]</span>.</p>
+<section id="model">
+<h2>Model<a class="headerlink" href="#model" title="Link to this heading"></a></h2>
+<p>The Restricted Boltzmann Machine (RBM) are defined by <span class="math notranslate nohighlight">\(N_v\)</span> visible variables <span class="math notranslate nohighlight">\(\pmb s\)</span> (corresponding to the variables of the dataset) and <span class="math notranslate nohighlight">\(N_h\)</span> hidden variables <span class="math notranslate nohighlight">\(\pmb \tau\)</span> (which encode interactions between variables).</p>
+<p>The distinctive feature of RBMs is their bipartite structure. The variables are organized into a visible layer for the visible variables and a hidden layer for the hidden variables. The visible variables interact only with the hidden variables and vice versa, meaning there is no intra-layer dependency (hence the name “Restricted”).
+These interactions and the local biases of each variable are encoded in the Hamiltonian:</p>
+<div class="math notranslate nohighlight">
+\[
+  \mathcal H(\pmb s, \pmb \tau) = -\sum_{ia}s_iw_{ia}\tau_a - \sum_i s_i\theta_i - \sum_a\tau_a\eta_a.
+\]</div>
+<p>where the parameters of the model are :</p>
+<ul class="simple">
+<li><p>the weight matrix <span class="math notranslate nohighlight">\(\pmb w\in\mathbb R^{N_v\times N_h}\)</span> encoding the interactions between the visible and hidden nodes,</p></li>
+<li><p>the bias vector on the visible units <span class="math notranslate nohighlight">\(\pmb \theta\in\mathbb R^{N_v}\)</span>,</p></li>
+<li><p>the bias vector on the hidden units <span class="math notranslate nohighlight">\(\pmb \eta\in\mathbb R^{N_h}\)</span>.</p></li>
+</ul>
+<p>The Boltzmann distribution associated to the RBM is then defined by</p>
+<div class="math notranslate nohighlight">
+\[
+  p(\pmb s, \pmb \tau) = \frac{1}{Z}\exp\left(-\beta\mathcal H(\pmb s, \pmb \tau)\right).
+\]</div>
+<p>where the normalization constant <span class="math notranslate nohighlight">\(Z\)</span> is the sum of the exponential term over all possible configurations of visible and hidden units.</p>
+<div class="math notranslate nohighlight">
+\[
+  Z = \sum_{\pmb s,\pmb \tau}\exp\left(-\mathcal H(\pmb s, \pmb \tau)\right).
+\]</div>
+<p>However, computing this term is computationally intractable in practice, as it involves summing over all possible variable configurations, which are exponentially large in number. For example, in the case where all variables are binary, this complexity is dominated by <span class="math notranslate nohighlight">\(2^{\min(N_v, N_h)}\)</span>.</p>
+<p>Another advantageous property of the RBM structure is the ability to compute the conditional distributions of one layer given the other using Bayes’ rule:</p>
+<div class="math notranslate nohighlight">
+\[
+  p(\pmb \tau |\pmb s) = \frac{p(\pmb s, \pmb \tau)}{p(\pmb s)} = \frac{p(\pmb s, \pmb \tau)}{\sum_{\pmb \tau} p(\pmb s, \pmb \tau)} ,
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+  p(\pmb s |\pmb \tau) = \frac{p(\pmb s, \pmb \tau)}{\sum_{\pmb s} p(\pmb s, \pmb \tau)}.
+\]</div>
+<p>Since there is no intra-layer dependency, once the values of one layer have been set, all the neurons on the other layer are independent of each other, leading to simple expressions and permitting a high degree of parallelization in practice. For example, in the case of the Bernoulli-Bernoulli RBM (where the prior distributions on the visible and hidden variables are Bernoulli distributions), the conditional distributions are given by:</p>
+<div class="math notranslate nohighlight">
+\[
+  p(s_i = 1|\pmb \tau) = \text{sigmoid}(\theta_i + \sum_a w_{ia}\tau_a),
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+  p(\tau_a=1|\pmb s) = \text{sigmoid}(\eta_a + \sum_i w_{ia}s_i),
+\]</div>
+<p>where the sigmoid function is defined on <span class="math notranslate nohighlight">\(\mathbb R\)</span> as</p>
+<div class="math notranslate nohighlight">
+\[
+  \text{sigmoid}(x) = \frac{1}{1+\exp(-x)}.
+\]</div>
+</section>
+<section id="log-likelihood-and-gradient-update">
+<h2>Log-likelihood and gradient update<a class="headerlink" href="#log-likelihood-and-gradient-update" title="Link to this heading"></a></h2>
+<p>We train the model by maximizing the log-likelihood of the samples given the model marginalized over the visible variables. The log-likelihood is given by:</p>
+<div class="math notranslate nohighlight">
+\[
+\log \mathcal{L}(\pmb{s}_\text{data}; \pmb{w}, \pmb{\theta}, \pmb{\eta}) = \frac{1}{N_s} \sum_{d=1}^{N_s} \log\left[\sum_{\pmb{\tau}}  \exp(-\mathcal{H}(\pmb{s}^{(d)}_\text{data}, \pmb{\tau}))\right] - \log(Z).
+\]</div>
+<p>We can then explicitly compute the gradient over the parameters of the RBM:</p>
+<div class="math notranslate nohighlight">
+\[
+\frac{\partial \log \mathcal{L}}{\partial w_{ia}} =  \left\langle s_i\tau_a\right\rangle_\text{data} - \left\langle s_i\tau_a\right\rangle_{\mathcal H}
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\left\langle\cdot \right\rangle_\text{data}\)</span> denotes the average under the empirical distribution and <span class="math notranslate nohighlight">\(\left\langle\cdot \right\rangle_{\mathcal H}\)</span> the average under the model distribution.
+The gradient components associated with the biases are:</p>
+<div class="math notranslate nohighlight">
+\[
+\frac{\partial \log \mathcal{L}}{\partial \theta_i} = \left\langle s_i\right\rangle_{\text{data}} - \left\langle s_i\right\rangle_{\mathcal{H}},
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+\frac{\partial \log \mathcal{L}}{\partial \eta_a} = \left\langle \tau_a\right\rangle_{\text{data}} - \left\langle \tau_a\right\rangle_{\mathcal{H}}.
+\]</div>
+<p>Each of these gradients is divided into two parts, often referred to as the <span class="math notranslate nohighlight">\(\textit{positive}\)</span> and <span class="math notranslate nohighlight">\(\textit{negative}\)</span> terms. The positive term is easy to compute since it only relies on sampling the conditional distributions of the hidden variables given a sample from the dataset. In contrast, the negative term depends on the model distribution, which is generally intractable due to the partition function. This term is estimated in practice using configurations sampled from the model distribution.</p>
+<p>Once the gradient is computed, the parameters are updated the gradient ascent rule.</p>
+<div class="math notranslate nohighlight">
+\[
+    w_{ia}^{(t+1)} = w_{ia}^{(t)} + \gamma\frac{\partial \mathcal L}{\partial w_{ia}}
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+    \theta_i^{(t+1)} = \theta_i^{(t)} + \gamma \frac{\partial \mathcal L}{\partial \theta_{i}}
+\]</div>
+<div class="math notranslate nohighlight">
+\[
+    \eta_a^{(t+1)} = \eta_a^{(t)} + \gamma \frac{\partial \mathcal L}{\partial \eta_{a}}
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\gamma\)</span> is the learning rate.</p>
+</section>
+<section id="sampling">
+<h2>Sampling<a class="headerlink" href="#sampling" title="Link to this heading"></a></h2>
+<p>Since the normalization constant <span class="math notranslate nohighlight">\(Z\)</span> is in practice impossible to compute, we cannot directly sample the Gibbs-Boltzmann distribution of the RBM. Instead, we rely on Monte Carlo Markov Chains (MCMC) simulations. The bipartite structure of the model makes it a perfect candidate for <a class="reference external" href="https://en.wikipedia.org/wiki/Gibbs_sampling">Gibbs sampling</a>.</p>
+<p>One challenge for MCMC methods is to ensure the process has iterated long enough, so that the process has reached the equilibrium measure and starts to sample the Gibbs-Boltzmann distribution of the RBM. In other words, we want to ensure the chains length is long enough compared to the mixing time. There is no simple way to determine this time. Therefore, one generally sets a fixed number of steps and hopes that it is sufficient to estimate the gradient correctly. Otherwise, memory effects may appear in the trained model, where the machine learns to reproduce the statistics of the dataset at a fixed number of steps rather than at the level of the Boltzmann measure <span id="id4">[<a class="reference internal" href="#id35" title="Elisabeth Agoritsas, Giovanni Catania, Aurélien Decelle, and Beatriz Seoane. Explaining the effects of non-convergent sampling in the training of energy-based models. arXiv preprint arXiv:2301.09428, 2023.">Agoritsas <em>et al.</em>, 2023</a>, <a class="reference internal" href="#id32" title="Aurélien Decelle, Cyril Furtlehner, and Beatriz Seoane. Equilibrium and non-equilibrium regimes in the learning of restricted boltzmann machines. Advances in Neural Information Processing Systems, 34:5345–5359, 2021.">Decelle <em>et al.</em>, 2021</a>]</span>.</p>
+<p>A major drawback of Gibbs sampling is that the mixing time can become prohibitive if the distribution from which one wishes to sample from is highly clustered and has large regions with low probability between modes. In this case, the probability of jumping from one cluster to another is essentially
+zero, which makes the mixing time extremely long.</p>
+<p>Since we want to sample the model every time the parameters are updated, it is important to find a way to speed up the convergence to equilibrium of the sampling methods. To this end, one possibility is choosing good initializations for the chains:</p>
+<p>The first method is \emph{Contrastive Divergence (CD)}, introduced by <span id="id5">[<a class="reference internal" href="#id13" title="Geoffrey E Hinton. Training products of experts by minimizing contrastive divergence. Neural computation, 14(8):1771–1800, 2002.">Hinton, 2002</a>]</span>. The method chosen is to initialize the MCMC chains with random samples from the dataset and perform some steps (typically <span class="math notranslate nohighlight">\(\mathcal O(1)\)</span>). This was chosen because initializing the model with configurations close to its distribution should lead to fast convergence if the model is well trained. However, this method performs poorly, since the distribution of the model at the beginning of training is very far from the empirical distribution of the dataset. In other words, this method does not provide an accurate estimate of the negative term of the gradient.</p>
+<p>An improvement of this method was presented in <span id="id6">[<a class="reference internal" href="#id17" title="Tijmen Tieleman. Training restricted boltzmann machines using approximations to the likelihood gradient. In Proceedings of the 25th international conference on Machine learning, 1064–1071. 2008.">Tieleman, 2008</a>]</span> as \emph{Persistent Contrastive Divergence (PCD)}. Here, the chains are randomly initialized only at the beginning of the training. After each parameter update, the chains are not reinitialized, but the previous final configuration is reused as the starting point. These are referred to as persistent chains. The underlying assumption is that the distribution of the model at time <span class="math notranslate nohighlight">\(t\)</span> should not be too different from the distribution at time <span class="math notranslate nohighlight">\(t-1\)</span> if the parameter update is small enough. The chains are expected to remain in equilibrium if the model is slow enough. This method allows obtaining near-equilibrium models, but at the cost of prohibitive generation times after training.</p>
+<p>Alternative sampling methods to improve convergence have been exploited for the case of highly clustered dataset was introduced in <span id="id7">[<a class="reference internal" href="#id15" title="David J Earl and Michael W Deem. Parallel tempering: theory, applications, and new perspectives. Physical Chemistry Chemical Physics, 7(23):3910–3916, 2005.">Earl and Deem, 2005</a>, <a class="reference internal" href="#id11" title="Robert H Swendsen and Jian-Sheng Wang. Replica monte carlo simulation of spin-glasses. Physical review letters, 57(21):2607, 1986.">Swendsen and Wang, 1986</a>]</span> as \emph{Parallel Tempering (PT)}. In this method, one samples several replicas of the model at different temperatures and exchanges MCMC chains between replicas of the model <span class="math notranslate nohighlight">\(k\)</span> and <span class="math notranslate nohighlight">\(l\)</span> with an acceptance ratio</p>
+<div class="math notranslate nohighlight">
+\[
+    A = \min \left(1, \exp\left[\beta_k\mathcal H(\pmb s^{(k)}, \pmb \tau^{(k)})\right]/\exp\left[\beta_l\mathcal H(\pmb s^{(l)}, \pmb \tau^{(l)})\right]\right),
+\]</div>
+<p>where <span class="math notranslate nohighlight">\(\beta_k\)</span> and <span class="math notranslate nohighlight">\(\beta_l\)</span> are the inverse temperatures of replicas <span class="math notranslate nohighlight">\(k\)</span> and <span class="math notranslate nohighlight">\(l\)</span> and <span class="math notranslate nohighlight">\((s^{(k)},\tau^{(k)})\)</span> and <span class="math notranslate nohighlight">\((s^{(k)},\tau^{(k)})\)</span> are variables in the chains from replicas <span class="math notranslate nohighlight">\(k\)</span> and <span class="math notranslate nohighlight">\(l\)</span>.The intuition is that at higher temperature, the replicas will have less trouble escaping valleys because the modes are flattened, but the sampling will not be very accurate, whereas at lower temperature the replicas will have trouble jumping between clusters but will be able to sample accurately the modes that the chains are in. So if you allow the two replicas to swap at different temperatures, you can exploit the faster mixing at high temperature to mix faster the low temperature chains. This method however performs poorly on highly clustered distributions.</p>
+<div class="docutils container" id="id8">
+<div role="list" class="citation-list">
+<div class="citation" id="id35" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">ACDS23</a><span class="fn-bracket">]</span></span>
+<p>Elisabeth Agoritsas, Giovanni Catania, Aurélien Decelle, and Beatriz Seoane. Explaining the effects of non-convergent sampling in the training of energy-based models. <em>arXiv preprint arXiv:2301.09428</em>, 2023.</p>
+</div>
+<div class="citation" id="id38" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id3">DFGomezS23</a><span class="fn-bracket">]</span></span>
+<p>Aurélien Decelle, Cyril Furtlehner, Alfonso De Jesus Navas Gómez, and Beatriz Seoane. Inferring effective couplings with restricted boltzmann machines. <em>arXiv preprint arXiv:2309.02292</em>, 2023.</p>
+</div>
+<div class="citation" id="id32" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">DFS21</a><span class="fn-bracket">]</span></span>
+<p>Aurélien Decelle, Cyril Furtlehner, and Beatriz Seoane. Equilibrium and non-equilibrium regimes in the learning of restricted boltzmann machines. <em>Advances in Neural Information Processing Systems</em>, 34:5345–5359, 2021.</p>
+</div>
+<div class="citation" id="id15" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id7">ED05</a><span class="fn-bracket">]</span></span>
+<p>David J Earl and Michael W Deem. Parallel tempering: theory, applications, and new perspectives. <em>Physical Chemistry Chemical Physics</em>, 7(23):3910–3916, 2005.</p>
+</div>
+<div class="citation" id="id13" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span>Hin02<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a role="doc-backlink" href="#id2">1</a>,<a role="doc-backlink" href="#id5">2</a>)</span>
+<p>Geoffrey E Hinton. Training products of experts by minimizing contrastive divergence. <em>Neural computation</em>, 14(8):1771–1800, 2002.</p>
+</div>
+<div class="citation" id="id10" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">RMPRG86</a><span class="fn-bracket">]</span></span>
+<p>David E Rumelhart, James L McClelland, and CORPORATE PDP Research Group. <em>Parallel distributed processing: Explorations in the microstructure of cognition, Vol. 1: Foundations</em>. MIT press, 1986.</p>
+</div>
+<div class="citation" id="id11" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id7">SW86</a><span class="fn-bracket">]</span></span>
+<p>Robert H Swendsen and Jian-Sheng Wang. Replica monte carlo simulation of spin-glasses. <em>Physical review letters</em>, 57(21):2607, 1986.</p>
+</div>
+<div class="citation" id="id17" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id6">Tie08</a><span class="fn-bracket">]</span></span>
+<p>Tijmen Tieleman. Training restricted boltzmann machines using approximations to the likelihood gradient. In <em>Proceedings of the 25th international conference on Machine learning</em>, 1064–1071. 2008.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Nicolas Béreux.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

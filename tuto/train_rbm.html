@@ -1,0 +1,171 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Train a RBM &mdash; Torch RBM 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Torch RBM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Train a RBM</a><ul>
+<li><a class="reference internal" href="#rbm-hyperparameters">RBM hyperparameters</a></li>
+<li><a class="reference internal" href="#save-options">Save options</a></li>
+<li><a class="reference internal" href="#pytorch-options">PyTorch options</a></li>
+<li><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#restore-the-training">Restore the training</a></li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Torch RBM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Train a RBM</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tuto/train_rbm.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="train-a-rbm">
+<h1>Train a RBM<a class="headerlink" href="#train-a-rbm" title="Link to this heading"></a></h1>
+<p>To train a RBM, you need to use the rbms train script.</p>
+<section id="rbm-hyperparameters">
+<h2>RBM hyperparameters<a class="headerlink" href="#rbm-hyperparameters" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--num_hiddens</span></code> Number of hidden nodes for the RBM. Setting it to <span class="math notranslate nohighlight">\(20\)</span> or less allows to recover the exact log-likelihood of the model by enumerating on all hidden configurations.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--batch_size</span></code> Batch size, defaults to <span class="math notranslate nohighlight">\(2000\)</span>. Changing the batch size has an impact on the noise in the estimation of the positive term of the gradient. Setting it to a low value can lead to a very bad estimation and a bad training, but setting it too high can lead to an exact gradient, losing the benefits of the SGD (and remain trapped in a local minima for example).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--num_chains</span></code> Number of parallel chains, defaults to <span class="math notranslate nohighlight">\(2000\)</span>. Setting it to a much higher value than the batch size does not provide benefits, since it only impacts the estimation of the negative term of the gradient.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--gibbs_steps</span></code> Number of sampling steps performed at each gradient update. The <span class="math notranslate nohighlight">\(k\)</span> in PCD-<span class="math notranslate nohighlight">\(k\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--learning_rate</span></code> Learning rate. Defaults to <span class="math notranslate nohighlight">\(0.01\)</span>, setting a larger learning rate often leads to instability.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--num_updates</span></code> The training time is indexed on the number of gradient updates performed and not the number of epochs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--beta</span></code> The inverse temperature to use during training (Defaults to <span class="math notranslate nohighlight">\(1\)</span> and should not be changed)</p></li>
+</ul>
+</section>
+<section id="save-options">
+<h2>Save options<a class="headerlink" href="#save-options" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--filename</span></code> The path to the hdf5 archive to save the RBM during training. It will overwrite previously existing file.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--n_save</span></code> The number of machines to save during the training.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--spacing</span></code> Can be <code class="docutils literal notranslate"><span class="pre">exp</span></code> or <code class="docutils literal notranslate"><span class="pre">linear</span></code>, defaults to <code class="docutils literal notranslate"><span class="pre">exp</span></code>. When <code class="docutils literal notranslate"><span class="pre">exp</span></code> is selected, the time between the save of two models will increase exponentially. (It will look good in log-scale). When <code class="docutils literal notranslate"><span class="pre">linear</span></code> is selected, the time between the save of two models will be constant.
+Saving lots of models can quickly become the computational bottleneck, leading to long execution times.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--log</span></code> For now it is deprecated so you don’t care about it.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--acc_ptt</span></code> Target acceptance rate. Defaults to <span class="math notranslate nohighlight">\(0.25\)</span>. Models will be saved when the acceptance rate between two consecutive models when sampling them using PTT drops below this threshold.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--acc_ll</span></code> Same as before but defaults to <span class="math notranslate nohighlight">\(0.75\)</span>. This allows to have two different schemes when saving models.</p></li>
+</ul>
+</section>
+<section id="pytorch-options">
+<h2>PyTorch options<a class="headerlink" href="#pytorch-options" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--device</span></code> The device on which to run the computations. Follows the PyTorch semantic so you can select which GPU to use with ‘cuda:1’ for example.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--dtype</span></code> The dtype of all the tensors. can be <code class="docutils literal notranslate"><span class="pre">int</span></code>, <code class="docutils literal notranslate"><span class="pre">double</span></code> or <code class="docutils literal notranslate"><span class="pre">float</span></code>. The default is <code class="docutils literal notranslate"><span class="pre">float</span></code> which corresponds to <code class="docutils literal notranslate"><span class="pre">torch.float32</span></code>.</p></li>
+</ul>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Link to this heading"></a></h2>
+<p>The command I typically use to train a RBM on <code class="docutils literal notranslate"><span class="pre">MNIST-01</span></code> will be</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rbms<span class="w"> </span>train<span class="w"> </span>-d<span class="w"> </span>./path/to/MNIST.h5<span class="w"> </span>--subset_labels<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+--filename<span class="w"> </span>output/rbm/MNIST01_from_scratch.h5<span class="w">  </span>--num_updates<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="se">\</span>
+--n_save<span class="w"> </span><span class="m">50</span><span class="w"> </span>--spacing<span class="w"> </span>exp<span class="w"> </span>--num_hiddens<span class="w"> </span><span class="m">20</span><span class="w"> </span>--batch_size<span class="w"> </span><span class="m">2000</span><span class="w"> </span>--num_chains<span class="w"> </span><span class="m">2000</span><span class="w"> </span><span class="se">\</span>
+--learning_rate<span class="w"> </span><span class="m">0</span>.01<span class="w"> </span>--device<span class="w"> </span>cuda<span class="w"> </span>--dtype<span class="w"> </span>float
+</pre></div>
+</div>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="restore-the-training">
+<h1>Restore the training<a class="headerlink" href="#restore-the-training" title="Link to this heading"></a></h1>
+<p>If you want to continue the training of a RBM (be it one recovered from a RCM or a previously trained one), you can use the same scripts. The differences are that you should add the <code class="docutils literal notranslate"><span class="pre">--restore</span></code> flags. Also some arguments are not useful anymore and can be safely ignored:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--num_hiddens</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--batch_size</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--gibbs_steps</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--learning_rate</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--num_chains</span></code></p></li>
+</ul>
+<p>Finally the updates will be added to the same archive you provide as an input through <code class="docutils literal notranslate"><span class="pre">--filename</span></code>. If the <code class="docutils literal notranslate"><span class="pre">--restore</span></code> flag is set, then the file will <strong>not</strong> be overwritten.</p>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Nicolas Béreux.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

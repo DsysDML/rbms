@@ -1,0 +1,156 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Datasets &mdash; Torch RBM 0.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=d2d258e8" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+      <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=2709fde1"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            Torch RBM
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Datasets</a><ul>
+<li><a class="reference internal" href="#create-a-compatible-dataset">Create a compatible dataset</a></li>
+<li><a class="reference internal" href="#command-line-arguments">Command line arguments</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Torch RBM</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Datasets</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/tuto/dataset.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="datasets">
+<h1>Datasets<a class="headerlink" href="#datasets" title="Link to this heading"></a></h1>
+<section id="create-a-compatible-dataset">
+<h2>Create a compatible dataset<a class="headerlink" href="#create-a-compatible-dataset" title="Link to this heading"></a></h2>
+<p>In order to use this package, you need to provide the datasets. Only two formats are accepted so far:</p>
+<ul class="simple">
+<li><p>HDF5 file (<code class="docutils literal notranslate"><span class="pre">.h5</span></code>). These files are used for binary datasets. It should have a <code class="docutils literal notranslate"><span class="pre">&quot;samples&quot;</span></code> key inside referring to a <code class="docutils literal notranslate"><span class="pre">num_samples</span> <span class="pre">x</span> <span class="pre">num_dimension</span></code> float matrix. Optionally, a <code class="docutils literal notranslate"><span class="pre">&quot;labels&quot;</span></code> key can be set with a vector of numerical labels associated to the samples.</p></li>
+<li><p>FASTA file (<code class="docutils literal notranslate"><span class="pre">.fasta</span></code>). These files are used for proteins datasets.</p></li>
+</ul>
+<p>An example of the code used to create a valid HDF5 dataset in python:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">h5py</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">num_samples</span> <span class="o">=</span> <span class="mi">100</span>
+<span class="n">num_dimensions</span> <span class="o">=</span> <span class="mi">27</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">num_dimensions</span><span class="p">,</span> <span class="n">num_dimension</span><span class="p">)</span>
+
+<span class="c1"># begin optional</span>
+<span class="n">num_classes</span> <span class="o">=</span> <span class="mi">3</span>
+<span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_classes</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">num_samples</span><span class="p">,))</span>
+<span class="c1"># end optional</span>
+
+<span class="k">with</span> <span class="n">h5py</span><span class="o">.</span><span class="n">File</span><span class="p">(</span><span class="s2">&quot;my_dataset.h5&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+   <span class="n">f</span><span class="p">[</span><span class="s2">&quot;samples&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span>
+
+   <span class="c1"># begin optional</span>
+   <span class="n">f</span><span class="p">[</span><span class="s2">&quot;labels&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">labels</span>
+   <span class="c1"># end optional</span>
+</pre></div>
+</div>
+</section>
+<section id="command-line-arguments">
+<h2>Command line arguments<a class="headerlink" href="#command-line-arguments" title="Link to this heading"></a></h2>
+<p>When running a script requiring a dataset, you have several flags:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-d</span></code> or <code class="docutils literal notranslate"><span class="pre">--data</span></code> The path to the dataset (e.g.<code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">./data/dataset.h5</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--subset_labels</span></code> For datasets with labels specified, it allows to select only a subset of the dataset matching the specified labels. For example setting <code class="docutils literal notranslate"><span class="pre">-d</span> <span class="pre">MNIST</span> <span class="pre">--subset_labels</span> <span class="pre">0</span> <span class="pre">1</span></code> will load the <span class="math notranslate nohighlight">\(0\)</span> and <span class="math notranslate nohighlight">\(1\)</span> digits of the MNIST dataset (what we refer to as <code class="docutils literal notranslate"><span class="pre">MNIST-01</span></code> dataset). If specified in a dataset without labels, the full dataset is selected.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--train_size</span></code> The proportion of the dataset to use as training dataset. It can go from <span class="math notranslate nohighlight">\(0\)</span> to <span class="math notranslate nohighlight">\(1\)</span> and the default is <span class="math notranslate nohighlight">\(0.6\)</span>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--test_size</span></code> Same as above, but for the test dataset. Defaults to <span class="math notranslate nohighlight">\(1-\)</span> train size</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--use_weights</span></code> Compute the weights for protein sequences.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--alphabet</span></code> One of <code class="docutils literal notranslate"><span class="pre">{protein,rna,dna}</span></code>. Depends on the type of fasta file you are using.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, Nicolas Béreux.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
