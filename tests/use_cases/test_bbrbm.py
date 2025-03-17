@@ -27,7 +27,7 @@ def test_use_case_train_bbrbm():
     NUM_UPDATES = 100
     SUBSET_LABELS = [0, 1]
 
-    DEVICE = torch.device("cuda")
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     DTYPE = torch.float32
 
     BATCH_SIZE = 300
