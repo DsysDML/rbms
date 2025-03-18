@@ -249,4 +249,5 @@ class RBM(EBM):
         for _ in range(n_steps):
             new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
             new_chains = self.sample_visibles(chains=new_chains, beta=beta)
+        new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
         return new_chains
