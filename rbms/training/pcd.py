@@ -24,12 +24,12 @@ def fit_batch_pcd(
     beta: float,
     centered: bool = True,
 ) -> Tuple[dict[str, Tensor], dict]:
-    """Sample the RBM and compute the gradient.
+    """Sample the EBM and compute the gradient.
 
     Args:
         batch (Tuple[Tensor, Tensor]): Dataset samples and associated weights.
         parallel_chains (dict[str, Tensor]): Parallel chains used for gradient computation.
-        params (RBM): Parameters of the RBM.
+        params (EBM): Parameters of the EBM.
         gibbs_steps (int): Number of Gibbs steps to perform.
         beta (float): Inverse temperature.
 
