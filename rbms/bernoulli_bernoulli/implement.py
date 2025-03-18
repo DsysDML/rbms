@@ -47,7 +47,9 @@ def _compute_energy_visibles(
 ) -> Tensor:
     field = v @ vbias
     exponent = hbias + (v @ weight_matrix)
-    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
+    log_term = torch.where(
+        exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent
+    )
     return -field - log_term.sum(1)
 
 
@@ -57,7 +59,9 @@ def _compute_energy_hiddens(
 ) -> Tensor:
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
-    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
+    log_term = torch.where(
+        exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent
+    )
     return -field - log_term.sum(1)
 
 
@@ -140,7 +144,9 @@ def _init_chains(
 
     if start_v is None:
         # Dummy mean visible
-        mv = torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
+        mv = (
+            torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
+        )
         v = torch.bernoulli(mv)
     else:
         # Dummy mean visible
