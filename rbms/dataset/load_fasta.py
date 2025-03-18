@@ -52,11 +52,9 @@ def load_FASTA(
     weights = weights.squeeze(-1)
     if binarize:
         num_categories = len(np.unique(dataset))
-        dataset_oh = (
+        dataset = (
             one_hot(torch.from_numpy(dataset).int(), num_classes=num_categories)
             .view(dataset.shape[0], -1)
             .numpy()
         )
-        print("ici")
-        assert np.allclose(dataset, dataset_oh)
     return dataset, weights, names
