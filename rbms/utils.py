@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 from rbms.const import LOG_FILE_HEADER
 
 
@@ -202,7 +202,7 @@ def log_to_csv(logs: dict[str, float], log_file: str) -> None:
 
 
 def compute_log_likelihood(
-    v_data: Tensor, w_data: Tensor, params: RBM, log_z: float
+    v_data: Tensor, w_data: Tensor, params: EBM, log_z: float
 ) -> float:
     """Compute the log likelihood of the RBM on the data, given its log partition function.
 
