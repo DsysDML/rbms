@@ -38,7 +38,7 @@ def add_args_saves(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "-o",
         "--filename",
         type=str,
-        default="RBM.h5",
+        default=None,
         help="(Defaults to RBM.h5). Path to the file where to save the model or load if training is restored.",
     )
     save_args.add_argument(
@@ -50,14 +50,14 @@ def add_args_saves(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     save_args.add_argument(
         "--acc_ptt",
         type=float,
-        default=0.25,
+        default=None,
         help="(Defaults to 0.25). Minimum PTT acceptance to save configurations for ptt file.",
     )
     save_args.add_argument(
         "--acc_ll",
         type=float,
-        default=0.7,
-        help="(Defaults to 0.75). Minimum PTT acceptance to save configurations for ll file.",
+        default=None,
+        help="(Defaults to 0.7). Minimum PTT acceptance to save configurations for ll file.",
     )
     save_args.add_argument(
         "--spacing",
@@ -88,42 +88,42 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     rbm_args.add_argument(
         "--num_hiddens",
         type=int,
-        default=100,
+        default=None,
         help="(Defaults to 100). Number of hidden units.",
     )
     rbm_args.add_argument(
         "--batch_size",
         type=int,
-        default=2000,
+        default=None,
         help="(Defaults to 2000). Minibatch size.",
     )
     rbm_args.add_argument(
         "--gibbs_steps",
         type=int,
-        default=100,
+        default=None,
         help="(Defaults to 100). Number of gibbs steps to perform for each gradient update.",
     )
     rbm_args.add_argument(
         "--learning_rate",
         type=float,
-        default=0.01,
+        default=None,
         help="(Defaults to 0.01). Learning rate.",
     )
     rbm_args.add_argument(
         "--num_chains",
         type=int,
-        default=2000,
+        default=None,
         help="(Defaults to 2000). Number of parallel chains.",
     )
     rbm_args.add_argument(
         "--num_updates",
-        default=10_000,
+        default=None,
         type=int,
         help="(Defaults to 10 000). Number of gradient updates to perform.",
     )
     rbm_args.add_argument(
         "--beta",
-        default=1.0,
+        default=None,
         type=float,
         help="(Defaults to 1.0). The inverse temperature of the RBM",
     )
@@ -165,4 +165,32 @@ def match_args_dtype(args: dict[str, Any]) -> dict[str, Any]:
             args["dtype"] = torch.float32
         case "double":
             args["dtype"] = torch.float64
+    return args
+
+
+default_args: dict[str, Any] = {
+    "filename": "RBM.h5",
+    "n_save": 50,
+    "acc_ptt": 0.25,
+    "acc_ll": 0.7,
+    "spacing": "exp",
+    "log": True,
+    "overwrite": True,
+    "num_hiddens": 100,
+    "batch_size": 2000,
+    "gibbs_steps": 100,
+    "learning_rate": 0.01,
+    "num_chains": 2000,
+    "num_updates": 10000,
+    "beta": 1.0,
+    "restore": False,
+}
+
+
+def set_args_default(
+    args: dict[str, Any], default_args: dict[str, Any]
+) -> dict[str, Any]:
+    for k, v in args.items():
+        if v is None and k in default_args.keys():
+            args[k] = default_args[k]
     return args

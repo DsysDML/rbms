@@ -40,8 +40,8 @@ def setup_training(
 
     # Hyperparameters
     for k, v in hyperparameters.items():
-        args[k] = v
-    learning_rate = args["learning_rate"]
+        if v is None:
+            args[k] = v
 
     # Open the log file if it exists
     log_filename = pathlib.Path(args["filename"]).parent / pathlib.Path(
@@ -70,7 +70,6 @@ def setup_training(
         params,
         parallel_chains,
         args,
-        learning_rate,
         num_updates,
         start,
         elapsed_time,

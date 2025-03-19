@@ -11,6 +11,7 @@ from rbms.parser import (
     add_args_saves,
     match_args_dtype,
     remove_argument,
+    default_args,
 )
 from rbms.training.pcd import train
 from rbms.training.utils import get_checkpoints
@@ -54,6 +55,7 @@ def train_rbm(args: dict):
         dtype=args["dtype"],
         checkpoints=checkpoints,
         map_model=map_model,
+        default_args=default_args,
     )
 
 

@@ -14,6 +14,7 @@ from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.training.utils import create_machine, setup_training
 from rbms.utils import check_file_existence, log_to_csv
+from rbms.parser import default_args, set_args_default
 
 
 def fit_batch_pcd(
@@ -60,6 +61,7 @@ def train(
     dtype: torch.dtype,
     checkpoints: np.ndarray,
     map_model: dict[str, EBM] = map_model,
+    default_args: dict = default_args,
 ) -> None:
     """Train an EBM.
 
@@ -79,6 +81,7 @@ def train(
 
     # Create a first archive with the initialized model
     if not (args["restore"]):
+        args = set_args_default(args=args, default_args=default_args)
         params = map_model[model_type].init_parameters(
             num_hiddens=args["num_hiddens"],
             dataset=dataset,
@@ -102,15 +105,15 @@ def train(
         params,
         parallel_chains,
         args,
-        learning_rate,
         num_updates,
         start,
         elapsed_time,
         log_filename,
         pbar,
     ) = setup_training(args, map_model=map_model)
+    args = set_args_default(args=args, default_args=default_args)
 
-    optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
+    optimizer = SGD(params.parameters(), lr=args["learning_rate"], maximize=True)
 
     for k, v in args.items():
         print(f"{k} : {v}")
