@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch.optim import SGD
+from torch.utils.data import Subset
 
 from rbms.classes import RBM
 from rbms.dataset.dataset_class import RBMDataset
@@ -78,6 +79,11 @@ def train(
     filename = args["filename"]
     if not (args["overwrite"]):
         check_file_existence(filename)
+        
+    if args["gibbs_steps_init"]:   #MODIFICATION DONE DUE TO BM SLOW DYNAMICS
+        gibbs_steps_init = args["gibbs_steps_init"]
+    else:
+        gibbs_steps_init = 1000
 
     num_visibles = dataset.get_num_visibles()
 
@@ -100,6 +106,7 @@ def train(
             learning_rate=args["learning_rate"],
             log=args["log"],
             flags=["checkpoint"],
+            gibbs_steps_init=gibbs_steps_init
         )
 
     (

@@ -6,7 +6,6 @@ from torch import Tensor
 
 from rbms.dataset.dataset_class import RBMDataset
 
-
 class RBM(ABC):
     """An abstract class representing the parameters of a RBM."""
 

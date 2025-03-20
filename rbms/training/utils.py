@@ -91,6 +91,7 @@ def create_machine(
     learning_rate: float,
     log: bool,
     flags: List[str],
+    gibbs_steps_init = 1000
 ) -> None:
     """Create a RBM and save it to a new file.
 
@@ -108,7 +109,7 @@ def create_machine(
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
     parallel_chains = sample_state(
-        gibbs_steps=1000, chains=parallel_chains, params=params
+        gibbs_steps=gibbs_steps_init, chains=parallel_chains, params=params
     )
     with h5py.File(filename, "w") as file_model:
         hyperparameters = file_model.create_group("hyperparameters")
