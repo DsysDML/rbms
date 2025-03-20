@@ -2,6 +2,7 @@ import argparse
 from typing import Any
 
 import torch
+import numpy as np
 
 
 def add_args_pytorch(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -184,6 +185,7 @@ default_args: dict[str, Any] = {
     "num_updates": 10000,
     "beta": 1.0,
     "restore": False,
+    "seed": np.random.randint(0, 1000000000000),
 }
 
 
