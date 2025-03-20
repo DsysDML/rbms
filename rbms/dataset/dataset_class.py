@@ -1,6 +1,6 @@
 import gzip
 import textwrap
-from typing import Dict, Union
+from typing import Dict, Union, Self, Tuple, Optional
 
 import numpy as np
 import torch
@@ -116,9 +116,59 @@ class RBMDataset(Dataset):
         for i in pbar:
             en[i] = len(
                 gzip.compress(
-                    (self.data[torch.randperm(self.data.shape[0])[:num_samples]]).astype(
-                        int
-                    )
+                    (
+                        self.data[torch.randperm(self.data.shape[0])[:num_samples]]
+                    ).astype(int)
                 )
             )
         return np.mean(en)
+
+    def split_train_test(
+        self,
+        rng: np.random.Generator,
+        train_size: float,
+        test_size: Optional[float] = None,
+    ) -> Tuple[Self, Self | None]:
+        num_samples = self.data.shape[0]
+        # Shuffle dataset
+        permutation_index = rng.permutation(num_samples)
+        train_size = int(train_size * num_samples)
+        if test_size is not None:
+            test_size = int(test_size * num_samples)
+        else:
+            test_size = num_samples - train_size
+        train_dataset = RBMDataset(
+            data=self.data[permutation_index[:train_size]].cpu().numpy(),
+            labels=self.labels[permutation_index[:train_size]].cpu().numpy(),
+            weights=self.weights[permutation_index[:train_size]].cpu().numpy(),
+            names=self.names[permutation_index[:train_size]],
+            dataset_name=self.dataset_name,
+            is_binary=self.is_binary,
+            device=self.device,
+            dtype=self.dtype,
+        )
+        test_dataset = None
+        if test_size > 0:
+            test_dataset = RBMDataset(
+                data=self.data[permutation_index[train_size : train_size + test_size]]
+                .cpu()
+                .numpy(),
+                labels=self.labels[
+                    permutation_index[train_size : train_size + test_size]
+                ]
+                .cpu()
+                .numpy(),
+                weights=self.weights[
+                    permutation_index[train_size : train_size + test_size]
+                ]
+                .cpu()
+                .numpy(),
+                names=self.names[
+                    permutation_index[train_size : train_size + test_size]
+                ],
+                dataset_name=self.dataset_name,
+                is_binary=self.is_binary,
+                device=self.device,
+                dtype=self.dtype,
+            )
+        return train_dataset, test_dataset

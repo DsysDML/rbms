@@ -13,7 +13,7 @@ pytest.NUM_SAMPLES = 11
 pytest.NUM_CHAINS = 13
 pytest.BATCH_SIZE = 17
 pytest.GIBBS_STEPS = 19
-
+pytest.SEED = 42
 
 pytest.DEVICE_CUDA = "meta"
 pytest.LEARNING_RATE = 0.03
@@ -148,6 +148,9 @@ def sample_args(tmp_path):
         "filename": filename,
         "beta": 1.0,
         "overwrite": True,
+        "seed": pytest.SEED,
+        "train_size": 0.6,
+        "test_size": None,
     }
 
 

@@ -14,6 +14,7 @@ from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.training.utils import create_machine, setup_training
 from rbms.utils import check_file_existence, log_to_csv
+from rbms.parser import default_args, set_args_default
 
 
 def fit_batch_pcd(
@@ -54,12 +55,12 @@ def fit_batch_pcd(
 
 def train(
     dataset: RBMDataset,
-    test_dataset: RBMDataset,
     model_type: str,
     args: dict,
     dtype: torch.dtype,
     checkpoints: np.ndarray,
     map_model: dict[str, EBM] = map_model,
+    default_args: dict = default_args,
 ) -> None:
     """Train an EBM.
 
@@ -71,17 +72,22 @@ def train(
         dtype (torch.dtype): The data type for the parameters.
         checkpoints (np.ndarray): An array of checkpoints for saving model states.
     """
+
     filename = args["filename"]
     if not (args["overwrite"]):
         check_file_existence(filename)
 
     num_visibles = dataset.get_num_visibles()
-
     # Create a first archive with the initialized model
     if not (args["restore"]):
+        args = set_args_default(args=args, default_args=default_args)
+        rng = np.random.default_rng(args["seed"])
+        train_dataset, test_dataset = dataset.split_train_test(
+            rng, args["train_size"], args["test_size"]
+        )
         params = map_model[model_type].init_parameters(
             num_hiddens=args["num_hiddens"],
-            dataset=dataset,
+            dataset=train_dataset,
             device=args["device"],
             dtype=dtype,
         )
@@ -96,21 +102,22 @@ def train(
             learning_rate=args["learning_rate"],
             log=args["log"],
             flags=["checkpoint"],
+            seed=args["seed"],
         )
-
     (
         params,
         parallel_chains,
         args,
-        learning_rate,
         num_updates,
         start,
         elapsed_time,
         log_filename,
         pbar,
-    ) = setup_training(args, map_model=map_model)
-
-    optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
+        train_dataset,
+        test_dataset,
+    ) = setup_training(args, map_model=map_model, dataset=dataset)
+    args = set_args_default(args=args, default_args=default_args)
+    optimizer = SGD(params.parameters(), lr=args["learning_rate"], maximize=True)
 
     for k, v in args.items():
         print(f"{k} : {v}")

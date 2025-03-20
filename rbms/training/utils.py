@@ -13,13 +13,25 @@ from rbms.const import LOG_FILE_HEADER
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
 from rbms.utils import get_saved_updates
+from rbms.dataset.dataset_class import RBMDataset
 
 
 def setup_training(
     args: dict,
+    dataset: RBMDataset,
     map_model: dict[str, EBM] = map_model,
 ) -> Tuple[
-    EBM, dict[str, Tensor], dict[str, Any], float, int, float, float, pathlib.Path, tqdm
+    EBM,
+    dict[str, Tensor],
+    dict[str, Any],
+    float,
+    int,
+    float,
+    float,
+    pathlib.Path,
+    tqdm,
+    RBMDataset,
+    RBMDataset,
 ]:
     # Retrieve the the number of training updates already performed on the model
     updates = get_saved_updates(filename=args["filename"])
@@ -40,8 +52,14 @@ def setup_training(
 
     # Hyperparameters
     for k, v in hyperparameters.items():
-        args[k] = v
-    learning_rate = args["learning_rate"]
+        if v is not None:
+            args[k] = v
+
+    train_dataset, test_dataset = dataset.split_train_test(
+        rng=np.random.default_rng(args["seed"]),
+        train_size=args["train_size"],
+        test_size=args["test_size"],
+    )
 
     # Open the log file if it exists
     log_filename = pathlib.Path(args["filename"]).parent / pathlib.Path(
@@ -70,12 +88,13 @@ def setup_training(
         params,
         parallel_chains,
         args,
-        learning_rate,
         num_updates,
         start,
         elapsed_time,
         log_filename,
         pbar,
+        train_dataset,
+        test_dataset,
     )
 
 
@@ -90,6 +109,7 @@ def create_machine(
     learning_rate: float,
     log: bool,
     flags: List[str],
+    seed: int,
 ) -> None:
     """Create a RBM and save it to a new file.
 
@@ -116,6 +136,7 @@ def create_machine(
         hyperparameters["gibbs_steps"] = gibbs_steps
         hyperparameters["filename"] = str(filename)
         hyperparameters["learning_rate"] = learning_rate
+        hyperparameters["seed"] = seed
 
     save_model(
         filename=filename,

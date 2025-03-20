@@ -130,6 +130,7 @@ def load_model(
         hyperparameters["learning_rate"] = float(
             f["hyperparameters"]["learning_rate"][()]
         )
+        hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
 
     params = load_params(
         filename=filename, index=index, device=device, dtype=dtype, map_model=map_model
