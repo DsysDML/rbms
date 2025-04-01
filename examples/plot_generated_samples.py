@@ -21,16 +21,12 @@ dtype = torch.float32
 #
 from rbms.dataset import load_dataset
 
-train_dataset, test_dataset = load_dataset(
-    "dummy.h5", train_size=0.6, test_size=0.4, device=device, dtype=dtype
+# Here we load the dataset, the split will be performed based on the seed saved in the model
+dataset, _ = load_dataset(
+    "dummy.h5", train_size=1.0, test_size=0, device=device, dtype=dtype
 )
-num_visibles = train_dataset.get_num_visibles()
+num_visibles = dataset.get_num_visibles()
 
-U_data, S_data, V_dataT = torch.linalg.svd(
-    train_dataset.data - train_dataset.data.mean(0)
-)
-proj_data = train_dataset.data @ V_dataT.mT / num_visibles**0.5
-proj_data = proj_data.cpu().numpy()
 
 # %%
 # Load the model.
@@ -55,6 +51,29 @@ params, permanent_chains, training_time, hyperparameters = load_model(
 print(f"Training time: {training_time}")
 for k in hyperparameters.keys():
     print(f"{k} : {hyperparameters[k]}")
+
+# %%
+# We split the dataset based on the seed provided in the model.
+import numpy as np
+
+if "seed" in hyperparameters.keys():
+    seed = hyperparameters["seed"]
+else:
+    # Default seed for older archives
+    seed = 19023741073419046239412739401234901
+
+train_size = 0.6
+if "train_size" in hyperparameters.keys():
+    train_size = hyperparameters["train_size"]
+
+rng = np.random.default_rng(seed)
+train_dataset, test_dataset = dataset.split_train_test(rng, train_size=train_size)
+
+U_data, S_data, V_dataT = torch.linalg.svd(
+    train_dataset.data - train_dataset.data.mean(0)
+)
+proj_data = train_dataset.data @ V_dataT.mT / num_visibles**0.5
+proj_data = proj_data.cpu().numpy()
 
 # %%
 # To follow the training of the RBM, let's look at the singular values of the weight matrix
