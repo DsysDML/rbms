@@ -107,6 +107,7 @@ def create_machine(
     batch_size: int,
     gibbs_steps: int,
     learning_rate: float,
+    train_size: float,
     log: bool,
     flags: List[str],
     seed: int,
@@ -136,6 +137,7 @@ def create_machine(
         hyperparameters["gibbs_steps"] = gibbs_steps
         hyperparameters["filename"] = str(filename)
         hyperparameters["learning_rate"] = learning_rate
+        hyperparameters["train_size"] = True
         hyperparameters["seed"] = seed
 
     save_model(

@@ -100,6 +100,7 @@ def train(
             batch_size=args["batch_size"],
             gibbs_steps=args["gibbs_steps"],
             learning_rate=args["learning_rate"],
+            train_size=args["train_size"],
             log=args["log"],
             flags=["checkpoint"],
             seed=args["seed"],
