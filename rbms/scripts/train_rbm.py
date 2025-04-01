@@ -31,7 +31,7 @@ def train_rbm(args: dict):
     checkpoints = get_checkpoints(
         num_updates=args["num_updates"], n_save=args["n_save"], spacing=args["spacing"]
     )
-    train_dataset, test_dataset = load_dataset(
+    dataset, _ = load_dataset(
         dataset_name=args["data"],
         subset_labels=args["subset_labels"],
         use_weights=args["use_weights"],
@@ -43,13 +43,13 @@ def train_rbm(args: dict):
         dtype=args["dtype"],
         seed=args["seed"],
     )
-    print(train_dataset)
-    if train_dataset.is_binary:
+    print(dataset)
+    if dataset.is_binary:
         model_type = "BBRBM"
     else:
         model_type = "PBRBM"
     train(
-        dataset=train_dataset,
+        dataset=dataset,
         model_type=model_type,
         args=args,
         dtype=args["dtype"],
