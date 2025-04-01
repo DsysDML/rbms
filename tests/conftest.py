@@ -14,6 +14,7 @@ pytest.NUM_CHAINS = 13
 pytest.BATCH_SIZE = 17
 pytest.GIBBS_STEPS = 19
 pytest.SEED = 42
+pytest.TRAIN_SIZE = 0.6
 
 pytest.DEVICE_CUDA = "meta"
 pytest.LEARNING_RATE = 0.03
