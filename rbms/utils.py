@@ -28,7 +28,7 @@ def get_eigenvalues_history(filename: str):
         gradient_updates = []
         eigenvalues = []
         for key in f.keys():
-            if "update" in key:
+            if "update_" in key:
                 weight_matrix = f[key]["params"]["weight_matrix"][()]
                 weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
                 eig = np.linalg.svd(weight_matrix, compute_uv=False)
@@ -56,7 +56,7 @@ def get_saved_updates(filename: str) -> np.ndarray:
     updates = []
     with h5py.File(filename, "r") as f:
         for key in f.keys():
-            if "update" in key:
+            if "update_" in key:
                 update = int(key.replace("update_", ""))
                 updates.append(update)
     return np.sort(np.array(updates))
@@ -295,7 +295,7 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
     flagged_updates = []
     with h5py.File(filename, "r") as f:
         for key in f.keys():
-            if "update" in key:
+            if "update_" in key:
                 update = int(key.replace("update_", ""))
                 if flag in f[key]["flags"]:
                     if f[key]["flags"][flag][()]:
