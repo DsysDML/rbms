@@ -15,6 +15,7 @@ from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.training.utils import create_machine, setup_training
 from rbms.utils import check_file_existence, log_to_csv
 from rbms.parser import default_args, set_args_default
+from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 
 
 def fit_batch_pcd(
@@ -91,6 +92,9 @@ def train(
             device=args["device"],
             dtype=dtype,
         )
+
+        if isinstance(params, PBRBM):
+            ensure_zero_sum_gauge(params)
         create_machine(
             filename=filename,
             params=params,

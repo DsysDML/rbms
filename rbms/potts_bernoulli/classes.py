@@ -15,7 +15,6 @@ from rbms.potts_bernoulli.implement import (
     _sample_hiddens,
     _sample_visibles,
 )
-from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 
 
 class PBRBM(RBM):
@@ -160,7 +159,6 @@ class PBRBM(RBM):
             var_init=var_init,
         )
         params = PBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
-        ensure_zero_sum_gauge(PBRBM)
         return params
 
     def named_parameters(self):
