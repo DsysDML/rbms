@@ -42,6 +42,8 @@ def load_dataset(
                 alphabet=alphabet,
                 device=device,
             )
+            if not binarize:
+                is_binary = False
         case _:
             raise ValueError(
                 """
@@ -51,8 +53,6 @@ def load_dataset(
                 - '.fasta'
             """
             )
-    if not binarize:
-        is_binary = False
 
     # Select subset of dataset w.r.t. labels
     if subset_labels is not None and labels is not None:
