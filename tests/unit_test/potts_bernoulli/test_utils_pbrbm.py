@@ -31,8 +31,10 @@ def test_create_load_machine(tmp_path, sample_params_class_pbrbm):
         batch_size=pytest.BATCH_SIZE,
         gibbs_steps=pytest.GIBBS_STEPS,
         learning_rate=pytest.LEARNING_RATE,
+        train_size=pytest.TRAIN_SIZE,
         log=True,
         flags=["test"],
+        seed=pytest.SEED,
     )
 
     # Check if the file was created
@@ -61,6 +63,7 @@ def test_create_load_machine(tmp_path, sample_params_class_pbrbm):
     assert hyperparameters["batch_size"] == pytest.BATCH_SIZE
     assert hyperparameters["gibbs_steps"] == pytest.GIBBS_STEPS
     assert hyperparameters["learning_rate"] == pytest.LEARNING_RATE
+    assert hyperparameters["seed"] == pytest.SEED
 
 
 def test_create_load_machine_dtype(tmp_path, sample_params_class_pbrbm):
@@ -76,8 +79,10 @@ def test_create_load_machine_dtype(tmp_path, sample_params_class_pbrbm):
         batch_size=pytest.BATCH_SIZE,
         gibbs_steps=pytest.GIBBS_STEPS,
         learning_rate=pytest.LEARNING_RATE,
+        train_size=pytest.TRAIN_SIZE,
         log=True,
         flags=["test"],
+        seed=pytest.SEED,
     )
 
     # Check if the file was created
@@ -106,3 +111,4 @@ def test_create_load_machine_dtype(tmp_path, sample_params_class_pbrbm):
     assert hyperparameters["batch_size"] == pytest.BATCH_SIZE
     assert hyperparameters["gibbs_steps"] == pytest.GIBBS_STEPS
     assert hyperparameters["learning_rate"] == pytest.LEARNING_RATE
+    assert hyperparameters["seed"] == pytest.SEED

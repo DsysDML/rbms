@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import RBM
+from rbms.classes import EBM
 from rbms.const import LOG_FILE_HEADER
 
 
@@ -28,7 +28,7 @@ def get_eigenvalues_history(filename: str):
         gradient_updates = []
         eigenvalues = []
         for key in f.keys():
-            if "update" in key:
+            if "update_" in key:
                 weight_matrix = f[key]["params"]["weight_matrix"][()]
                 weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
                 eig = np.linalg.svd(weight_matrix, compute_uv=False)
@@ -56,7 +56,7 @@ def get_saved_updates(filename: str) -> np.ndarray:
     updates = []
     with h5py.File(filename, "r") as f:
         for key in f.keys():
-            if "update" in key:
+            if "update_" in key:
                 update = int(key.replace("update_", ""))
                 updates.append(update)
     return np.sort(np.array(updates))
@@ -202,7 +202,7 @@ def log_to_csv(logs: dict[str, float], log_file: str) -> None:
 
 
 def compute_log_likelihood(
-    v_data: Tensor, w_data: Tensor, params: RBM, log_z: float
+    v_data: Tensor, w_data: Tensor, params: EBM, log_z: float
 ) -> float:
     """Compute the log likelihood of the RBM on the data, given its log partition function.
 
@@ -295,7 +295,7 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
     flagged_updates = []
     with h5py.File(filename, "r") as f:
         for key in f.keys():
-            if "update" in key:
+            if "update_" in key:
                 update = int(key.replace("update_", ""))
                 if flag in f[key]["flags"]:
                     if f[key]["flags"][flag][()]:

@@ -31,6 +31,14 @@ def load_HDF5(
                     f"Ignoring labels since its dimension ({labels.shape[0]}) does not match the number of samples ({dataset.shape[0]})."
                 )
                 labels = None
+    # From BEG to Potts
+    if not binarize:
+        X = (dataset[:, :] + 1) / 2
+        for i in range(X.shape[0]):
+            for j in range(X.shape[1]):
+                if X[i, j] == 0.5:
+                    X[i, j] = 2
+        return X, labels
     if "cont" not in str(filename.resolve()):
         unique_values = np.unique(dataset)
         is_ising = np.all(unique_values == np.array([-1, 1]))

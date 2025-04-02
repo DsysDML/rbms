@@ -51,4 +51,10 @@ def add_args_dataset(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         action="store_true",
         help="(Defaults to False). Binarize the dataset.",
     )
+    dataset_args.add_argument(
+        "--seed",
+        default=None,
+        type=int,
+        help="(Defaults to None). Seed to split the dataset.",
+    )
     return parser

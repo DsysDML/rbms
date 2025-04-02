@@ -18,7 +18,6 @@ def test_train_bbrbm(sample_dataset_bbrbm, sample_args):
     model_type = "BBRBM"
     train(
         dataset,
-        test_dataset,
         model_type,
         sample_args,
         torch.float32,
@@ -55,14 +54,12 @@ def test_train_bbrbm(sample_dataset_bbrbm, sample_args):
 
 def test_train_pbrbm(sample_dataset_pbrbm, sample_args):
     dataset = sample_dataset_pbrbm
-    test_dataset = sample_dataset_pbrbm
     checkpoints = np.arange(1, sample_args["num_updates"] + 1)
     sample_args["restore"] = False
     sample_args["batch_size"] = pytest.NUM_SAMPLES
     model_type = "PBRBM"
     train(
         dataset,
-        test_dataset,
         model_type,
         sample_args,
         torch.float32,

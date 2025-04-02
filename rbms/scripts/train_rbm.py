@@ -11,6 +11,7 @@ from rbms.parser import (
     add_args_saves,
     match_args_dtype,
     remove_argument,
+    default_args,
 )
 from rbms.training.pcd import train
 from rbms.training.utils import get_checkpoints
@@ -30,30 +31,31 @@ def train_rbm(args: dict):
     checkpoints = get_checkpoints(
         num_updates=args["num_updates"], n_save=args["n_save"], spacing=args["spacing"]
     )
-    train_dataset, test_dataset = load_dataset(
+    dataset, _ = load_dataset(
         dataset_name=args["data"],
         subset_labels=args["subset_labels"],
         use_weights=args["use_weights"],
         alphabet=args["alphabet"],
         binarize=args["binarize"],
-        train_size=args["train_size"],
-        test_size=args["test_size"],
+        train_size=1.0,
+        test_size=None,
         device=args["device"],
         dtype=args["dtype"],
+        seed=args["seed"],
     )
-    print(train_dataset)
-    if train_dataset.is_binary:
+    print(dataset)
+    if dataset.is_binary:
         model_type = "BBRBM"
     else:
         model_type = "PBRBM"
     train(
-        dataset=train_dataset,
-        test_dataset=test_dataset,
+        dataset=dataset,
         model_type=model_type,
         args=args,
         dtype=args["dtype"],
         checkpoints=checkpoints,
         map_model=map_model,
+        default_args=default_args,
     )
 
 

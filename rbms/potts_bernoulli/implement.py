@@ -158,15 +158,21 @@ def _compute_gradient(
         h_gen_centered = h_chain
 
         # Gradient
-        grad_weight_matrix = torch.tensordot(
-            (v_data_one_hot * w_data),
-            mh_data,
-            dims=[[0], [0]],
-        ) / w_data_norm - torch.tensordot(
-            (v_gen_one_hot * chain_weights),
-            h_chain,
-            dims=[[0], [0]],
+        grad_weight_matrix = (
+            torch.tensordot(
+                v_data_centered,
+                h_data_centered,
+                dims=[[0], [0]],
+            )
+            / v_data.shape[0]
+            - torch.tensordot(
+                v_gen_centered,
+                h_gen_centered,
+                dims=[[0], [0]],
+            )
+            / v_chain.shape[0]
         )
+
         grad_vbias = v_data_mean - v_gen_mean
         grad_hbias = h_data_mean - h_gen_mean
     weight_matrix.grad.set_(grad_weight_matrix)
@@ -229,4 +235,5 @@ def _init_parameters(
         )
         * var_init
     )
+    # print(torch.svd(weight_matrix.reshape(-1, weight_matrix.shape[-1])).S)
     return vbias, hbias, weight_matrix

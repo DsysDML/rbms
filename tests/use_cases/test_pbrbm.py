@@ -56,6 +56,7 @@ def test_use_case_train_pbrbm_no_weights():
         "spacing": "exp",
         "binarize": False,
         "overwrite": True,
+        "seed": 42,
     }
     train_rbm(args)
 
@@ -128,6 +129,7 @@ def test_use_case_train_pbrbm_weights():
         "spacing": "exp",
         "binarize": False,
         "overwrite": True,
+        "seed": 42,
     }
     train_rbm(args)
 
