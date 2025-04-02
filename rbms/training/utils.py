@@ -137,7 +137,7 @@ def create_machine(
         hyperparameters["gibbs_steps"] = gibbs_steps
         hyperparameters["filename"] = str(filename)
         hyperparameters["learning_rate"] = learning_rate
-        hyperparameters["train_size"] = True
+        hyperparameters["train_size"] = train_size
         hyperparameters["seed"] = seed
 
     save_model(

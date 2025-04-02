@@ -130,13 +130,14 @@ class RBMDataset(Dataset):
         test_size: Optional[float] = None,
     ) -> Tuple[Self, Self | None]:
         num_samples = self.data.shape[0]
+        if test_size is None:
+            test_size = 1.0 - train_size
+
         # Shuffle dataset
         permutation_index = rng.permutation(num_samples)
         train_size = int(train_size * num_samples)
-        if test_size is not None:
-            test_size = int(test_size * num_samples)
-        else:
-            test_size = num_samples - train_size
+        test_size = int(test_size * num_samples)
+
         train_dataset = RBMDataset(
             data=self.data[permutation_index[:train_size]].cpu().numpy(),
             labels=self.labels[permutation_index[:train_size]].cpu().numpy(),
