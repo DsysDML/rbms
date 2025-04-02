@@ -133,7 +133,9 @@ def load_model(
         if "seed" in f["hyperparameters"].keys():
             hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
         if "train_size" in f["hyperparameters"].keys():
-            hyperparameters["train_size"] = int(f["hyperparameters"]["train_size"][()])
+            hyperparameters["train_size"] = float(
+                f["hyperparameters"]["train_size"][()]
+            )
     params = load_params(
         filename=filename, index=index, device=device, dtype=dtype, map_model=map_model
     )
