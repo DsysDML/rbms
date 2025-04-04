@@ -51,6 +51,8 @@ class BM(RBM):
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "BM"
         self.K_matrix = torch.randn_like(weight_matrix, device=self.device, dtype=self.dtype)
+        self.mask = torch.ones_like(self.weight_matrix, device=self.device)  # Shape [N, N]
+        self.mask.fill_diagonal_(0)  # Set diagonal to 0
 
     def __add__(self, other):
         return BM(
@@ -232,14 +234,14 @@ class BM(RBM):
         return Z_i_mu
     
     def compute_pseudolikelihood_J(self, data, l):
-        h = torch.einsum('ij,mj->mi', self.weight_matrix, data)
+        h = torch.einsum('ij,mj->mi', self.weight_matrix*self.mask, data)
         x_J_x = torch.einsum('mi,mi->mi', data, h)
         energy_i_mu = -x_J_x + (1 / l) * torch.log(self.Z_i_mu_func(h,l))
         PL = energy_i_mu.mean()
         return PL
     
     def compute_pseudolikelihood_K(self, data, l):
-        h = torch.einsum('ij,mj->mi', self.K_matrix, data)
+        h = torch.einsum('ij,mj->mi', self.K_matrix*self.mask, data)
         x_J_x = torch.einsum('mi,mi->mi', data, h)
         energy_i_mu = -x_J_x + (1 / l) * torch.log(self.Z_i_mu_func(h,l))
         PL = energy_i_mu.mean()
