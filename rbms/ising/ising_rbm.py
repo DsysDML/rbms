@@ -25,6 +25,8 @@ class IsingRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
+        K1: Tensor,
+        K2: Tensor,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
     ):
@@ -48,6 +50,8 @@ class IsingRBM(RBM):
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
+        self.K1 = K1.to(device=self.device, dtype=self.dtype)
+        self.K2 = K2.to(device=self.device, dtype=self.dtype)
         self.name = "IsingRBM"
 
     def __add__(self, other):
@@ -157,13 +161,19 @@ class IsingRBM(RBM):
             dtype=dtype,
             var_init=var_init,
         )
-        return IsingRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+        num_visible = len(data[0,:])
+        K1 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_visible))
+        K2 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_visible))
+
+        return IsingRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, K1=K1, K2=K2)
 
     def named_parameters(self):
         return {
             "weight_matrix": self.weight_matrix,
             "vbias": self.vbias,
             "hbias": self.hbias,
+            "K1": self.K1,
+            "K2": self.K2,
         }
 
     def num_hiddens(self):
@@ -200,7 +210,7 @@ class IsingRBM(RBM):
 
     @staticmethod
     def set_named_parameters(named_params: dict[str, Tensor]) -> Self:
-        names = ["vbias", "hbias", "weight_matrix"]
+        names = ["vbias", "hbias", "weight_matrix", "K1", "K2"]
         for k in names:
             if k not in named_params.keys():
                 raise ValueError(
@@ -210,6 +220,8 @@ class IsingRBM(RBM):
             weight_matrix=named_params.pop("weight_matrix"),
             vbias=named_params.pop("vbias"),
             hbias=named_params.pop("hbias"),
+            K1=named_params.pop("K1"),
+            K2=named_params.pop("K2")
         )
         if len(named_params.keys()) > 0:
             raise ValueError(
@@ -228,3 +240,29 @@ class IsingRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    def compute_loss_PL2(self, data, l, use_fields):
+        x = data
+        if use_fields == True:
+            h = torch.tanh(l*(self.hbias+torch.einsum("ia,mi->ma", self.K2, x)))
+        else:
+            h = torch.tanh(l*(torch.einsum("ia,mi->ma", self.K2, x)))
+        b = torch.einsum("ja,ma->mj",self.K2, h)
+        c = torch.einsum("ja,mj->ma",self.K2, x)
+        
+        if use_fields == True:
+            b = b+self.vbias
+            c = c+self.hbias
+            
+        j_term = torch.einsum("ja,ma->mja", self.K2, h)
+        a_term = torch.einsum("ja,mj->mja", self.K2, x)
+
+        b_i_eff = b.unsqueeze(2)-j_term   #[M,N,1]
+        c_a_eff = c.unsqueeze(1)-a_term    #[M,1,N]
+        
+        w_ai = torch.einsum("ma,ja,mj->mja", h, self.K2, x)
+        h_ai = b_i_eff*x.unsqueeze(2)+c_a_eff*h.unsqueeze(1)
+        Z_ai = 2.*(torch.exp(l*self.K2)*torch.cosh(l*b_i_eff+l*c_a_eff)+torch.exp(-l*self.K2)*torch.cosh(l*b_i_eff-l*c_a_eff))
+
+        e_ij = -w_ai-h_ai+1./l*torch.log(Z_ai+1e-9)
+        return e_ij.mean()

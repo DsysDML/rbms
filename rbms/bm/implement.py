@@ -21,7 +21,7 @@ def _sample_visibles(
     num_chains, num_units = x.shape
     for i in range(num_units):   #it has to be sequential
         h_i = torch.einsum("j,bj->b",weight_matrix[i],x)      #diagonal is already zero               
-        probs = torch.sigmoid(beta*h_i)
+        probs = torch.sigmoid(beta*(h_i+vbias[i]))
         x[:,i] = torch.bernoulli(probs)*2-1
     return x, x
 

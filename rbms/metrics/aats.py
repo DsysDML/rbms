@@ -50,8 +50,10 @@ def compute_aats(
     closest = distance_matrix.argmin(axis=1)
     n = int(closest.shape[0] / 2)
 
-    # for a true sample, proba that the closest is in the set of true samples
-    aa_truth = (closest[:n] >= n).sum() / n
+    # for a true sample, proba t
+                
+                
+                .sum() / n
     # for a fake sample, proba that the closest is in the set of fake samples
     aa_syn = (closest[n:] >= n).sum() / n
 
