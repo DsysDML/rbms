@@ -64,6 +64,7 @@ def _compute_gradient(
     v_chain: Tensor,
     weight_matrix: Tensor,
     vbias: Tensor,
+    use_fields: bool,
     centered: bool = False,
 ) -> None:
     dtype = torch.float32
@@ -84,8 +85,11 @@ def _compute_gradient(
     model_corr = (x_model.unsqueeze(2) * x_model.unsqueeze(1)).mean(dim=0)
     # Bias gradient
     grad_weight_matrix = data_corr - model_corr 
-    grad_weight_matrix.fill_diagonal_(0.0)                                  
-    grad_vbias = torch.tensor([0], device=weight_matrix.device, dtype=dtype)
+    grad_weight_matrix.fill_diagonal_(0.0) 
+    if use_fields==True:       
+        grad_vbias =  data_mean - model_mean  
+    else:
+        grad_vbias = torch.tensor([0], device=weight_matrix.device, dtype=dtype)
     #grad_hbias = torch.tensor([0], device=weight_matrix.device, dtype=weight_matrix.type)
 
     # Attach to the parameters
@@ -124,6 +128,7 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-2,
+    beta: float=1. 
 ) -> Tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     eps = 1e-4
@@ -141,4 +146,7 @@ def _init_parameters(
     )
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
     '''
-    return weight_matrix
+    spin_means = data.mean(0)
+    spin_means = torch.clamp(spin_means,-0.95,0.95)
+    vbias = 1/beta*torch.atanh(spin_means)
+    return weight_matrix, vbias

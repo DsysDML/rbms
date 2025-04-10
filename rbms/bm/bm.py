@@ -49,13 +49,15 @@ class BM(RBM):
         self.device = device
         self.dtype = dtype
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
+        self.w_norm_0 = torch.norm(weight_matrix)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
+        self.v_norm_0 = torch.norm(vbias)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "BM"
         self.N = len(weight_matrix[0])
         self.K1 = K1.to(device=self.device, dtype=self.dtype)
         self.K2 = K2.to(device=self.device, dtype=self.dtype)
-        self.norm0_K2 = torch.norm(self.K2)
+        self.K2_norm_0 = torch.norm(K2)
         self.mask = torch.ones_like(self.weight_matrix, device=self.device)  # Shape [N, N]
         self.mask.fill_diagonal_(0)  # Set diagonal to 0
 
@@ -111,12 +113,13 @@ class BM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(self, data, chains, centered=True):
+    def compute_gradient(self, data, chains, use_fields, centered=True):
         _compute_gradient(
             v_data=data["visible"],
             v_chain=chains["visible"],
             weight_matrix=self.weight_matrix,
             vbias=self.vbias,
+            use_fields=use_fields,
             centered=centered,
         )
 
@@ -147,19 +150,22 @@ class BM(RBM):
         )
 
     @staticmethod
-    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.1):
+    def init_parameters(num_hiddens, dataset, device, dtype, beta, use_fields, var_init=0.1):
         data = dataset.data
         # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):
             data = torch.from_numpy(dataset.data).to(device=device, dtype=dtype)
-        weight_matrix = _init_parameters(
+        weight_matrix, vbias = _init_parameters(
             data=data,
             device=device,
             dtype=dtype,
             var_init=var_init,
+            beta=beta
         )
         num_visible = len(data[0,:])
-        vbias = torch.zeros_like(weight_matrix[0], device=device, dtype=dtype)
+        if use_fields==False:
+            vbias = torch.zeros_like(weight_matrix[0], device=device, dtype=dtype)
+        
         hbias = torch.zeros_like(weight_matrix[0], device=device, dtype=dtype)
         K1 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_visible))
         K2 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_visible))
@@ -309,31 +315,51 @@ class BM(RBM):
         self.K2.grad.set_(grad_K2)
     '''    
     
-    def compute_loss_PL2(self, data, l, use_fields):
+    def comppute_loss_PL1(self, data, l, use_fields, use_hfield=False):
+          # [M, N]
+        x=data
+        J_x = torch.einsum('ijab,mjb->mia', self.K1 * self.mask.to(self.K1.device), x)   # [M, d]
+        y_i_mu = J_x.norm(dim=-1)  # Taking the norm over the last dimension -> [M,N]
+        x_J_x = torch.einsum('mia,mia->mi', x, J_x)  # [M, N]
+        Z_i_mu = 2*torch.cosh(l*y_i_mu)
+        # Compute the energy term for each mu: - dot_product + lam^-1 * log(Z_i_mu)
+                    # Compute the energy term for each mu: - dot_product + lam^-1 * log(Z_i_mu)
+        e_i = -x_J_x + (1 / l) * torch.log(Z_i_mu+1e-9)  # [M,N]
+
+        return e_i.mean()
+    
+    def compute_loss_PL2(self, data, l, use_fields, use_hfield=False):
         x = data#["visible"]
-        h = torch.einsum("ij,mj->mi",self.K2*self.mask, x)
-        i_term = torch.einsum("ij,mi->mij", self.K2, x)
-        j_term = torch.einsum("ij,mj->mij", self.K2, x)
+        h = torch.einsum("ik,mk->mi",self.K2*self.mask, x)
+        diff_term = torch.einsum("ik,mk->mik", self.K2*self.mask, x)
+        #j_term = torch.einsum("ik,mk->mi", self.K2*self.mask, x)
         if use_fields == True:
-            fields_x = torch.einsum("i,mi->mi", self.vbias, x)
-            h = h+fields_x
-        h_i_eff = h.unsqueeze(2)-i_term   #[M,N,1]
-        h_j_eff = h.unsqueeze(1)-j_term    #[M,1,N]
+            #fields_x = torch.einsum("i,mi->mi", self.vbias, x)
+            h = h+self.vbias.unsqueeze(0)
+        h_i_eff = h.unsqueeze(2)-diff_term   #[M,N,1]
+        h_j_eff = h.unsqueeze(1)-diff_term    #[M,1,N]
         
-        J_xx = torch.einsum("mi,ij,mj->mij", x, self.K2, x)
+        J_xx = torch.einsum("mi,ij,mj->mij", x, self.K2*self.mask, x)
         h_xx = h_i_eff*x.unsqueeze(2)+h_j_eff*x.unsqueeze(1)
-        Z_xx = 2.*(torch.exp(l*self.K2)*torch.cosh(l*h_i_eff+l*h_j_eff)+torch.exp(-l*self.K2)*torch.cosh(l*h_i_eff-l*h_j_eff))
+        Z_xx = 2.*(torch.exp(l*self.K2*self.mask)*torch.cosh(l*h_i_eff+l*h_j_eff)+torch.exp(-l*self.K2*self.mask)*torch.cosh(l*h_i_eff-l*h_j_eff))
         
-        e_ij = -J_xx-h_xx+1./l*torch.log(Z_xx+1e-9)
+        e_ij = -J_xx-h_xx+1./l*torch.log(Z_xx+(1-self.mask)+1e-9)
         return e_ij.mean()
         
+    def normalize_w(self):
+        with torch.no_grad():
+            norm = torch.norm(self.weight_matrix.data)
+            self.weight_matrix.data = self.weight_matrix.data * self.w_norm_0 / (norm+1e-9)
+            
     def normalize_K2(self):
         with torch.no_grad():
-            norm_temp = torch.norm(self.K2)
-            self.K2.data = self.K2.data*self.norm0_K2/norm_temp
-        
-        
-        
+            norm = torch.norm(self.K2.data)
+            self.K2.data = self.K2.data * self.K2_norm_0 / (norm+1e-9)
+            
+    def normalize_v(self):
+        with torch.no_grad():
+            norm = torch.norm(self.vbias.data)
+            self.vbias.data = self.vbias.data * self.v_norm_0 / (norm+1e-9)
     
     
     

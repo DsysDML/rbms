@@ -48,10 +48,13 @@ class IsingRBM(RBM):
         self.device = device
         self.dtype = dtype
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
+        self.w_norm_0 = torch.norm(weight_matrix)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
+        self.v_norm_0 = torch.norm(vbias)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.K1 = K1.to(device=self.device, dtype=self.dtype)
         self.K2 = K2.to(device=self.device, dtype=self.dtype)
+        self.K2_norm_0 = torch.norm(K2)
         self.name = "IsingRBM"
 
     def __add__(self, other):
@@ -108,7 +111,7 @@ class IsingRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(self, data, chains, centered=True):
+    def compute_gradient(self, data, chains, use_fields, centered=True):
         _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
@@ -149,7 +152,7 @@ class IsingRBM(RBM):
         )
 
     @staticmethod
-    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.0001):
+    def init_parameters(num_hiddens, dataset, device, dtype, beta, use_fields, var_init=0.0001):
         data = dataset.data
         # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):
@@ -160,10 +163,11 @@ class IsingRBM(RBM):
             device=device,
             dtype=dtype,
             var_init=var_init,
+            beta=beta
         )
         num_visible = len(data[0,:])
-        K1 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_visible))
-        K2 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_visible))
+        K1 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_hiddens))
+        K2 = torch.randn_like(weight_matrix, device=device, dtype=dtype)/np.sqrt(float(num_hiddens))
 
         return IsingRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, K1=K1, K2=K2)
 
@@ -183,7 +187,7 @@ class IsingRBM(RBM):
         return self.vbias.shape[0]
 
     def parameters(self) -> List[Tensor]:
-        return [self.weight_matrix, self.vbias, self.hbias]
+        return [self.weight_matrix, self.vbias, self.hbias, self.K1, self.K2]
 
     def ref_log_z(self):
         return (
@@ -241,18 +245,20 @@ class IsingRBM(RBM):
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
 
-    def compute_loss_PL2(self, data, l, use_fields):
+    def compute_loss_PL2(self, data, l, use_fields, use_hfield):
         x = data
-        if use_fields == True:
-            h = torch.tanh(l*(self.hbias+torch.einsum("ia,mi->ma", self.K2, x)))
-        else:
-            h = torch.tanh(l*(torch.einsum("ia,mi->ma", self.K2, x)))
+        with torch.no_grad():
+            if use_fields == True and use_hfield ==True:   
+                h = torch.tanh(l*(self.hbias+torch.einsum("ia,mi->ma", self.K2, x)))
+            else:
+                h = torch.tanh(l*(torch.einsum("ia,mi->ma", self.K2, x)))
         b = torch.einsum("ja,ma->mj",self.K2, h)
         c = torch.einsum("ja,mj->ma",self.K2, x)
         
         if use_fields == True:
             b = b+self.vbias
-            c = c+self.hbias
+            if use_hfield==True:
+                c = c+self.hbias
             
         j_term = torch.einsum("ja,ma->mja", self.K2, h)
         a_term = torch.einsum("ja,mj->mja", self.K2, x)
@@ -266,3 +272,18 @@ class IsingRBM(RBM):
 
         e_ij = -w_ai-h_ai+1./l*torch.log(Z_ai+1e-9)
         return e_ij.mean()
+
+    def normalize_w(self):
+        with torch.no_grad():
+            norm = torch.norm(self.weight_matrix.data)
+            self.weight_matrix.data = self.weight_matrix.data * self.w_norm_0 / (norm+1e-9)
+            
+    def normalize_K2(self):
+        with torch.no_grad():
+            norm = torch.norm(self.K2.data)
+            self.K2.data = self.K2.data * self.K2_norm_0 / (norm+1e-9)
+            
+    def normalize_v(self):
+        with torch.no_grad():
+            norm = torch.norm(self.vbias.data)
+            self.vbias.data = self.vbias.data * self.v_norm_0 / (norm+1e-9)
