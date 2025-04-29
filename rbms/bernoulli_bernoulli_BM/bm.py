@@ -1,7 +1,7 @@
 import rbms
 from rbms.classes import RBM
 
-from rbms.bm.implement import (
+from rbms.bernoulli_bernoulli_BM.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
@@ -18,7 +18,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-class BM(RBM):
+class BBBM(RBM):
     """Parameters of the Bernoulli-Bernoulli RBM"""
 
     def __init__(
@@ -53,7 +53,7 @@ class BM(RBM):
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.v_norm_0 = torch.norm(vbias)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
-        self.name = "BM"
+        self.name = "BBBM"
         self.N = len(weight_matrix[0])
         self.K1 = K1.to(device=self.device, dtype=self.dtype)
         self.K2 = K2.to(device=self.device, dtype=self.dtype)
@@ -62,14 +62,14 @@ class BM(RBM):
         self.mask.fill_diagonal_(0)  # Set diagonal to 0
 
     def __add__(self, other):
-        return BM(
+        return BBBM(
             weight_matrix=self.weight_matrix + other.weight_matrix,
             vbias=self.vbias + other.vbias,
             hbias=self.hbias + other.hbias,
         )
 
     def __mul__(self, other):
-        return BM(
+        return BBBM(
             weight_matrix=self.weight_matrix * other,
             vbias=self.vbias * other,
             hbias=self.hbias * other,
@@ -82,7 +82,7 @@ class BM(RBM):
             device = self.device
         if dtype is None:
             dtype = self.dtype
-        return BM(
+        return BBBM(
             weight_matrix=self.weight_matrix.clone(),
             vbias=self.vbias.clone(),
             hbias=self.hbias.clone(),
@@ -124,7 +124,7 @@ class BM(RBM):
         )
 
     def independent_model(self):
-        return BM(
+        return BBBM(
             weight_matrix=torch.zeros_like(self.weight_matrix),
             vbias=self.vbias,
             hbias=torch.zeros_like(self.hbias),
@@ -174,7 +174,7 @@ class BM(RBM):
         K1.fill_diagonal_(0.0) 
         K2.fill_diagonal_(0.0)
         
-        return BM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, K1=K1, K2=K2)
+        return BBBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, K1=K1, K2=K2)
 
     def named_parameters(self):
         return {
@@ -226,7 +226,7 @@ class BM(RBM):
                 raise ValueError(
                     f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
                 )
-        params = BM(
+        params = BBBM(
             weight_matrix=named_params.pop("weight_matrix"),
             vbias=named_params.pop("vbias"),
             hbias=named_params.pop("hbias"),
@@ -262,89 +262,51 @@ class BM(RBM):
         PL = energy_i_mu.mean()
         return PL
     
-    '''
-    def compute_pseudolikelihood_K1(self, data, l):
-        h = torch.einsum('ij,mj->mi', self.K_matrix*self.mask, data)
-        x_J_x = torch.einsum('mi,mi->mi', data, h)
-        energy_i_mu = -x_J_x + (1 / l) * torch.log(self.Z_i_mu_func(h,l))
-        PL = energy_i_mu.mean()
-        return PL
-    '''
-    def compute_gradient_PL1(self, data):
-        pass
-    
-    '''
-    def compute_gradient_PL2(self, data, l):
-        x = data["visible"]
-        h = torch.einsum("ij,mj->mi",self.K2*self.mask, x)
-        print("h", h.mean())
-        
-        #h_a = h.unsqueeze(2)+h.unsqueeze(1)
-        #h_b = h.unsqueeze(2)-h.unsqueeze(1)
-        #i_term = torch.einsum("ij,mi->mij", self.K2, x)
-        #j_term = torch.einsum("ij,mj->mij", self.K2, x)
-        #
-        #h_a = h_a - i_term - j_term
-        #h_b = h_b - i_term + j_term
-        #
-        #grad_term_1 = torch.exp(self.K2)*torch.cosh(h_a)
-        #grad_term_2 = torch.exp(-self.K2)*torch.cosh(h_b)
-        #
-        #print("grad1", grad_term_1.mean())
-        #print("grad2", grad_term_2.mean())
+    def compute_loss_PL1(self, data, l, use_fields, use_hfield=False):
+        x = data                              # [M,N] each entry ∈{0,1}
+        h = torch.einsum('ij,mj->mi', self.K1*self.mask.to(self.K1.device), x)   # local field Σ_j K_ij x_j
+        if use_fields:                        # optional visible bias
+            h = h + self.vbias.unsqueeze(0)
 
-        #grad_K2 = ((grad_term_1-grad_term_2)/(grad_term_1+grad_term_2+1e-9)).mean(0)
-        
-        
-        i_term = torch.einsum("ij,mi->mij", self.K2, x)
-        j_term = torch.einsum("ij,mj->mij", self.K2, x)
-        h_i_eff = h.unsqueeze(2)-i_term
-        h_j_eff = h.unsqueeze(1)-j_term
-        
-        data_corr = (x.unsqueeze(2) * x.unsqueeze(1)).mean(dim=0)
-        
-        grad_K2 =  data_corr - torch.tanh(l*self.K2+0.5*torch.log(torch.cosh(h_i_eff+h_j_eff)+1e-9)-torch.log(torch.cosh(h_i_eff-h_j_eff)+1e-9)).mean(0)
-        
-        grad_K2 = (grad_K2+grad_K2.T)/2
-        
-        print(grad_K2.mean())
-        
-        grad_K2.fill_diagonal_(0.0)
-        
-        
-        self.K2.grad.set_(grad_K2)
-    '''    
-    
-    def comppute_loss_PL1(self, data, l, use_fields, use_hfield=False):
-          # [M, N]
-        x=data
-        J_x = torch.einsum('ijab,mjb->mia', self.K1 * self.mask.to(self.K1.device), x)   # [M, d]
-        y_i_mu = J_x.norm(dim=-1)  # Taking the norm over the last dimension -> [M,N]
-        x_J_x = torch.einsum('mia,mia->mi', x, J_x)  # [M, N]
-        Z_i_mu = 2*torch.cosh(l*y_i_mu)
-        # Compute the energy term for each mu: - dot_product + lam^-1 * log(Z_i_mu)
-                    # Compute the energy term for each mu: - dot_product + lam^-1 * log(Z_i_mu)
-        e_i = -x_J_x + (1 / l) * torch.log(Z_i_mu+1e-9)  # [M,N]
+        logZ = F.softplus(l*h)                # log(1+e^{λ h}) – numerically stable
+        e_i  = -x*h + (1./l)*logZ             # −log P(x_i|x_{¬i}) / λ
+        return e_i.mean()                     # scalar loss
 
-        return e_i.mean()
-    
+
+    # ---------- second–order pseudolikelihood (pairwise) ----------
     def compute_loss_PL2(self, data, l, use_fields, use_hfield=False):
-        x = data#["visible"]
-        h = torch.einsum("ik,mk->mi",self.K2*self.mask, x)
-        diff_term = torch.einsum("ik,mk->mik", self.K2*self.mask, x)
-        #j_term = torch.einsum("ik,mk->mi", self.K2*self.mask, x)
-        if use_fields == True:
-            #fields_x = torch.einsum("i,mi->mi", self.vbias, x)
-            h = h+self.vbias.unsqueeze(0)
-        h_i_eff = h.unsqueeze(2)-diff_term   #[M,N,1]
-        h_j_eff = h.unsqueeze(1)-diff_term    #[M,1,N]
-        
-        J_xx = torch.einsum("mi,ij,mj->mij", x, self.K2*self.mask, x)
-        h_xx = h_i_eff*x.unsqueeze(2)+h_j_eff*x.unsqueeze(1)
-        Z_xx = 2.*(torch.exp(l*self.K2*self.mask)*torch.cosh(l*h_i_eff+l*h_j_eff)+torch.exp(-l*self.K2*self.mask)*torch.cosh(l*h_i_eff-l*h_j_eff))
-        
-        e_ij = -J_xx-h_xx+1./l*torch.log(Z_xx+(1-self.mask)+1e-9)
+        x  = data                             # [M,N]
+        K  = self.K2*self.mask                # interaction matrix with zero diagonal
+    
+        # global fields for every unit
+        h  = torch.einsum('ik,mk->mi', K, x)                       # [M,N]
+        diff_term = torch.einsum('ik,mk->mik', K, x)               # [M,N,N]
+    
+        if use_fields:
+            h = h + self.vbias.unsqueeze(0)                        # add biases only once
+    
+        # “leave-one-out’’ effective fields
+        h_i_eff = h.unsqueeze(2) - diff_term                       # h_i − K_ij x_j   [M,N,N]
+        h_j_eff = h.unsqueeze(1) - diff_term                       # h_j − K_ij x_i   [M,N,N]
+    
+        x_i = x.unsqueeze(2)                                       # x_i            [M,N,1]
+        x_j = x.unsqueeze(1)                                       # x_j            [M,1,N]
+    
+        # energy part actually observed: −(K_ij x_i x_j + h_i_eff x_i + h_j_eff x_j)
+        E_pair  = K * x_i * x_j
+        E_field = h_i_eff * x_i + h_j_eff * x_j
+    
+        # partition function for the {0,1}×{0,1} pair
+        Z_xx = (
+            1.0                                                     # (0,0)
+            + torch.exp(l * h_i_eff)                                # (1,0)
+            + torch.exp(l * h_j_eff)                                # (0,1)
+            + torch.exp(l * (K + h_i_eff + h_j_eff))                # (1,1)
+        )
+    
+        e_ij = -E_pair - E_field + (1./l)*torch.log(Z_xx + 1e-9)    # −log P(x_i,x_j|rest)/λ
         return e_ij.mean()
+
         
     def normalize_w(self):
         with torch.no_grad():

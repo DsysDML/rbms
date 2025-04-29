@@ -6,6 +6,7 @@ import torch
 from torch import Tensor
 from torch.optim import SGD
 from torch.utils.data import Subset
+import copy
 
 from rbms.classes import RBM
 from rbms.dataset.dataset_class import RBMDataset
@@ -122,7 +123,8 @@ def train(
         log_filename,
         pbar,
     ) = setup_training(args, map_model=map_model)
-
+    
+    
     optimizer = SGD(params.parameters(), lr=learning_rate, maximize=True)
 
     for k, v in args.items():

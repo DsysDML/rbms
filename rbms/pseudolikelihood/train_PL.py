@@ -8,7 +8,7 @@ from torch.optim import SGD, Adam, AdamW
 from torch.utils.data import Subset
 
 from rbms.classes import RBM
-from rbms.bm.bm import BM
+from rbms.bernoulli_bernoulli_BM.bm import BBBM
 from rbms.ising.ising_rbm import IsingRBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model

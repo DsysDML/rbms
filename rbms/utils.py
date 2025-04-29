@@ -42,6 +42,36 @@ def get_eigenvalues_history(filename: str):
 
     return gradient_updates, eigenvalues
 
+def get_eigenvalues_history_PL1(filename: str):
+    """
+    Extracts the history of eigenvalues of the RBM's weight matrix.
+
+    Args:
+        filename (str): Path to the HDF5 training archive.
+
+    Returns:
+        tuple: A tuple containing two elements:
+            - gradient_updates (np.ndarray): Array of gradient update steps.
+            - eigenvalues (np.ndarray): Eigenvalues along training.
+    """
+    with h5py.File(filename, "r") as f:
+        gradient_updates = []
+        eigenvalues = []
+        for key in f.keys():
+            if "update" in key:
+                K1 = f[key]["params"]["K1"][()]
+                K1 = K1.reshape(-1, K1.shape[-1])
+                eig = np.linalg.svd(K1, compute_uv=False)
+                eigenvalues.append(eig.reshape(*eig.shape, 1))
+                gradient_updates.append(int(key.split("_")[1]))
+
+        # Sort the results
+        sorting = np.argsort(gradient_updates)
+        gradient_updates = np.array(gradient_updates)[sorting]
+        eigenvalues = np.array(np.hstack(eigenvalues).T)[sorting]
+
+    return gradient_updates, eigenvalues
+
 def get_eigenvalues_history_PL2(filename: str):
     """
     Extracts the history of eigenvalues of the RBM's weight matrix.

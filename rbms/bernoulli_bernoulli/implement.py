@@ -159,6 +159,7 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
+    beta: float=1.,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     eps = 1e-4
@@ -168,7 +169,7 @@ def _init_parameters(
     )
     frequencies = data.mean(0)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
-    vbias = (torch.log(frequencies) - torch.log(1.0 - frequencies)).to(
+    vbias = 1/beta*(torch.log(frequencies) - torch.log(1.0 - frequencies)).to(
         device=device, dtype=dtype
     )
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)

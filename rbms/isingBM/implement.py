@@ -93,7 +93,6 @@ def _compute_gradient(
     #grad_hbias = torch.tensor([0], device=weight_matrix.device, dtype=weight_matrix.type)
 
     # Attach to the parameters
-
     weight_matrix.grad.set_(grad_weight_matrix)
     vbias.grad.set_(grad_vbias)
     #hbias.grad.set_(grad_hbias)

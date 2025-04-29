@@ -243,7 +243,28 @@ class IsingRBM(RBM):
         self.weight_matrix = self.weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
+        self.K1 = self.K1.to(device=self.device, dtype=self.dtype)
+        self.K2 = self.K2.to(device=self.device, dtype=self.dtype)
         return self
+    
+    def compute_loss_PL1(self, data, l, use_fields=True, use_hfield=True):
+        x = data  # [M, N]
+
+        with torch.no_grad():                                                
+            h_pre = torch.einsum("ia,mi->ma", self.K1, x)                    
+            if use_hfield:                                                   
+                h_pre = h_pre + self.hbias
+            h = torch.tanh(l * h_pre)                                        
+
+        F = torch.einsum("ja,ma->mj", self.K1, h)                            
+        if use_fields:
+            F = F + self.vbias                                              
+        
+        xF  = torch.einsum("mi,mi->mi", x, F)                               
+        Z_i = 2*torch.cosh(l * F)                                       
+        e_i = -xF + (1.0 / l) * torch.log(Z_i + 1e-9)                    
+
+        return e_i.mean()   
 
     def compute_loss_PL2(self, data, l, use_fields, use_hfield):
         x = data
