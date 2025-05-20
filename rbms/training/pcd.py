@@ -84,7 +84,7 @@ def train(
         args = set_args_default(args=args, default_args=default_args)
         rng = np.random.default_rng(args["seed"])
         if test_dataset is None:
-            train_dataset, test_dataset = train_dataset.split_train_test(
+            train_dataset, _ = train_dataset.split_train_test(
                 rng, args["train_size"], args["test_size"]
             )
         params = map_model[model_type].init_parameters(
