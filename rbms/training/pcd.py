@@ -1,5 +1,5 @@
 import time
-from typing import Tuple
+from typing import Tuple, Optional
 
 import numpy as np
 import torch
@@ -54,7 +54,8 @@ def fit_batch_pcd(
 
 
 def train(
-    dataset: RBMDataset,
+    train_dataset: RBMDataset,
+    test_dataset: Optional[RBMDataset],
     model_type: str,
     args: dict,
     dtype: torch.dtype,
@@ -77,14 +78,15 @@ def train(
     if not (args["overwrite"]):
         check_file_existence(filename)
 
-    num_visibles = dataset.get_num_visibles()
+    num_visibles = train_dataset.get_num_visibles()
     # Create a first archive with the initialized model
     if not (args["restore"]):
         args = set_args_default(args=args, default_args=default_args)
         rng = np.random.default_rng(args["seed"])
-        train_dataset, test_dataset = dataset.split_train_test(
-            rng, args["train_size"], args["test_size"]
-        )
+        if test_dataset is None:
+            train_dataset, test_dataset = train_dataset.split_train_test(
+                rng, args["train_size"], args["test_size"]
+            )
         params = map_model[model_type].init_parameters(
             num_hiddens=args["num_hiddens"],
             dataset=train_dataset,
@@ -119,7 +121,7 @@ def train(
         pbar,
         train_dataset,
         test_dataset,
-    ) = setup_training(args, map_model=map_model, dataset=dataset)
+    ) = setup_training(args, map_model=map_model, dataset=train_dataset)
     args = set_args_default(args=args, default_args=default_args)
     optimizer = SGD(params.parameters(), lr=args["learning_rate"], maximize=True)
 
@@ -129,8 +131,8 @@ def train(
     # Continue the training
     with torch.no_grad():
         for idx in range(num_updates + 1, args["num_updates"] + 1):
-            rand_idx = torch.randperm(len(dataset))[: args["batch_size"]]
-            batch = (dataset.data[rand_idx], dataset.weights[rand_idx])
+            rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
+            batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
 
             optimizer.zero_grad(set_to_none=False)
             parallel_chains, logs = fit_batch_pcd(
