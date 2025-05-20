@@ -121,7 +121,12 @@ def train(
         pbar,
         train_dataset,
         test_dataset,
-    ) = setup_training(args, map_model=map_model, dataset=train_dataset)
+    ) = setup_training(
+        args,
+        map_model=map_model,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+    )
     args = set_args_default(args=args, default_args=default_args)
     optimizer = SGD(params.parameters(), lr=args["learning_rate"], maximize=True)
 
