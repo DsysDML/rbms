@@ -1,6 +1,6 @@
 import pathlib
 import time
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional
 
 import h5py
 import numpy as np
@@ -18,7 +18,8 @@ from rbms.dataset.dataset_class import RBMDataset
 
 def setup_training(
     args: dict,
-    dataset: RBMDataset,
+    train_dataset: RBMDataset,
+    test_dataset: Optional[RBMDataset] = None,
     map_model: dict[str, EBM] = map_model,
 ) -> Tuple[
     EBM,
@@ -55,11 +56,12 @@ def setup_training(
         if v is not None:
             args[k] = v
 
-    train_dataset, test_dataset = dataset.split_train_test(
-        rng=np.random.default_rng(args["seed"]),
-        train_size=args["train_size"],
-        test_size=args["test_size"],
-    )
+    if test_dataset is None:
+        train_dataset, test_dataset = train_dataset.split_train_test(
+            rng=np.random.default_rng(args["seed"]),
+            train_size=args["train_size"],
+            test_size=args["test_size"],
+        )
 
     # Open the log file if it exists
     log_filename = pathlib.Path(args["filename"]).parent / pathlib.Path(
