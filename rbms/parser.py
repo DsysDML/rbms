@@ -134,6 +134,12 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         action="store_true",
         help="(Defaults to False). Restore the training",
     )
+    rbm_args.add_argument(
+        "--no_center",
+        default=False,
+        action="store_true",
+        help="(Defaults to False). Use the non-centered gradient.",
+    )
     return parser
 
 
@@ -186,6 +192,7 @@ default_args: dict[str, Any] = {
     "beta": 1.0,
     "restore": False,
     "seed": np.random.randint(0, 1000000000000),
+    "no_center": False,
 }
 
 
