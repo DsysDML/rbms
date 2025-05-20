@@ -28,6 +28,8 @@ def create_parser():
 
 
 def train_rbm(args: dict):
+    if args["num_updates"] is None:
+        args["num_updates"] = default_args["num_updates"]
     checkpoints = get_checkpoints(
         num_updates=args["num_updates"], n_save=args["n_save"], spacing=args["spacing"]
     )
