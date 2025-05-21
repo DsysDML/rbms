@@ -130,6 +130,7 @@ def load_model(
         hyperparameters["learning_rate"] = float(
             f["hyperparameters"]["learning_rate"][()]
         )
+        hyperparameters["L2"] = float(f["hyperparameters"]["L2"][()])
         if "seed" in f["hyperparameters"].keys():
             hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
         if "train_size" in f["hyperparameters"].keys():

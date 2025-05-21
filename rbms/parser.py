@@ -140,6 +140,12 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         action="store_true",
         help="(Defaults to False). Use the non-centered gradient.",
     )
+    rbm_args.add_argument(
+        "--L2",
+        default=None,
+        type=float,
+        help="(Defaults to 0.0). Lambda parameter for the L2 regularization.",
+    )
     return parser
 
 
@@ -193,6 +199,7 @@ default_args: dict[str, Any] = {
     "restore": False,
     "seed": np.random.randint(0, 1000000000000),
     "no_center": False,
+    "L2": 0.0,
 }
 
 
