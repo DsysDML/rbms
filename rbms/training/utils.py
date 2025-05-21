@@ -116,6 +116,8 @@ def create_machine(
     log: bool,
     flags: List[str],
     seed: int,
+    L1: float,
+    L2: float,
 ) -> None:
     """Create a RBM and save it to a new file.
 
@@ -129,6 +131,8 @@ def create_machine(
         gibbs_steps (int): Number of Gibbs steps to perform.
         learning_rate (float): Learning rate for training.
         log (bool): Whether to enable logging.
+        L1 (float): Lambda parameter for L1 regularization.
+        L2 (float): Lambda parameter for L2 regularization.
     """
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
@@ -144,6 +148,8 @@ def create_machine(
         hyperparameters["learning_rate"] = learning_rate
         hyperparameters["train_size"] = train_size
         hyperparameters["seed"] = seed
+        hyperparameters["L1"] = L1
+        hyperparameters["L2"] = L2
 
     save_model(
         filename=filename,
@@ -225,4 +231,6 @@ def initialize_model_archive(
         log=args["log"],
         flags=["checkpoint"],
         seed=args["seed"],
+        L1=args["L1"],
+        L2=args["L2"],
     )

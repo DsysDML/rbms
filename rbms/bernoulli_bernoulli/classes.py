@@ -104,7 +104,9 @@ class BBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(self, data, chains, centered=True):
+    def compute_gradient(
+        self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0
+    ):
         _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
@@ -116,6 +118,8 @@ class BBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
+            lambda_l1=lambda_l1,
+            lambda_l2=lambda_l2,
         )
 
     def independent_model(self):

@@ -76,7 +76,12 @@ class EBM(ABC):
 
     @abstractmethod
     def compute_gradient(
-        self, data: dict[str, Tensor], chains: dict[str, Tensor], centered: bool = True
+        self,
+        data: dict[str, Tensor],
+        chains: dict[str, Tensor],
+        centered: bool = True,
+        lambda_l1: float = 0.0,
+        lambda_l2: float = 0.0,
     ) -> None:
         """Compute the gradient for each of the parameters and attach it.
 
@@ -84,6 +89,8 @@ class EBM(ABC):
             data (dict[str, Tensor]): The data state.
             chains (dict[str, Tensor]): The parallel chains used for gradient computation.
             centered (bool, optional): Whether to use centered gradients. Defaults to True.
+            lambda_l1 (float, optional): factor for the L1 regularization. Defaults to 0.
+            lambda_l2 (float, optional): factor for the L2 regularization. Defaults to 0.
         """
         ...
 
