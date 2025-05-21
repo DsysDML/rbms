@@ -1,5 +1,5 @@
 import time
-from typing import Tuple
+from typing import Tuple, Optional
 
 import numpy as np
 import torch
@@ -12,7 +12,7 @@ from rbms.io import save_model
 from rbms.map_model import map_model
 from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
-from rbms.training.utils import create_machine, setup_training
+from rbms.training.utils import setup_training, initialize_model_archive
 from rbms.utils import check_file_existence, log_to_csv
 from rbms.parser import default_args, set_args_default
 
@@ -54,7 +54,8 @@ def fit_batch_pcd(
 
 
 def train(
-    dataset: RBMDataset,
+    train_dataset: RBMDataset,
+    test_dataset: Optional[RBMDataset],
     model_type: str,
     args: dict,
     dtype: torch.dtype,
@@ -73,40 +74,17 @@ def train(
         checkpoints (np.ndarray): An array of checkpoints for saving model states.
     """
 
-    filename = args["filename"]
     if not (args["overwrite"]):
-        check_file_existence(filename)
+        check_file_existence(args["filename"])
 
-    num_visibles = dataset.get_num_visibles()
     # Create a first archive with the initialized model
     if not (args["restore"]):
-        args = set_args_default(args=args, default_args=default_args)
-        rng = np.random.default_rng(args["seed"])
-        train_dataset, test_dataset = dataset.split_train_test(
-            rng, args["train_size"], args["test_size"]
-        )
-        params = map_model[model_type].init_parameters(
-            num_hiddens=args["num_hiddens"],
-            dataset=train_dataset,
-            device=args["device"],
+        initialize_model_archive(
+            args=args,
+            model_type=model_type,
+            train_dataset=train_dataset,
+            test_dataset=test_dataset,
             dtype=dtype,
-        )
-
-        if isinstance(params, PBRBM):
-            ensure_zero_sum_gauge(params)
-        create_machine(
-            filename=filename,
-            params=params,
-            num_visibles=num_visibles,
-            num_hiddens=args["num_hiddens"],
-            num_chains=args["num_chains"],
-            batch_size=args["batch_size"],
-            gibbs_steps=args["gibbs_steps"],
-            learning_rate=args["learning_rate"],
-            train_size=args["train_size"],
-            log=args["log"],
-            flags=["checkpoint"],
-            seed=args["seed"],
         )
     (
         params,
@@ -119,7 +97,12 @@ def train(
         pbar,
         train_dataset,
         test_dataset,
-    ) = setup_training(args, map_model=map_model, dataset=dataset)
+    ) = setup_training(
+        args,
+        map_model=map_model,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+    )
     args = set_args_default(args=args, default_args=default_args)
     optimizer = SGD(params.parameters(), lr=args["learning_rate"], maximize=True)
 
@@ -129,8 +112,8 @@ def train(
     # Continue the training
     with torch.no_grad():
         for idx in range(num_updates + 1, args["num_updates"] + 1):
-            rand_idx = torch.randperm(len(dataset))[: args["batch_size"]]
-            batch = (dataset.data[rand_idx], dataset.weights[rand_idx])
+            rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
+            batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
 
             optimizer.zero_grad(set_to_none=False)
             parallel_chains, logs = fit_batch_pcd(
@@ -139,6 +122,7 @@ def train(
                 params=params,
                 gibbs_steps=args["gibbs_steps"],
                 beta=args["beta"],
+                centered=not (args["not_centered"]),
             )
             optimizer.step()
             if isinstance(params, PBRBM):

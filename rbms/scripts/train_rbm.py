@@ -28,28 +28,28 @@ def create_parser():
 
 
 def train_rbm(args: dict):
+    if args["num_updates"] is None:
+        args["num_updates"] = default_args["num_updates"]
     checkpoints = get_checkpoints(
         num_updates=args["num_updates"], n_save=args["n_save"], spacing=args["spacing"]
     )
-    dataset, _ = load_dataset(
+    train_dataset, test_dataset = load_dataset(
         dataset_name=args["data"],
         subset_labels=args["subset_labels"],
         use_weights=args["use_weights"],
         alphabet=args["alphabet"],
         binarize=args["binarize"],
-        train_size=1.0,
-        test_size=None,
         device=args["device"],
         dtype=args["dtype"],
-        seed=args["seed"],
     )
-    print(dataset)
-    if dataset.is_binary:
+    print(train_dataset)
+    if train_dataset.is_binary:
         model_type = "BBRBM"
     else:
         model_type = "PBRBM"
     train(
-        dataset=dataset,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
         model_type=model_type,
         args=args,
         dtype=args["dtype"],

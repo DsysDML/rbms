@@ -57,6 +57,7 @@ def test_use_case_train_bbrbm():
         "binarize": False,
         "overwrite": True,
         "seed": 42,
+        "not_centered": False,
     }
     train_rbm(args)
 
