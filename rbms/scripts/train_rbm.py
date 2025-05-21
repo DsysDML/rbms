@@ -36,7 +36,8 @@ def train_rbm(args: dict):
         num_updates=args["num_updates"], n_save=args["n_save"], spacing=args["spacing"]
     )
     train_dataset, test_dataset = load_dataset(
-        dataset_name=args["data"],
+        dataset_name=args["dataset"],
+        test_dataset_name=args["test_dataset"],
         subset_labels=args["subset_labels"],
         use_weights=args["use_weights"],
         alphabet=args["alphabet"],

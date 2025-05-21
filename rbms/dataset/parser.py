@@ -8,10 +8,17 @@ def add_args_dataset(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     dataset_args = parser.add_argument_group("Dataset")
     dataset_args.add_argument(
         "-d",
-        "--data",
+        "--dataset",
         type=str,
         required=True,
-        help="Name of the dataset ('HGD', 'MNIST', 'BKACE', 'PF00072', 'PF13354'), or path to a data file (type should be .h5 or .fasta)",
+        help="Path to a data file (type should be .h5 or .fasta)",
+    )
+    dataset_args.add_argument(
+        "--test_dataset",
+        type=str,
+        required=False,
+        default=None,
+        help="Path to test dataset file (type should be .h5 or .fasta)",
     )
     dataset_args.add_argument(
         "--subset_labels",
