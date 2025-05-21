@@ -58,6 +58,7 @@ def test_use_case_train_pbrbm_no_weights():
         "overwrite": True,
         "seed": 42,
         "not_centered": False,
+        "L1": 0.0,
         "L2": 1.0,
     }
     train_rbm(args)
@@ -133,6 +134,7 @@ def test_use_case_train_pbrbm_weights():
         "overwrite": True,
         "seed": 42,
         "not_centered": False,
+        "L1": 1.0,
         "L2": 0.0,
     }
     train_rbm(args)

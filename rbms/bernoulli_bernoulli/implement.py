@@ -77,6 +77,7 @@ def _compute_gradient(
     hbias: Tensor,
     weight_matrix: Tensor,
     centered: bool = True,
+    lambda_l1: float = 0.0,
     lambda_l2: float = 0.0,
 ) -> None:
     w_data = w_data.view(-1, 1)
@@ -119,7 +120,12 @@ def _compute_gradient(
         grad_vbias = v_data_mean - v_gen_mean
         grad_hbias = h_data_mean - h_gen_mean
 
-    if lambda_l2 != 0:
+    if lambda_l1 > 0:
+        grad_weight_matrix -= 2 * lambda_l2 * torch.sign(weight_matrix)
+        grad_vbias -= 2 * lambda_l2 * torch.sign(vbias)
+        grad_hbias -= 2 * lambda_l2 * torch.sign(hbias)
+
+    if lambda_l2 > 0:
         grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
         grad_vbias -= 2 * lambda_l2 * vbias
         grad_hbias -= 2 * lambda_l2 * hbias

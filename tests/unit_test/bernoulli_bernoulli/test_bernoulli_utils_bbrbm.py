@@ -39,6 +39,7 @@ def test_create_load_machine(tmp_path, sample_params_class_bbrbm):
         log=True,
         flags=["test"],
         seed=pytest.SEED,
+        L1=1.0,
         L2=0.0,
     )
 
@@ -88,6 +89,7 @@ def test_create_load_machine_dtype(tmp_path, sample_params_class_bbrbm):
         log=True,
         flags=["test"],
         seed=pytest.SEED,
+        L1=0.0,
         L2=1.0,
     )
 
