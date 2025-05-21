@@ -122,7 +122,7 @@ def train(
                 params=params,
                 gibbs_steps=args["gibbs_steps"],
                 beta=args["beta"],
-                centered=not (args["not_centered"]),
+                centered=not (args["no_center"]),
             )
             optimizer.step()
             if isinstance(params, PBRBM):
