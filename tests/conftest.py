@@ -153,6 +153,7 @@ def sample_args(tmp_path):
         "train_size": 0.6,
         "test_size": None,
         "not_centered": False,
+        "L2": 1.0,
     }
 
 

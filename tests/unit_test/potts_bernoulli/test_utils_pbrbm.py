@@ -35,6 +35,7 @@ def test_create_load_machine(tmp_path, sample_params_class_pbrbm):
         log=True,
         flags=["test"],
         seed=pytest.SEED,
+        L2=0.0,
     )
 
     # Check if the file was created
@@ -83,6 +84,7 @@ def test_create_load_machine_dtype(tmp_path, sample_params_class_pbrbm):
         log=True,
         flags=["test"],
         seed=pytest.SEED,
+        L2=1.0,
     )
 
     # Check if the file was created
