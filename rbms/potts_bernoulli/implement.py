@@ -97,6 +97,7 @@ def _compute_gradient(
     hbias: Tensor,
     weight_matrix: Tensor,
     centered: bool = True,
+    lambda_l2: float = 0.0,
 ):
     w_data = w_data.view(-1, 1, 1)
     w_chain = w_chain.view(-1, 1, 1)
@@ -175,6 +176,11 @@ def _compute_gradient(
 
         grad_vbias = v_data_mean - v_gen_mean
         grad_hbias = h_data_mean - h_gen_mean
+
+    if lambda_l2 != 0:
+        grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
+        grad_vbias -= 2 * lambda_l2 * vbias
+        grad_hbias -= 2 * lambda_l2 * hbias
     weight_matrix.grad.set_(grad_weight_matrix)
     vbias.grad.set_(grad_vbias)
     hbias.grad.set_(grad_hbias)

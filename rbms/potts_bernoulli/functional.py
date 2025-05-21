@@ -118,6 +118,7 @@ def compute_gradient(
     chains: dict[str, Tensor],
     params: PBRBM,
     centered: bool = True,
+    lambda_l2: float = 0.0,
 ) -> None:
     """Compute the gradient for each of the parameters and attach it.
 
@@ -138,6 +139,7 @@ def compute_gradient(
         hbias=params.hbias,
         weight_matrix=params.weight_matrix,
         centered=centered,
+        lambda_l2=lambda_l2,
     )
 
 
@@ -169,7 +171,9 @@ def init_chains(
         start_v=start_v,
     )
     if weights is None:
-        weights = torch.ones(visible.shape[0], device=visible.device, dtype=visible.dtype)
+        weights = torch.ones(
+            visible.shape[0], device=visible.device, dtype=visible.dtype
+        )
     return dict(
         visible=visible,
         hidden=hidden,
