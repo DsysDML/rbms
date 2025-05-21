@@ -9,6 +9,7 @@ from rbms.parser import (
     add_args_pytorch,
     add_args_rbm,
     add_args_saves,
+    add_args_regularization,
     match_args_dtype,
     remove_argument,
     default_args,
@@ -21,6 +22,7 @@ def create_parser():
     parser = argparse.ArgumentParser(description="Train a Restricted Boltzmann Machine")
     parser = add_args_dataset(parser)
     parser = add_args_rbm(parser)
+    parser = add_args_regularization(parser)
     parser = add_args_saves(parser)
     parser = add_args_pytorch(parser)
     remove_argument(parser, "use_torch")
