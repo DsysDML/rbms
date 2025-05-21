@@ -152,7 +152,7 @@ def sample_args(tmp_path):
         "seed": pytest.SEED,
         "train_size": 0.6,
         "test_size": None,
-        "not_centered": False,
+        "not_center": False,
         "L1": 0.0,
         "L2": 1.0,
     }

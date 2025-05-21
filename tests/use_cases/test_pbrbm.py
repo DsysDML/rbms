@@ -57,7 +57,7 @@ def test_use_case_train_pbrbm_no_weights():
         "binarize": False,
         "overwrite": True,
         "seed": 42,
-        "not_centered": False,
+        "no_center": False,
         "L1": 0.0,
         "L2": 1.0,
     }
@@ -133,7 +133,7 @@ def test_use_case_train_pbrbm_weights():
         "binarize": False,
         "overwrite": True,
         "seed": 42,
-        "not_centered": False,
+        "no_center": False,
         "L1": 1.0,
         "L2": 0.0,
     }
