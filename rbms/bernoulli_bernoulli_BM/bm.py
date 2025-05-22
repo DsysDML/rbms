@@ -13,6 +13,8 @@ from rbms.bernoulli_bernoulli_BM.implement import (
 )
 
 from typing import List, Optional, Self
+import torch.nn.functional as F
+
 
 import numpy as np
 import torch
