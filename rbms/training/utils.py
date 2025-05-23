@@ -201,6 +201,7 @@ def initialize_model_archive(
     train_dataset: RBMDataset,
     test_dataset: Optional[RBMDataset],
     dtype: torch.dtype,
+    flags: List[str] = ["checkpoint"],
 ):
     num_visibles = train_dataset.get_num_visibles()
     args = set_args_default(args=args, default_args=default_args)
@@ -229,7 +230,7 @@ def initialize_model_archive(
         learning_rate=args["learning_rate"],
         train_size=args["train_size"],
         log=args["log"],
-        flags=["checkpoint"],
+        flags=flags,
         seed=args["seed"],
         L1=args["L1"],
         L2=args["L2"],
