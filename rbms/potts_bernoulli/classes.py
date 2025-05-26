@@ -119,7 +119,7 @@ class PBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
-            lambda_l1=0.0,
+            lambda_l1=lambda_l1,
             lambda_l2=lambda_l2,
         )
 

@@ -24,6 +24,8 @@ def fit_batch_pcd(
     gibbs_steps: int,
     beta: float,
     centered: bool = True,
+    lambda_l1: float = 0.0,
+    lambda_l2: float = 0.0,
 ) -> Tuple[dict[str, Tensor], dict]:
     """Sample the EBM and compute the gradient.
 
@@ -48,7 +50,13 @@ def fit_batch_pcd(
     parallel_chains = params.sample_state(
         chains=parallel_chains, n_steps=gibbs_steps, beta=beta
     )
-    params.compute_gradient(data=curr_batch, chains=parallel_chains, centered=centered)
+    params.compute_gradient(
+        data=curr_batch,
+        chains=parallel_chains,
+        centered=centered,
+        lambda_l1=lambda_l1,
+        lambda_l2=lambda_l2,
+    )
     logs = {}
     return parallel_chains, logs
 
@@ -123,6 +131,8 @@ def train(
                 gibbs_steps=args["gibbs_steps"],
                 beta=args["beta"],
                 centered=not (args["no_center"]),
+                lambda_l1=args["L1"],
+                lambda_l2=args["L2"],
             )
             optimizer.step()
             if isinstance(params, PBRBM):

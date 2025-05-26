@@ -179,11 +179,11 @@ def _compute_gradient(
         grad_hbias = h_data_mean - h_gen_mean
 
     if lambda_l1 > 0:
-        grad_weight_matrix -= 2 * lambda_l2 * torch.sign(weight_matrix)
-        grad_vbias -= 2 * lambda_l2 * torch.sign(vbias)
-        grad_hbias -= 2 * lambda_l2 * torch.sign(hbias)
+        grad_weight_matrix -= lambda_l1 * torch.sign(weight_matrix)
+        grad_vbias -= lambda_l1 * torch.sign(vbias)
+        grad_hbias -= lambda_l1 * torch.sign(hbias)
 
-    if lambda_l2 != 0:
+    if lambda_l2 > 0:
         grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
         grad_vbias -= 2 * lambda_l2 * vbias
         grad_hbias -= 2 * lambda_l2 * hbias
