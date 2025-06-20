@@ -20,24 +20,25 @@ def load_dataset(
     device: str = "cpu",
     dtype: torch.dtype = torch.float32,
 ) -> Tuple[RBMDataset, RBMDataset | None]:
-    data = None
-    weights = None
-    names = None
-    labels = None
-    is_binary = True
 
     return_datasets = []
     for dset_name in [dataset_name, test_dataset_name]:
+        data = None
+        print(dset_name)
+        is_binary = True
+        labels = None
+        weights = None
+        names = None
 
         if dset_name is not None:
-            dataset_name = Path(dataset_name)
+            dset_name = Path(dset_name)
 
-            match dataset_name.suffix:
+            match dset_name.suffix:
                 case ".h5":
-                    data, labels = load_HDF5(filename=dataset_name, binarize=binarize)
+                    data, labels = load_HDF5(filename=dset_name, binarize=binarize)
                 case ".fasta":
                     data, weights, names = load_FASTA(
-                        filename=dataset_name,
+                        filename=dset_name,
                         binarize=binarize,
                         use_weights=use_weights,
                         alphabet=alphabet,
