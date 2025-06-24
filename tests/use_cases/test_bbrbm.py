@@ -47,6 +47,7 @@ def test_use_case_train_bbrbm():
         "beta": 1.0,
         "restore": False,
         "dataset": "dummy.h5",
+        "test_dataset": None,
         "subset_labels": SUBSET_LABELS,
         "use_weights": False,
         "alphabet": "protein",
