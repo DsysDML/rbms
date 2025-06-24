@@ -28,7 +28,6 @@ def setup_training(
     EBM,
     dict[str, Tensor],
     dict[str, Any],
-    float,
     int,
     float,
     float,
