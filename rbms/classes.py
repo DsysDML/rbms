@@ -1,3 +1,4 @@
+from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import List, Optional, Self
 
@@ -10,18 +11,19 @@ from rbms.dataset.dataset_class import RBMDataset
 class EBM(ABC):
     """An abstract class representing the parameters of an Energy-Based Model."""
 
+    name: str
     device: torch.device
 
     @abstractmethod
     def __init__(self): ...
 
     @abstractmethod
-    def __add__(self, other: Self) -> Self:
+    def __add__(self, other: EBM) -> EBM:
         """Add the parameters of two RBMs. Useful for interpolation"""
         ...
 
     @abstractmethod
-    def __mul__(self, other: float) -> Self:
+    def __mul__(self, other: float) -> EBM:
         """Multiplies the parameters of the RBM by a float."""
         ...
 
@@ -108,7 +110,7 @@ class EBM(ABC):
 
     @staticmethod
     @abstractmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> Self: ...
+    def set_named_parameters(named_params: dict[str, Tensor]) -> EBM: ...
 
     @abstractmethod
     def to(
@@ -132,7 +134,7 @@ class EBM(ABC):
     @abstractmethod
     def clone(
         self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ) -> Self:
+    ) -> EBM:
         """Create a clone of the RBM instance.
 
         Args:
@@ -154,7 +156,7 @@ class EBM(ABC):
         device: torch.device,
         dtype: torch.dtype,
         var_init: float = 1e-4,
-    ) -> Self:
+    ) -> EBM:
         """Initialize the parameters of the RBM.
 
         Args:
@@ -183,7 +185,7 @@ class EBM(ABC):
         ...
 
     @abstractmethod
-    def independent_model(self) -> Self:
+    def independent_model(self) -> EBM:
         """Independent model where only local fields are preserved."""
 
     @abstractmethod
