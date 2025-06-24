@@ -204,6 +204,13 @@ class EBM(ABC):
         """
         ...
 
+    def normalize_grad(self) -> None:
+        norm_grad = torch.sqrt(
+            torch.sum(torch.tensor([p.grad.square().sum() for p in self.parameters()]))
+        )
+        for p in self.parameters():
+            p.grad /= norm_grad
+
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""

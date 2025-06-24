@@ -58,11 +58,7 @@ def fit_batch_pcd(
         lambda_l1=lambda_l1,
         lambda_l2=lambda_l2,
     )
-    norm_grad = torch.sqrt(
-        torch.sum(torch.tensor([p.grad.square().sum() for p in params.parameters()]))
-    )
-    for p in params.parameters():
-        p.grad /= norm_grad
+    params.normalize_grad()
     logs = {}
     return parallel_chains, logs
 
