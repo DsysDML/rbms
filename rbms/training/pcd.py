@@ -116,11 +116,7 @@ def train(
     )
     args = set_args_default(args=args, default_args=default_args)
 
-    learning_rate = args["learning_rate"]
-    optimizer = optim(params.parameters(), lr=learning_rate, maximize=True)
-
-    for k, v in args.items():
-        print(f"{k} : {v}")
+    optimizer = optim(params.parameters(), lr=args["learning_rate"], maximize=True)
 
     # Continue the training
     with torch.no_grad():

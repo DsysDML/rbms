@@ -204,6 +204,10 @@ class EBM(ABC):
         """
         ...
 
+    def init_grad(self) -> None:
+        for p in self.parameters():
+            p.grad = torch.zeros_like(p)
+
     def normalize_grad(self) -> None:
         norm_grad = torch.sqrt(
             torch.sum(torch.tensor([p.grad.square().sum() for p in self.parameters()]))
