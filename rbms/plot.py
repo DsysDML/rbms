@@ -1,6 +1,9 @@
+from typing import List, Optional
+
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 
 def plot_scatter_labels(ax, data_proj, gen_data_proj, proj1, proj2, labels):
@@ -35,9 +38,7 @@ def plot_scatter_labels(ax, data_proj, gen_data_proj, proj1, proj2, labels):
     )
 
 
-def plot_hist(
-    ax, data_proj, gen_data_proj, color, proj, labels, orientation="vertical"
-):
+def plot_hist(ax, data_proj, gen_data_proj, color, proj, labels, orientation="vertical"):
     """Args:
     ax
     data_proj
@@ -129,9 +130,7 @@ def plot_image(
         display[
             (idx * shape[0]) : ((idx + 1) * shape[0]),
             (idy * shape[1]) : ((idy + 1) * shape[1]),
-        ] = sample[id_s].reshape(
-            shape
-        )  # Directly reshape to `shape`
+        ] = sample[id_s].reshape(shape)  # Directly reshape to `shape`
 
     # Plot the display image
     fig, ax = plt.subplots(1, 1)
@@ -145,3 +144,144 @@ def plot_image(
 
         # Gridlines based on minor ticks
         ax.grid(which="minor", color="gray", linestyle="-", linewidth=2)
+
+
+def plot_one_PCA(
+    ax: plt.Subplot,
+    data1: np.ndarray,
+    data2: Optional[np.ndarray] = None,
+    labels: Optional[List[str]] = None,
+    dir1: int = 0,
+    dir2: int = 1,
+):
+    label_1 = None
+    label_2 = None
+    if labels is not None:
+        label_1 = labels[0]
+        if data2 is not None:
+            label_2 = labels[1]
+    ax.clear()
+    ax.set_axis_off()
+
+    ax_scatter = inset_axes(ax, width="75%", height="75%", loc="lower left", borderpad=0)
+    ax_scatter.set_xlabel(f"PC {dir1}")
+    ax_scatter.set_ylabel(f"PC {dir2}")
+
+    ax_hist_x = inset_axes(ax, width="75%", height="25%", loc="upper left", borderpad=0)
+    ax_hist_y = inset_axes(ax, width="25%", height="75%", loc="lower right", borderpad=0)
+    ax_hist_x.set_axis_off()
+    ax_hist_y.set_axis_off()
+
+    ax_scatter.scatter(
+        data1[:, dir1],
+        data1[:, dir2],
+        color="black",
+        s=50,
+        zorder=0,
+        alpha=0.3,
+    )
+    _, bins_x, _ = ax_hist_x.hist(
+        data1[:, dir1],
+        bins=40,
+        color="black",
+        histtype="step",
+        zorder=0,
+        density=True,
+        orientation="vertical",
+        lw=1,
+        label=label_1,
+    )
+    _, bins_y, _ = ax_hist_y.hist(
+        data1[:, dir2],
+        bins=40,
+        color="black",
+        histtype="step",
+        zorder=0,
+        density=True,
+        orientation="horizontal",
+        lw=1,
+    )
+    if data2 is not None:
+        ax_scatter.scatter(
+            data2[:, dir1],
+            data2[:, dir2],
+            color="red",
+            s=20,
+            zorder=2,
+            edgecolor="black",
+            marker="o",
+            alpha=1,
+            linewidth=0.4,
+        )
+        ax_hist_x.hist(
+            data2[:, dir1],
+            bins=bins_x,
+            color="red",
+            histtype="step",
+            zorder=0,
+            density=True,
+            orientation="vertical",
+            lw=1,
+            label=label_2,
+        )
+        ax_hist_y.hist(
+            data2[:, dir2],
+            bins=bins_y,
+            color="red",
+            histtype="step",
+            zorder=0,
+            density=True,
+            orientation="horizontal",
+            lw=1,
+        )
+    if labels is not None:
+        ax_hist_x.legend(fontsize=12, bbox_to_anchor=(1, 1))
+
+
+def plot_mult_PCA(
+    data1: np.ndarray,
+    data2: Optional[np.ndarray] = None,
+    labels: Optional[List[str]] = None,
+    n_dir: int = 2,
+):
+    if data2 is not None:
+        if data2.shape[1] < data1.shape[1]:
+            raise ValueError(
+                f"data2 should have at least as many components as data1. data1 : {data1.shape[1]} vs data2 : {data2.shape[1]}"
+            )
+        if labels is not None:
+            if len(labels) < 2:
+                raise ValueError(
+                    f"There should be 2 labels, got {len(labels)} : {labels}"
+                )
+
+    max_cols = 4
+    n_cols = min(data1.shape[1] // 2, max_cols)
+    n_plots = data1.shape[1] // n_dir
+
+    n_rows = (
+        (data1.shape[1] // 2) // max_cols
+        if n_plots % max_cols == 0
+        else ((data1.shape[1] // 2) // max_cols) + 1
+    )
+
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+
+    for i in range(n_rows):
+        for j in range(n_cols):
+            curr_plot_idx = n_cols * i + j
+            indexes = [i, j] if n_rows > 1 else [j]
+            if curr_plot_idx < n_plots:
+                plot_one_PCA(
+                    ax=ax[*indexes],
+                    data1=data1,
+                    data2=data2,
+                    labels=labels if curr_plot_idx == 0 else None,
+                    dir1=curr_plot_idx * 2,
+                    dir2=curr_plot_idx * 2 + 1,
+                )
+            else:
+                ax[*indexes].set_axis_off()
+    plt.subplots_adjust(wspace=0.35)
+
+    return fig, ax
