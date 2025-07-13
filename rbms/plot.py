@@ -172,11 +172,15 @@ def plot_one_PCA(
     ax_hist_x.set_axis_off()
     ax_hist_y.set_axis_off()
 
+    if data2 is None:
+        size_scat = 2
+    else:
+        size_scat = 50
     ax_scatter.scatter(
         data1[:, dir1],
         data1[:, dir2],
         color="black",
-        s=50,
+        s=size_scat,
         zorder=0,
         alpha=0.3,
     )
