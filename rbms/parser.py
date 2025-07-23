@@ -142,10 +142,11 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     )
     rbm_args.add_argument(
         "--training_type",
+        type=str,
         default = "pcd",
-        type="str",
         help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}."
     )
+
     return parser
 
 
