@@ -1,8 +1,8 @@
 import argparse
 from typing import Any
 
-import torch
 import numpy as np
+import torch
 
 
 def add_args_pytorch(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -139,6 +139,12 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default=False,
         action="store_true",
         help="(Defaults to False). Use the non-centered gradient.",
+    )
+    rbm_args.add_argument(
+        "--training_type",
+        default = "pcd",
+        type="str",
+        help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}."
     )
     return parser
 

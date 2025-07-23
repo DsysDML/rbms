@@ -32,10 +32,8 @@ def swap_configurations(
     n_chains, L = chains[0]["visible"].shape
     acc_rate = torch.zeros(inverse_temperatures.shape[0] - 1)
     for idx in range(inverse_temperatures.shape[0] - 1):
-        energy_0 = params.compute_energy(v=chains[idx].visible, h=chains[idx].hidden)
-        energy_1 = params.compute_energy(
-            v=chains[idx + 1].visible, h=chains[idx + 1].hidden
-        )
+        energy_0 = params.compute_energy_visibles(v=chains[idx]["visible"])
+        energy_1 = params.compute_energy_visibles(v=chains[idx + 1]["visible"])
 
         delta_energy = (
             -energy_1 * inverse_temperatures[idx]
@@ -90,7 +88,7 @@ def find_inverse_temperatures(target_acc_rate: float, params: EBM) -> Tensor:
         new_chains = params.sample_state(
             n_steps=10,
             chains=new_chains,
-            beta=inverse_temperatures[i],
+            beta=inverse_temperatures[i].item(),
         )
 
         _, acc_rate, _ = swap_configurations(
@@ -102,7 +100,7 @@ def find_inverse_temperatures(target_acc_rate: float, params: EBM) -> Tensor:
         )
         if acc_rate[-1] < target_acc_rate + 0.1:
             selected_temperatures.append(inverse_temperatures[i])
-            prev_chains = new_chains.clone()
+            prev_chains = clone_dict(new_chains)
     if selected_temperatures[-1] != 1.0:
         selected_temperatures.append(1)
     return torch.tensor(selected_temperatures)
@@ -147,13 +145,11 @@ def pt_sampling(
             list_chains[j] = params.sample_state(
                 n_steps=increment,
                 chains=list_chains[j],
-                beta=inverse_temperatures[i],
+                beta=inverse_temperatures[i].item(),
             )
         if save_index:
             index.append(
-                torch.ones(
-                    list_chains[i].visible.shape[0], device=list_chains[i].device
-                )
+                torch.ones(list_chains[i].visible.shape[0], device=list_chains[i].device)
                 * i
             )
 
@@ -162,10 +158,10 @@ def pt_sampling(
         counts += increment
         # Iterate chains
         for i in range(len(list_chains)):
-            list_chains[i] = params.clonesample_state(
+            list_chains[i] = params.sample_state(
                 n_steps=increment,
                 chains=list_chains[i],
-                beta=inverse_temperatures[i],
+                beta=inverse_temperatures[i].item(),
             )
 
         # Swap chains

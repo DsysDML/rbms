@@ -123,7 +123,10 @@ def train(
         for idx in range(num_updates + 1, args["num_updates"] + 1):
             rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
             batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
-
+            if args["training_type"] == "rdm":
+                parallel_chains = params.init_chains(parallel_chains["v"].shape[0])
+            elif args["training_type"] == "cd":
+                parallel_chains = params.init_chains(batch[0].shape[0],weights=batch[1], start_v=batch[0])
             optimizer.zero_grad(set_to_none=False)
             parallel_chains, logs = fit_batch_pcd(
                 batch=batch,
