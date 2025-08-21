@@ -80,3 +80,8 @@ line-ending = "auto"
 # This is currently disabled by default, but it is planned for this
 # to be opt-out in the future.
 docstring-code-format = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
