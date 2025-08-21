@@ -8,6 +8,7 @@ from rbms.dataset.dataset_class import RBMDataset
 from rbms.dataset.load_fasta import load_FASTA
 from rbms.dataset.load_h5 import load_HDF5
 from rbms.dataset.utils import get_subset_labels
+from rbms.utils import get_unique_indices
 
 
 def load_dataset(
@@ -23,8 +24,7 @@ def load_dataset(
 
     return_datasets = []
     for dset_name in [dataset_name, test_dataset_name]:
-        data = None
-        print(dset_name)
+        data = None       
         is_binary = True
         labels = None
         weights = None
@@ -32,7 +32,7 @@ def load_dataset(
 
         if dset_name is not None:
             dset_name = Path(dset_name)
-
+            print(f"Reading dataset from {str(dset_name)}...")
             match dset_name.suffix:
                 case ".h5":
                     data, labels = load_HDF5(filename=dset_name, binarize=binarize)
@@ -46,6 +46,9 @@ def load_dataset(
                     )
                     if not binarize:
                         is_binary = False
+                case ".dat":
+                    data = np.genfromtxt(dset_name)
+                    is_binary = False
                 case _:
                     raise ValueError(
                         """
@@ -67,6 +70,15 @@ def load_dataset(
             if labels is None:
                 labels = -np.ones(data.shape[0])
 
+
+            unique_ind=get_unique_indices(torch.from_numpy(data)).cpu().numpy()
+            
+            data = data[unique_ind]
+            labels = labels[unique_ind]
+            weights = weights[unique_ind]
+            names = names[unique_ind]
+
+
             return_datasets.append(
                 RBMDataset(
                     data=data,
@@ -79,6 +91,7 @@ def load_dataset(
                     dtype=dtype,
                 )
             )
+            print("    Done")
         else:
             return_datasets.append(None)
     return tuple(return_datasets)
