@@ -155,6 +155,7 @@ def sample_args(tmp_path):
         "no_center": False,
         "L1": 0.0,
         "L2": 1.0,
+        "training_type": "pcd",
     }
 
 
