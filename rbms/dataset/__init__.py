@@ -7,8 +7,7 @@ import torch
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.dataset.load_fasta import load_FASTA
 from rbms.dataset.load_h5 import load_HDF5
-from rbms.dataset.utils import get_subset_labels
-from rbms.utils import get_unique_indices
+from rbms.dataset.utils import get_subset_labels, get_unique_indices
 
 
 def load_dataset(

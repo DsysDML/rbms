@@ -7,7 +7,7 @@ import numpy as np
 
 from rbms.dataset import load_dataset
 from rbms.dataset.fasta_utils import write_fasta
-from rbms.utils import get_unique_indices
+from rbms.dataset.utils import get_unique_indices
 
 
 def create_parser():
