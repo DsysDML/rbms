@@ -22,8 +22,10 @@ def main():
             SCRIPT = "train_rbm.py"
         case "pt_sampling":
             SCRIPT = "pt_sampling.py"
+        case "split":
+            SCRIPT = "split_data.py" 
         case _:
-            print(f"Error: Invalid command '{COMMAND}'. Use 'train' or 'pt_sampling'.")
+            print(f"Error: Invalid command '{COMMAND}'. Use 'train', 'split' or 'pt_sampling'.")
             sys.exit(1)
 
     # Run the corresponding Python script with the remaining optional arguments

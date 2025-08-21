@@ -21,9 +21,9 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "h5py>=3.12.0",
-  "numpy>=2.0.0, <=2.1.2",
+  "numpy>=2.0.0",
   "matplotlib>=3.8.0",
-  "torch>=2.0.0, <=2.5.0",
+  "torch>=2.5.0",
   "tqdm>=4.65.0",
 ]
 
@@ -80,3 +80,8 @@ line-ending = "auto"
 # This is currently disabled by default, but it is planned for this
 # to be opt-out in the future.
 docstring-code-format = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]

@@ -16,7 +16,7 @@ def one_hot(
         Tensor: One-hot encoded version of the input tensor.
     """
     if num_classes < 0:
-        num_classes = x.max().item() + 1
+        num_classes = int(x.max().item()) + 1
     res = torch.zeros(x.shape[0], x.shape[1], num_classes, device=x.device, dtype=dtype)
     tmp = torch.meshgrid(
         torch.arange(x.shape[0], device=x.device),

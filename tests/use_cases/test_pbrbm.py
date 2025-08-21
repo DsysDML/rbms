@@ -46,7 +46,8 @@ def test_use_case_train_pbrbm_no_weights():
         "filename": filename,
         "beta": 1.0,
         "restore": False,
-        "data": "dummy.fasta",
+        "dataset": "dummy.fasta",
+        "test_dataset": None,
         "subset_labels": SUBSET_LABELS,
         "use_weights": False,
         "alphabet": "protein",
@@ -60,6 +61,7 @@ def test_use_case_train_pbrbm_no_weights():
         "no_center": False,
         "L1": 0.0,
         "L2": 1.0,
+        "training_type": "pcd",
     }
     train_rbm(args)
 
@@ -122,7 +124,8 @@ def test_use_case_train_pbrbm_weights():
         "filename": filename,
         "beta": 1.0,
         "restore": False,
-        "data": "dummy.fasta",
+        "dataset": "dummy.fasta",
+        "test_dataset": None,
         "subset_labels": SUBSET_LABELS,
         "use_weights": True,
         "alphabet": "protein",
@@ -136,6 +139,7 @@ def test_use_case_train_pbrbm_weights():
         "no_center": False,
         "L1": 1.0,
         "L2": 0.0,
+        "training_type": "pcd",
     }
     train_rbm(args)
 

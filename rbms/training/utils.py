@@ -28,7 +28,6 @@ def setup_training(
     EBM,
     dict[str, Tensor],
     dict[str, Any],
-    float,
     int,
     float,
     float,
@@ -83,8 +82,7 @@ def setup_training(
     pbar.set_description(f"Training {params.name}")
 
     # Initialize gradients for the parameters
-    for p in params.parameters():
-        p.grad = torch.zeros_like(p)
+    params.init_grad()
 
     # Start recording training time
     start = time.time()
