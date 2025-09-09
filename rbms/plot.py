@@ -289,3 +289,24 @@ def plot_mult_PCA(
     plt.subplots_adjust(wspace=0.35)
 
     return fig, ax
+
+
+def process_corr(data_1: np.ndarray, data_2: np.ndarray, threshold: float = 0.0):
+    data_1 = data_1.flatten()
+    data_2 = data_2.flatten()
+    mask = np.logical_not(np.isnan(data_1)) & np.logical_not(np.isnan(data_2))
+    data_1 = data_1[mask]
+    data_2 = data_2[mask]
+
+    mask = (np.abs(data_1) > threshold) | (np.abs(data_2) > threshold)
+    data_1 = data_1[mask]
+    data_2 = data_2[mask]
+
+    m, _ = np.polyfit(data_1, data_2, 1)
+    r = np.corrcoef(data_1, data_2)[0, 1]
+
+    x_line = np.linspace(
+        np.min([data_1.min(), data_2.min()]), np.max([data_1.max(), data_2.max()]), 100
+    )
+
+    return m, r, data_1, data_2, x_line
