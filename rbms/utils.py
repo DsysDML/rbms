@@ -83,7 +83,7 @@ def get_categorical_configurations(
     Raises:
         ValueError: If the number of dimensions exceeds the maximum allowed (20).
     """
-    max_dim = 20
+    max_dim = 25
     if n_dim > max_dim:
         raise ValueError(
             f"The number of dimension for the configurations exceeds the maximum number of dimension: {max_dim}"
@@ -303,23 +303,5 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
     flagged_updates = np.sort(np.array(flagged_updates))
     return flagged_updates
 
-@torch.jit.script
-def get_unique_indices(input_dataset: Tensor) -> Tensor:
-    """
-    Given a dataset, return the first index of every unique sample of the dataset. Useful to remove duplicates.
-    
-    Args:
-        input_dataset (str): Dataset to get unique indices from.
 
-    Returns:
-        Tensor: Indices of the first appearance of each unique value.
-    """
-    _, idx, counts = torch.unique(input_dataset,
-        dim=0, sorted=True, return_inverse=True, return_counts=True
-    )
-    _, ind_sorted = torch.sort(idx, stable=True)
-    cum_sum = counts.cumsum(0)
-    cum_sum = torch.cat((torch.tensor([0], device=cum_sum.device), cum_sum[:-1]))
-    unique_ind = ind_sorted[cum_sum]
-    return unique_ind
 
