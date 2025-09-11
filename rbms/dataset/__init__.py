@@ -20,10 +20,9 @@ def load_dataset(
     device: str = "cpu",
     dtype: torch.dtype = torch.float32,
 ) -> Tuple[RBMDataset, RBMDataset | None]:
-
     return_datasets = []
     for dset_name in [dataset_name, test_dataset_name]:
-        data = None       
+        data = None
         is_binary = True
         labels = None
         weights = None
@@ -69,14 +68,14 @@ def load_dataset(
             if labels is None:
                 labels = -np.ones(data.shape[0])
 
+            # Remove duplicates and internally shuffle the dataset
+            unique_ind = get_unique_indices(torch.from_numpy(data)).cpu().numpy()
 
-            unique_ind=get_unique_indices(torch.from_numpy(data)).cpu().numpy()
-            
-            data = data[unique_ind]
-            labels = labels[unique_ind]
-            weights = weights[unique_ind]
-            names = names[unique_ind]
-
+            idx = torch.randperm(unique_ind.shape[0])
+            data = data[unique_ind[idx]]
+            labels = labels[unique_ind[idx]]
+            weights = weights[unique_ind[idx]]
+            names = names[unique_ind[idx]]
 
             return_datasets.append(
                 RBMDataset(
