@@ -6,7 +6,7 @@ import h5py
 import numpy as np
 import torch
 from torch import Tensor
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 from rbms.classes import EBM
 from rbms.const import LOG_FILE_HEADER
@@ -59,11 +59,17 @@ def setup_training(
             args[k] = v
 
     if test_dataset is None:
+        print("Splitting dataset")
         train_dataset, test_dataset = train_dataset.split_train_test(
             rng=np.random.default_rng(args["seed"]),
             train_size=args["train_size"],
             test_size=args["test_size"],
         )
+        print("Train dataset:")
+        print(train_dataset)
+        print("Test dataset:")
+        print(test_dataset)
+    
 
     # Open the log file if it exists
     log_filename = pathlib.Path(args["filename"]).parent / pathlib.Path(

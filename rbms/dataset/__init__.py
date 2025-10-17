@@ -72,6 +72,8 @@ def load_dataset(
             unique_ind = get_unique_indices(torch.from_numpy(data)).cpu().numpy()
 
             idx = torch.randperm(unique_ind.shape[0])
+            if unique_ind.shape[0] < data.shape[0]:
+                print(f"N_samples: {data.shape[0]} -> {unique_ind.shape[0]}")
             data = data[unique_ind[idx]]
             labels = labels[unique_ind[idx]]
             weights = weights[unique_ind[idx]]

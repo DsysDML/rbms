@@ -12,7 +12,7 @@ from rbms.classes import EBM
 from rbms.const import LOG_FILE_HEADER
 
 
-def get_eigenvalues_history(filename: str):
+def get_eigenvalues_history(filename: str, backend="cpu"):
     """
     Extracts the history of eigenvalues of the RBM's weight matrix.
 
@@ -31,7 +31,10 @@ def get_eigenvalues_history(filename: str):
             if "update_" in key:
                 weight_matrix = f[key]["params"]["weight_matrix"][()]
                 weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
-                eig = np.linalg.svd(weight_matrix, compute_uv=False)
+                if backend == "gpu":
+                    eig = torch.svd(torch.from_numpy(weight_matrix).to(device='cuda'), compute_uv=False).S.cpu().numpy()
+                else:
+                    eig = np.linalg.svd(weight_matrix, compute_uv=False)
                 eigenvalues.append(eig.reshape(*eig.shape, 1))
                 gradient_updates.append(int(key.split("_")[1]))
 

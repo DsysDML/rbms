@@ -50,10 +50,8 @@ def compute_2b_correlations(
         )
         if full_mat:
             res = torch.triu(res, 1) + torch.tril(res).T
-        return res / torch.sqrt(
-            torch.diag(res).unsqueeze(1) @ torch.diag(res).unsqueeze(0)
-        )
-    return torch.corrcoef(data)
+        return res #/ torch.sqrt(torch.diag(res).unsqueeze(1) @ torch.diag(res).unsqueeze(0))
+    return torch.corrcoef(data.T)
 
 
 @torch.jit.script
@@ -104,7 +102,7 @@ def compute_3b_correlations(
         res = _3b_batched(
             centered_data=centered_data,
             weights=weights.unsqueeze(1),
-            batcu_size=batch_size,
+            batch_size=batch_size,
         )
         if full_mat:
             res = _3b_full_mat(res)

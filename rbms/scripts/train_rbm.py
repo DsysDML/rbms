@@ -8,11 +8,11 @@ from rbms.map_model import map_model
 from rbms.parser import (
     add_args_pytorch,
     add_args_rbm,
-    add_args_saves,
     add_args_regularization,
+    add_args_saves,
+    default_args,
     match_args_dtype,
     remove_argument,
-    default_args,
 )
 from rbms.training.pcd import train
 from rbms.training.utils import get_checkpoints
@@ -25,6 +25,7 @@ def create_parser():
     parser = add_args_regularization(parser)
     parser = add_args_saves(parser)
     parser = add_args_pytorch(parser)
+    parser.add_argument("--optim", default="sgd")
     remove_argument(parser, "use_torch")
     return parser
 

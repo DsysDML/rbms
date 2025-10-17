@@ -1,11 +1,11 @@
 import gzip
 import textwrap
-from typing import Dict, Union, Self, Tuple, Optional
+from typing import Dict, Optional, Self, Tuple, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 
 class RBMDataset(Dataset):

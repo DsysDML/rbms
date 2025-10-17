@@ -183,6 +183,7 @@ def plot_one_PCA(
         s=size_scat,
         zorder=0,
         alpha=0.3,
+        rasterized=True,
     )
     _, bins_x, _ = ax_hist_x.hist(
         data1[:, dir1],
@@ -216,6 +217,7 @@ def plot_one_PCA(
             marker="o",
             alpha=1,
             linewidth=0.4,
+            rasterized=True
         )
         ax_hist_x.hist(
             data2[:, dir1],

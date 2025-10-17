@@ -118,19 +118,38 @@ def train(
 
     optimizer = optim(params.parameters(), lr=args["learning_rate"], maximize=True)
 
+    update_lr = False
+    warmup = True
+    from rbms.classes import RBM
     # Continue the training
     with torch.no_grad():
         for idx in range(num_updates + 1, args["num_updates"] + 1):
             rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
             batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
             if args["training_type"] == "rdm":
-                
                 parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
             elif args["training_type"] == "cd":
-                parallel_chains = params.init_chains(batch[0].shape[0],weights=batch[1], start_v=batch[0])
+                parallel_chains = params.init_chains(
+                    batch[0].shape[0], weights=batch[1], start_v=batch[0]
+                )
+
+            if warmup and isinstance(params, RBM):
+                if params.weight_matrix.norm() > 10 and args["optim"] == "nag":
+                    # optimizer = SGD_cossim(
+                    #     params.updated_params.parameters(),
+                    #     lr=args["learning_rate"],
+                    #     maximize=True,
+                    # )
+                    optimizer = SGD(
+                        params.parameters(), 
+                        lr=args["learning_rate"], 
+                        maximize=True, 
+                        momentum=0.9,
+                        nesterov=True
+                    )
+                    warmup = False
             optimizer.zero_grad(set_to_none=False)
 
-            
             parallel_chains, logs = fit_batch_pcd(
                 batch=batch,
                 parallel_chains=parallel_chains,
@@ -141,7 +160,10 @@ def train(
                 lambda_l1=args["L1"],
                 lambda_l2=args["L2"],
             )
-            optimizer.step()
+            if update_lr:
+                optimizer.step(update_lr=update_lr)
+            else:
+                optimizer.step()
             if isinstance(params, PBRBM):
                 ensure_zero_sum_gauge(params)
 
