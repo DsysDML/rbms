@@ -117,7 +117,15 @@ def train(
     args = set_args_default(args=args, default_args=default_args)
 
     optimizer = optim(params.parameters(), lr=args["learning_rate"], maximize=True)
-
+    
+    if args["optim"] == "nag":
+        optimizer = SGD(
+            params.parameters(), 
+            lr=args["learning_rate"], 
+            maximize=True, 
+            momentum=0.9,
+            nesterov=True
+        )
     update_lr = False
     warmup = True
     from rbms.classes import RBM
