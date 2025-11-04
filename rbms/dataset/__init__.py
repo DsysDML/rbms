@@ -85,7 +85,7 @@ def load_dataset(
                     labels=labels,
                     weights=weights,
                     names=names,
-                    dataset_name=dataset_name,
+                    dataset_name=dset_name,
                     is_binary=is_binary,
                     device=device,
                     dtype=dtype,

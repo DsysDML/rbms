@@ -249,6 +249,7 @@ def plot_mult_PCA(
     data2: Optional[np.ndarray] = None,
     labels: Optional[List[str]] = None,
     n_dir: int = 2,
+    figsize_factor=4
 ):
     if data2 is not None:
         if data2.shape[1] < data1.shape[1]:
@@ -271,7 +272,7 @@ def plot_mult_PCA(
         else ((data1.shape[1] // 2) // max_cols) + 1
     )
 
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+    fig, ax = plt.subplots(n_rows, n_cols, figsize=(figsize_factor * n_cols, figsize_factor * n_rows))
 
     for i in range(n_rows):
         for j in range(n_cols):

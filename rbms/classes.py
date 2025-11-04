@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import List, Optional, Self
 
@@ -208,6 +209,7 @@ class EBM(ABC):
         for p in self.parameters():
             p.grad = torch.zeros_like(p)
 
+    @torch.compile
     def normalize_grad(self) -> None:
         norm_grad = torch.sqrt(
             torch.sum(torch.tensor([p.grad.square().sum() for p in self.parameters()]))

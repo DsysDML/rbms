@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, override
 
 import numpy as np
 import torch
@@ -105,9 +105,7 @@ class PBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(
-        self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0
-    ):
+    def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
         _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
@@ -233,3 +231,15 @@ class PBRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    @override
+    @torch.compile
+    def normalize_grad(self) -> None:
+        norm_factor = torch.sqrt(
+            self.weight_matrix.square().sum()
+            + self.vbias.square().sum()
+            + self.hbias.square().sum()
+        )
+        self.weight_matrix.grad /= norm_factor
+        self.vbias.grad /= norm_factor
+        self.hbias.grad /= norm_factor
