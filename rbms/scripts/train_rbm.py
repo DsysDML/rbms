@@ -43,6 +43,7 @@ def train_rbm(args: dict):
         use_weights=args["use_weights"],
         alphabet=args["alphabet"],
         binarize=args["binarize"],
+        remove_duplicates=args["remove_duplicates"],
         device=args["device"],
         dtype=args["dtype"],
     )

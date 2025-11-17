@@ -17,6 +17,7 @@ def load_dataset(
     use_weights: bool = False,
     binarize: bool = False,
     alphabet="protein",
+    remove_duplicates: bool = False,
     device: str = "cpu",
     dtype: torch.dtype = torch.float32,
 ) -> Tuple[RBMDataset, RBMDataset | None]:
@@ -68,8 +69,11 @@ def load_dataset(
             if labels is None:
                 labels = -np.ones(data.shape[0])
 
-            # Remove duplicates and internally shuffle the dataset
-            unique_ind = get_unique_indices(torch.from_numpy(data)).cpu().numpy()
+            if remove_duplicates:
+                # Remove duplicates and internally shuffle the dataset
+                unique_ind = get_unique_indices(torch.from_numpy(data)).cpu().numpy()
+            else:
+                unique_ind = np.arange(data.shape[0])
 
             idx = torch.randperm(unique_ind.shape[0])
             if unique_ind.shape[0] < data.shape[0]:

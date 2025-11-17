@@ -58,6 +58,12 @@ def add_args_dataset(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help="(Defaults to False). Binarize the dataset.",
     )
     dataset_args.add_argument(
+        "--remove_duplicates",
+        default=False,
+        action="store_true",
+        help="Remove duplicates from the dataset before splitting.",
+    )
+    dataset_args.add_argument(
         "--seed",
         default=None,
         type=int,
