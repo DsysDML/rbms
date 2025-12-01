@@ -66,9 +66,9 @@ def split_data_train_test(
 
     dataset, _ = load_dataset(input_file, None, alphabet=alphabet)
 
+    prev_size = dataset.data.shape[0]
     if remove_duplicates:
         print("Removing duplicates...")
-        prev_size = dataset.data.shape[0]
         unique_ind = get_unique_indices(dataset.data)
         data = dataset.data[unique_ind]
         names = dataset.names[unique_ind]
