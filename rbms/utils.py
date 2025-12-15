@@ -32,7 +32,14 @@ def get_eigenvalues_history(filename: str, backend="cpu"):
                 weight_matrix = f[key]["params"]["weight_matrix"][()]
                 weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
                 if backend == "gpu":
-                    eig = torch.svd(torch.from_numpy(weight_matrix).to(device='cuda'), compute_uv=False).S.cpu().numpy()
+                    eig = (
+                        torch.svd(
+                            torch.from_numpy(weight_matrix).to(device="cuda"),
+                            compute_uv=False,
+                        )
+                        .S.cpu()
+                        .numpy()
+                    )
                 else:
                     eig = np.linalg.svd(weight_matrix, compute_uv=False)
                 eigenvalues.append(eig.reshape(*eig.shape, 1))
@@ -127,7 +134,7 @@ def query_yes_no(question: str, default: str = "yes") -> bool:
         elif choice in valid:
             return valid[choice]
         else:
-            sys.stdout.write("Please respond with 'yes' or 'no' " "(or 'y' or 'n').\n")
+            sys.stdout.write("Please respond with 'yes' or 'no' (or 'y' or 'n').\n")
 
 
 def check_file_existence(filename: str):
@@ -257,12 +264,8 @@ def swap_chains(
         idx_vis_mean = idx_vis
     idx_hid = idx.unsqueeze(1).repeat(1, chain_1["hidden"].shape[1])
 
-    new_chain_1["visible"] = torch.where(
-        idx_vis, chain_2["visible"], chain_1["visible"]
-    )
-    new_chain_2["visible"] = torch.where(
-        idx_vis, chain_1["visible"], chain_2["visible"]
-    )
+    new_chain_1["visible"] = torch.where(idx_vis, chain_2["visible"], chain_1["visible"])
+    new_chain_2["visible"] = torch.where(idx_vis, chain_1["visible"], chain_2["visible"])
 
     new_chain_1["visible_mag"] = torch.where(
         idx_vis_mean, chain_2["visible_mag"], chain_1["visible_mag"]
@@ -303,8 +306,5 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
                 if flag in f[key]["flags"]:
                     if f[key]["flags"][flag][()]:
                         flagged_updates.append(update)
-    flagged_updates = np.sort(np.array(flagged_updates))
+    flagged_updates = np.sort(np.array(flagged_updates, dtype=int))
     return flagged_updates
-
-
-
