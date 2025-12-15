@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.gridspec import GridSpec
@@ -149,8 +147,8 @@ def plot_image(
 def plot_one_PCA(
     ax: plt.Subplot,
     data1: np.ndarray,
-    data2: Optional[np.ndarray] = None,
-    labels: Optional[List[str]] = None,
+    data2: np.ndarray | None = None,
+    labels: list[str] | None = None,
     dir1: int = 0,
     dir2: int = 1,
 ):
@@ -244,8 +242,8 @@ def plot_one_PCA(
 
 def plot_mult_PCA(
     data1: np.ndarray,
-    data2: Optional[np.ndarray] = None,
-    labels: Optional[List[str]] = None,
+    data2: np.ndarray | None = None,
+    labels: list[str] | None = None,
     n_dir: int = 2,
 ):
     if data2 is not None:

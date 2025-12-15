@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
@@ -10,7 +8,7 @@ from rbms.custom_fn import one_hot
 @torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
@@ -25,7 +23,7 @@ def _sample_hiddens(
 @torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     num_visibles, num_states, _ = weight_matrix.shape
     mv = torch.softmax(
         beta * (vbias + torch.tensordot(h, weight_matrix, dims=[[1], [2]])),
@@ -69,9 +67,7 @@ def _compute_energy_visibles(
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
     field = v_oh @ vbias_oh
     exponent = hbias + (v_oh @ weight_matrix_oh)
-    log_term = torch.where(
-        exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent
-    )
+    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
     return -field - log_term.sum(1)
 
 
@@ -196,7 +192,7 @@ def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,
     hbias: Tensor,
-    start_v: Optional[Tensor] = None,
+    start_v: Tensor | None = None,
 ):
     num_visibles, num_states, num_hiddens = weight_matrix.shape
     if start_v is None:
@@ -225,7 +221,7 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
-) -> Tuple[Tensor, Tensor, Tensor]:
+) -> tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     eps = 1e-7
     num_states = int(torch.max(data) + 1)
@@ -233,10 +229,7 @@ def _init_parameters(
     frequencies = (data == all_states).type(torch.float32).mean(1).to(device)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
     vbias = (
-        (
-            torch.log(frequencies)
-            - 1.0 / num_states * torch.sum(torch.log(frequencies), 0)
-        )
+        (torch.log(frequencies) - 1.0 / num_states * torch.sum(torch.log(frequencies), 0))
         .to(device=device, dtype=dtype)
         .T
     )

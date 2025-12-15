@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 import torch
 from torch import Tensor
@@ -150,8 +148,8 @@ def compute_gradient(
 def init_chains(
     num_samples: int,
     params: PBRBM,
-    weights: Optional[Tensor] = None,
-    start_v: Optional[Tensor] = None,
+    weights: Tensor | None = None,
+    start_v: Tensor | None = None,
 ) -> dict[str, Tensor]:
     """Initialize a Markov chain for the RBM by sampling a uniform distribution on the visible layer
     and sampling the hidden layer according to the visible one.
@@ -175,9 +173,7 @@ def init_chains(
         start_v=start_v,
     )
     if weights is None:
-        weights = torch.ones(
-            visible.shape[0], device=visible.device, dtype=visible.dtype
-        )
+        weights = torch.ones(visible.shape[0], device=visible.device, dtype=visible.dtype)
     return dict(
         visible=visible,
         hidden=hidden,

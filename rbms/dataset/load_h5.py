@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Tuple
 
 import h5py
 import numpy as np
@@ -7,7 +6,7 @@ import numpy as np
 
 def load_HDF5(
     filename: str | Path, binarize: bool = True
-) -> Tuple[np.ndarray, np.ndarray | None]:
+) -> tuple[np.ndarray, np.ndarray | None]:
     """Load a dataset from an HDF5 file.
 
     Args:

@@ -1,6 +1,6 @@
 import gzip
 import textwrap
-from typing import Dict, Union, Self, Tuple, Optional
+from typing import Self, Union
 
 import numpy as np
 import torch
@@ -44,7 +44,7 @@ class RBMDataset(Dataset):
         """
         return self.data.shape[0]
 
-    def __getitem__(self, index: int) -> Dict[str, Union[np.ndarray, torch.Tensor]]:
+    def __getitem__(self, index: int) -> dict[str, Union[np.ndarray, torch.Tensor]]:
         """Get a sample from the dataset.
 
         Args:
@@ -116,9 +116,9 @@ class RBMDataset(Dataset):
         for i in pbar:
             en[i] = len(
                 gzip.compress(
-                    (
-                        self.data[torch.randperm(self.data.shape[0])[:num_samples]]
-                    ).astype(int)
+                    (self.data[torch.randperm(self.data.shape[0])[:num_samples]]).astype(
+                        int
+                    )
                 )
             )
         return np.mean(en)
@@ -127,8 +127,8 @@ class RBMDataset(Dataset):
         self,
         rng: np.random.Generator,
         train_size: float,
-        test_size: Optional[float] = None,
-    ) -> Tuple[Self, Self | None]:
+        test_size: float | None = None,
+    ) -> tuple[Self, Self | None]:
         num_samples = self.data.shape[0]
         if test_size is None:
             test_size = 1.0 - train_size
@@ -154,9 +154,7 @@ class RBMDataset(Dataset):
                 data=self.data[permutation_index[train_size : train_size + test_size]]
                 .cpu()
                 .numpy(),
-                labels=self.labels[
-                    permutation_index[train_size : train_size + test_size]
-                ]
+                labels=self.labels[permutation_index[train_size : train_size + test_size]]
                 .cpu()
                 .numpy(),
                 weights=self.weights[
@@ -164,9 +162,7 @@ class RBMDataset(Dataset):
                 ]
                 .cpu()
                 .numpy(),
-                names=self.names[
-                    permutation_index[train_size : train_size + test_size]
-                ],
+                names=self.names[permutation_index[train_size : train_size + test_size]],
                 dataset_name=self.dataset_name,
                 is_binary=self.is_binary,
                 device=self.device,

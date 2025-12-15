@@ -1,5 +1,4 @@
 import time
-from typing import Optional, Tuple
 
 import h5py
 import numpy as np
@@ -19,7 +18,7 @@ from rbms.utils import check_file_existence, log_to_csv
 
 
 def fit_batch_pcd(
-    batch: Tuple[Tensor, Tensor],
+    batch: tuple[Tensor, Tensor],
     parallel_chains: dict[str, Tensor],
     params: EBM,
     gibbs_steps: int,
@@ -27,7 +26,7 @@ def fit_batch_pcd(
     centered: bool = True,
     lambda_l1: float = 0.0,
     lambda_l2: float = 0.0,
-) -> Tuple[dict[str, Tensor], dict]:
+) -> tuple[dict[str, Tensor], dict]:
     """Sample the EBM and compute the gradient.
 
     Args:
@@ -65,7 +64,7 @@ def fit_batch_pcd(
 
 def train(
     train_dataset: RBMDataset,
-    test_dataset: Optional[RBMDataset],
+    test_dataset: RBMDataset | None,
     model_type: str,
     args: dict,
     dtype: torch.dtype,
@@ -124,13 +123,13 @@ def train(
             rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
             batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
             if args["training_type"] == "rdm":
-                
                 parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
             elif args["training_type"] == "cd":
-                parallel_chains = params.init_chains(batch[0].shape[0],weights=batch[1], start_v=batch[0])
+                parallel_chains = params.init_chains(
+                    batch[0].shape[0], weights=batch[1], start_v=batch[0]
+                )
             optimizer.zero_grad(set_to_none=False)
 
-            
             parallel_chains, logs = fit_batch_pcd(
                 batch=batch,
                 parallel_chains=parallel_chains,

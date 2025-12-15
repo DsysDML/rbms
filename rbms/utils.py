@@ -1,7 +1,6 @@
 import itertools
 import pathlib
 import sys
-from typing import Tuple
 
 import h5py
 import numpy as np
@@ -124,7 +123,7 @@ def query_yes_no(question: str, default: str = "yes") -> bool:
         elif choice in valid:
             return valid[choice]
         else:
-            sys.stdout.write("Please respond with 'yes' or 'no' " "(or 'y' or 'n').\n")
+            sys.stdout.write("Please respond with 'yes' or 'no' (or 'y' or 'n').\n")
 
 
 def check_file_existence(filename: str):
@@ -222,7 +221,7 @@ def compute_log_likelihood(
 @torch.jit.script
 def swap_chains(
     chain_1: dict[str, Tensor], chain_2: dict[str, Tensor], idx: Tensor
-) -> Tuple[dict[str, Tensor], dict[str, Tensor]]:
+) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
     """
     Swap elements between two dict[str, Tensor]s at specified indices.
 
@@ -254,12 +253,8 @@ def swap_chains(
         idx_vis_mean = idx_vis
     idx_hid = idx.unsqueeze(1).repeat(1, chain_1["hidden"].shape[1])
 
-    new_chain_1["visible"] = torch.where(
-        idx_vis, chain_2["visible"], chain_1["visible"]
-    )
-    new_chain_2["visible"] = torch.where(
-        idx_vis, chain_1["visible"], chain_2["visible"]
-    )
+    new_chain_1["visible"] = torch.where(idx_vis, chain_2["visible"], chain_1["visible"])
+    new_chain_2["visible"] = torch.where(idx_vis, chain_1["visible"], chain_2["visible"])
 
     new_chain_1["visible_mag"] = torch.where(
         idx_vis_mean, chain_2["visible_mag"], chain_1["visible_mag"]
@@ -302,6 +297,3 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
                         flagged_updates.append(update)
     flagged_updates = np.sort(np.array(flagged_updates))
     return flagged_updates
-
-
-

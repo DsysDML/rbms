@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Tuple
 
 import numpy as np
+import torch
 
+from rbms.custom_fn import one_hot
 from rbms.dataset.fasta_utils import (
     compute_weights,
     encode_sequence,
@@ -10,8 +11,6 @@ from rbms.dataset.fasta_utils import (
     import_from_fasta,
     validate_alphabet,
 )
-from rbms.custom_fn import one_hot
-import torch
 
 
 def load_FASTA(
@@ -20,7 +19,7 @@ def load_FASTA(
     use_weights: bool = False,
     alphabet: str = "protein",
     device="cuda",
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load a dataset from a FASTA file.
 
     Args:
