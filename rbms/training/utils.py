@@ -206,6 +206,7 @@ def initialize_model_archive(
     test_dataset: Optional[RBMDataset],
     dtype: torch.dtype,
     flags: List[str] = ["checkpoint"],
+    map_model: dict[str, EBM] = map_model,
 ):
     num_visibles = train_dataset.get_num_visibles()
     args = set_args_default(args=args, default_args=default_args)

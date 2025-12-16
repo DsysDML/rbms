@@ -96,6 +96,7 @@ def train(
             train_dataset=train_dataset,
             test_dataset=test_dataset,
             dtype=dtype,
+            map_model=map_model,
         )
     (
         params,
