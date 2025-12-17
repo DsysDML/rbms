@@ -9,9 +9,9 @@ from torch.nn.functional import softmax
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
-    mh = (hbias + (v @ weight_matrix))
-    h = torch.normal(mean=mh, std=torch.tensor(1.0).to(weight_matrix.device))
-    return h, mh  
+    mh = hbias + (v @ weight_matrix)
+    h = torch.randn_like(mh) + mh
+    return h, mh
 
 
 @torch.jit.script
@@ -38,49 +38,42 @@ def _compute_energy(
         v, torch.tensordot(h, weight_matrix, dims=[[1], [1]])
     ).sum(1)
     Nv = weight_matrix.shape[0]
-    gamma = float(Nv)
-    quad = 0.5 * gamma * (h * h).sum(1)
+    quad = 0.5 * Nv * (h * h).sum(1)
     return -fields - interaction + quad
 
 
 @torch.jit.script
 def _compute_energy_visibles(
-    v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
+    v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor, const: Tensor,
 ) -> Tensor:
-    field = v @ vbias  # (B,)
-    t = hbias + (v @ weight_matrix)  # (B,K)
+    field = v @ vbias  
+    t = hbias + (v @ weight_matrix) 
     Nv = weight_matrix.shape[0]
-    K = weight_matrix.shape[1]
-    inv_gamma = 1.0 / float(Nv)
-    quad_term = 0.5 * inv_gamma * (t * t).sum(1)  # (B,)
-    dtype = v.dtype
-    device = v.device
-    log_two_pi = torch.log(torch.tensor(2.0 * torch.pi, dtype=dtype, device=device))
-    const = 0.5 * float(K) * (torch.log(torch.tensor(float(Nv), dtype=dtype, device=device)) - log_two_pi)
-
-    return -field - quad_term + const  # (B,)
+    inv_gamma = 1.0 / Nv
+    quad_term = 0.5 * inv_gamma * (t * t).sum(1)  
+    return -field - quad_term + const  
 
 
 @torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:
-    field = h @ hbias  # (B,)
-    exponent = vbias + (h @ weight_matrix.T)  # (B,V)
+    field = h @ hbias 
+    exponent = vbias + (h @ weight_matrix.T) 
     log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
     Nv = weight_matrix.shape[0]
     gamma = float(Nv)
-    quad = 0.5 * gamma * (h * h).sum(1)  # (B,)
+    quad = 0.5 * gamma * (h * h).sum(1) 
     return -field - log_term.sum(1) + quad
 
 
 @torch.jit.script
 def _compute_gradient(
     v_data: Tensor,
-    h_data: Tensor,   
+    h_data: Tensor,
     w_data: Tensor,
     v_chain: Tensor,
-    h_chain: Tensor,   
+    h_chain: Tensor,
     w_chain: Tensor,
     vbias: Tensor,
     hbias: Tensor,
@@ -89,7 +82,6 @@ def _compute_gradient(
     lambda_l1: float = 0.0,
     lambda_l2: float = 0.0,
 ) -> None:
-    
     w_data = w_data.view(-1, 1)
     w_chain = w_chain.view(-1, 1)
     chain_weights = softmax(-w_chain, dim=0)
@@ -132,7 +124,7 @@ def _compute_gradient(
         grad_weight_matrix -= lambda_l1 * torch.sign(weight_matrix)
         grad_vbias -= lambda_l1 * torch.sign(vbias)
         grad_hbias -= lambda_l1 * torch.sign(hbias)
-    
+
     if lambda_l2 > 0:
         grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
         grad_vbias -= 2 * lambda_l2 * vbias
@@ -161,9 +153,7 @@ def _init_chains(
             raise ValueError(f"Got negative num_samples arg: {num_samples}")
 
     if start_v is None:
-        mv = (
-            torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
-        )
+        mv = torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
         v = torch.bernoulli(mv)
     else:
         mv = torch.zeros_like(start_v, device=device, dtype=dtype)

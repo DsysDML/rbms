@@ -19,7 +19,9 @@ from rbms.bernoulli_gaussian.implement import (
 from rbms.dataset.dataset_class import RBMDataset
 
 
-def sample_hiddens(chains: dict[str, Tensor], params: BGRBM, beta: float = 1.0) -> dict[str, Tensor]:
+def sample_hiddens(
+    chains: dict[str, Tensor], params: BGRBM, beta: float = 1.0
+) -> dict[str, Tensor]:
     """Sample h|v(Gaussian hidden with fixed var = 1/Nv)"""
     chains["hidden"], chains["hidden_mag"] = _sample_hiddens(
         v=chains["visible"],
@@ -30,7 +32,9 @@ def sample_hiddens(chains: dict[str, Tensor], params: BGRBM, beta: float = 1.0) 
     return chains
 
 
-def sample_visibles(chains: dict[str, Tensor], params: BGRBM, beta: float = 1.0) -> dict[str, Tensor]:
+def sample_visibles(
+    chains: dict[str, Tensor], params: BGRBM, beta: float = 1.0
+) -> dict[str, Tensor]:
     """Sample v|h Bernoulli"""
     chains["visible"], chains["visible_mag"] = _sample_visibles(
         h=chains["hidden"],
@@ -58,6 +62,7 @@ def compute_energy_visibles(v: Tensor, params: BGRBM) -> Tensor:
         vbias=params.vbias,
         hbias=params.hbias,
         weight_matrix=params.weight_matrix,
+        const=params.const
     )
 
 
@@ -81,10 +86,10 @@ def compute_gradient(
 ) -> None:
     _compute_gradient(
         v_data=data["visible"],
-        mh_data=data["hidden_mag"],   # use conditional mean for positive phase
+        mh_data=data["hidden_mag"],  # use conditional mean for positive phase
         w_data=data["weights"],
         v_chain=chains["visible"],
-        h_chain=chains["hidden"],     # negative phase from chain samples
+        h_chain=chains["hidden_mag"],  # negative phase from chain samples
         w_chain=chains["weights"],
         vbias=params.vbias,
         hbias=params.hbias,
@@ -109,7 +114,13 @@ def init_chains(
     )
     if weights is None:
         weights = torch.ones(visible.shape[0], device=visible.device, dtype=visible.dtype)
-    return dict(visible=visible, hidden=hidden, visible_mag=mean_visible, hidden_mag=mean_hidden, weights=weights)
+    return dict(
+        visible=visible,
+        hidden=hidden,
+        visible_mag=mean_visible,
+        hidden_mag=mean_hidden,
+        weights=weights,
+    )
 
 
 def init_parameters(
@@ -120,8 +131,11 @@ def init_parameters(
     var_init: float = 1e-4,
 ) -> BGRBM:
     data = dataset.data
-    if isinstance(data, np.ndarray): data = torch.from_numpy(dataset.data).to(device=device, dtype=dtype)
+    if isinstance(data, np.ndarray):
+        data = torch.from_numpy(dataset.data).to(device=device, dtype=dtype)
     vbias, hbias, weight_matrix = _init_parameters(
         num_hiddens=num_hiddens, data=data, device=device, dtype=dtype, var_init=var_init
     )
-    return BGRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, device=device, dtype=dtype)
+    return BGRBM(
+        weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, device=device, dtype=dtype
+    )
