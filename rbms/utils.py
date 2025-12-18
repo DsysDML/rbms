@@ -9,6 +9,8 @@ import torch
 from torch import Tensor
 
 from rbms.classes import EBM
+from rbms.bernoulli_bernoulli.classes import BBRBM
+from rbms.ising_ising.classes import IIRBM
 from rbms.const import LOG_FILE_HEADER
 
 
@@ -124,7 +126,7 @@ def query_yes_no(question: str, default: str = "yes") -> bool:
         elif choice in valid:
             return valid[choice]
         else:
-            sys.stdout.write("Please respond with 'yes' or 'no' " "(or 'y' or 'n').\n")
+            sys.stdout.write("Please respond with 'yes' or 'no' (or 'y' or 'n').\n")
 
 
 def check_file_existence(filename: str):
@@ -254,12 +256,8 @@ def swap_chains(
         idx_vis_mean = idx_vis
     idx_hid = idx.unsqueeze(1).repeat(1, chain_1["hidden"].shape[1])
 
-    new_chain_1["visible"] = torch.where(
-        idx_vis, chain_2["visible"], chain_1["visible"]
-    )
-    new_chain_2["visible"] = torch.where(
-        idx_vis, chain_1["visible"], chain_2["visible"]
-    )
+    new_chain_1["visible"] = torch.where(idx_vis, chain_2["visible"], chain_1["visible"])
+    new_chain_2["visible"] = torch.where(idx_vis, chain_1["visible"], chain_2["visible"])
 
     new_chain_1["visible_mag"] = torch.where(
         idx_vis_mean, chain_2["visible_mag"], chain_1["visible_mag"]
@@ -304,4 +302,15 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
     return flagged_updates
 
 
+def bernoulli_to_ising(params: BBRBM) -> IIRBM:
+    weight_matrix = 0.25 * params.weight_matrix
+    vbias = 0.5 * params.vbias + weight_matrix.sum(axis=1)
+    hbias = 0.5 * params.hbias + weight_matrix.sum(axis=0)
+    return IIRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
 
+
+def ising_to_bernoulli(params: IIRBM) -> BBRBM:
+    weight_matrix = 4.0 * params.weight_matrix
+    vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(axis=1)
+    hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(axis=0)
+    return BBRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
