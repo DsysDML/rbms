@@ -1,10 +1,6 @@
 import gzip
 import textwrap
-<<<<<<< HEAD
-from typing import Dict, Optional, Self, Tuple, Union
-=======
 from typing import Self, Union
->>>>>>> 0dfca34d6e47839074bbadc53719500dff7a19c7
 
 import numpy as np
 import torch
