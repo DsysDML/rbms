@@ -101,14 +101,14 @@ class BGRBM(RBM):
 
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
         return _compute_energy_visibles(
-            v=v, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
+            v=v, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix, const=self.const
         )
 
     def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
         # backend should ignore grads on eta or treat it as const; we pass it for conditionals
         _compute_gradient(
             v_data=data["visible"],
-            h_data=data["hidden_magn"],
+            h_data=data["hidden_mag"],
             w_data=data["weights"],
             v_chain=chains["visible"],
             h_chain=chains["hidden_mag"],

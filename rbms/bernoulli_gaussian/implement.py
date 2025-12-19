@@ -37,8 +37,8 @@ def _compute_energy(
     interaction = torch.multiply(
         v, torch.tensordot(h, weight_matrix, dims=[[1], [1]])
     ).sum(1)
-    Nv = weight_matrix.shape[0]
-    quad = 0.5 * Nv * (h * h).sum(1)
+    num_visibles = weight_matrix.shape[0]
+    quad = 0.5 * num_visibles * (h * h).sum(1)
     return -fields - interaction + quad
 
 
@@ -48,9 +48,8 @@ def _compute_energy_visibles(
 ) -> Tensor:
     field = v @ vbias  
     t = hbias + (v @ weight_matrix) 
-    Nv = weight_matrix.shape[0]
-    inv_gamma = 1.0 / Nv
-    quad_term = 0.5 * inv_gamma * (t * t).sum(1)  
+    num_visibles = weight_matrix.shape[0]
+    quad_term = 0.5 * (t * t).sum(1) / num_visibles
     return -field - quad_term + const  
 
 
@@ -61,9 +60,8 @@ def _compute_energy_hiddens(
     field = h @ hbias 
     exponent = vbias + (h @ weight_matrix.T) 
     log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
-    Nv = weight_matrix.shape[0]
-    gamma = float(Nv)
-    quad = 0.5 * gamma * (h * h).sum(1) 
+    num_visibles = weight_matrix.shape[0]
+    quad = 0.5 * (h * h).sum(1) * num_visibles
     return -field - log_term.sum(1) + quad
 
 
