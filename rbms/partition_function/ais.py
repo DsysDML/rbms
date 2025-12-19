@@ -1,4 +1,4 @@
-from typing import Generator, Tuple
+from typing import Generator
 
 import numpy as np
 import torch
@@ -13,7 +13,7 @@ def update_weights_ais(
     chains: dict[str, Tensor],
     log_weights: Tensor,
     n_steps: int = 1,
-) -> Tuple[Tensor, dict[str, Tensor]]:
+) -> tuple[Tensor, dict[str, Tensor]]:
     """Update the weights used during Annealed Importance Sampling.
 
     Args:
@@ -40,9 +40,7 @@ def interpolate_ebm(
         yield params_1 * (1 - step) + params_2 * step
 
 
-def compute_partition_function_ais(
-    num_chains: int, num_beta: int, params: EBM
-) -> float:
+def compute_partition_function_ais(num_chains: int, num_beta: int, params: EBM) -> float:
     """Compute the log partition function using Annealed Importance Sampling with temperature.
 
     Args:

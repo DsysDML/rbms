@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import numpy as np
 import torch
 from torch import Tensor
@@ -26,8 +24,8 @@ class BGRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
         if device is None:
             device = weight_matrix.device
@@ -42,7 +40,16 @@ class BGRBM(RBM):
         self.const = (
             0.5
             * float(weight_matrix.shape[1])
-            * (torch.log(torch.tensor(float(weight_matrix.shape[0]), dtype=vbias.dtype, device=vbias.device)) - log_two_pi)
+            * (
+                torch.log(
+                    torch.tensor(
+                        float(weight_matrix.shape[0]),
+                        dtype=vbias.dtype,
+                        device=vbias.device,
+                    )
+                )
+                - log_two_pi
+            )
         )
 
         self.name = "BGRBM"
@@ -69,9 +76,7 @@ class BGRBM(RBM):
         )
         return out
 
-    def clone(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is None:
             device = self.device
         if dtype is None:
@@ -101,7 +106,11 @@ class BGRBM(RBM):
 
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
         return _compute_energy_visibles(
-            v=v, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix, const=self.const
+            v=v,
+            vbias=self.vbias,
+            hbias=self.hbias,
+            weight_matrix=self.weight_matrix,
+            const=self.const,
         )
 
     def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
@@ -182,7 +191,7 @@ class BGRBM(RBM):
     def num_visibles(self):
         return self.vbias.shape[0]
 
-    def parameters(self) -> List[Tensor]:
+    def parameters(self) -> list[Tensor]:
         # keep trainables only
         return [self.weight_matrix, self.vbias, self.hbias]
 
@@ -233,7 +242,7 @@ class BGRBM(RBM):
         return params
 
     def to(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
+        self, device: torch.device | None = None, dtype: torch.dtype | None = None
     ) -> "BGRBM":
         if device is not None:
             self.device = device

@@ -1,4 +1,4 @@
-from typing import List, Optional, Self
+from typing import Self
 
 import numpy as np
 import torch
@@ -25,8 +25,8 @@ class BBRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Bernoulli-Bernoulli RBM.
 
@@ -64,9 +64,7 @@ class BBRBM(RBM):
             hbias=self.hbias * other,
         )
 
-    def clone(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is None:
             device = self.device
         if dtype is None:
@@ -104,9 +102,7 @@ class BBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(
-        self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0
-    ):
+    def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
         _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
@@ -176,7 +172,7 @@ class BBRBM(RBM):
     def num_visibles(self):
         return self.vbias.shape[0]
 
-    def parameters(self) -> List[Tensor]:
+    def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
     def ref_log_z(self):
@@ -221,9 +217,7 @@ class BBRBM(RBM):
             )
         return params
 
-    def to(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is not None:
             self.device = device
         if dtype is not None:

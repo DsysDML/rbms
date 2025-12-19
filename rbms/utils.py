@@ -1,7 +1,6 @@
 import itertools
 import pathlib
 import sys
-from typing import Tuple
 
 import h5py
 import numpy as np
@@ -234,7 +233,7 @@ def compute_log_likelihood(
 @torch.jit.script
 def swap_chains(
     chain_1: dict[str, Tensor], chain_2: dict[str, Tensor], idx: Tensor
-) -> Tuple[dict[str, Tensor], dict[str, Tensor]]:
+) -> tuple[dict[str, Tensor], dict[str, Tensor]]:
     """
     Swap elements between two dict[str, Tensor]s at specified indices.
 

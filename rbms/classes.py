@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Self
+from typing import Self
 
 import torch
 from torch import Tensor
@@ -59,8 +59,8 @@ class EBM(ABC):
     def init_chains(
         self,
         num_samples: int,
-        weights: Optional[Tensor] = None,
-        start_v: Optional[Tensor] = None,
+        weights: Tensor | None = None,
+        start_v: Tensor | None = None,
     ) -> dict[str, Tensor]:
         """Initialize a Markov chain for the RBM by sampling a uniform distribution on the visible layer
         and sampling the hidden layer according to the visible one.
@@ -98,7 +98,7 @@ class EBM(ABC):
         ...
 
     @abstractmethod
-    def parameters(self) -> List[Tensor]:
+    def parameters(self) -> list[Tensor]:
         """Returns a list containing the parameters of the RBM.
 
         Returns:
@@ -116,8 +116,8 @@ class EBM(ABC):
     @abstractmethod
     def to(
         self,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ) -> Self:
         """Move the parameters to the specified device and/or convert them to the specified data type.
 
@@ -134,7 +134,7 @@ class EBM(ABC):
 
     @abstractmethod
     def clone(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
+        self, device: torch.device | None = None, dtype: torch.dtype | None = None
     ) -> EBM:
         """Create a clone of the RBM instance.
 

@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import h5py
 import torch
 from torch import Tensor
@@ -9,10 +7,10 @@ from rbms.utils import swap_chains
 
 
 def swap_configurations(
-    chains: List[dict[str, Tensor]],
+    chains: list[dict[str, Tensor]],
     params: EBM,
     inverse_temperatures: Tensor,
-    index: Optional[List[Tensor]] = None,
+    index: list[Tensor] | None = None,
 ):
     """
     Swap configurations between adjacent chains based on their energy and inverse temperatures.

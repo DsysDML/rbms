@@ -1,10 +1,10 @@
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import Union
 
 import numpy as np
 import torch
 
-ArrayLike = Tuple[np.ndarray, List]
+ArrayLike = tuple[np.ndarray, list]
 
 TOKENS_PROTEIN = "-ACDEFGHIKLMNPQRSTVWY"
 TOKENS_RNA = "-ACGU"
@@ -57,7 +57,7 @@ def decode_sequence(sequence: ArrayLike, tokens: str) -> str:
     return "".join([tokens[aa] for aa in sequence])
 
 
-def import_from_fasta(fasta_name: Union[str, Path]) -> Tuple[np.ndarray, np.ndarray]:
+def import_from_fasta(fasta_name: Union[str, Path]) -> tuple[np.ndarray, np.ndarray]:
     """Import data from a fasta file.
 
     Args:

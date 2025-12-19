@@ -1,4 +1,4 @@
-from typing import List, Optional, override
+from typing import override
 
 import numpy as np
 import torch
@@ -25,8 +25,8 @@ class PBRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Potts-Bernoulli RBM.
 
@@ -65,9 +65,7 @@ class PBRBM(RBM):
         )
 
     @torch.jit.export
-    def clone(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is None:
             device = self.device
         if dtype is None:
@@ -180,7 +178,7 @@ class PBRBM(RBM):
     def num_visibles(self):
         return self.vbias.shape[0]
 
-    def parameters(self) -> List[Tensor]:
+    def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
     def ref_log_z(self):
@@ -220,9 +218,7 @@ class PBRBM(RBM):
             )
         return params
 
-    def to(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is not None:
             self.device = device
         if dtype is not None:

@@ -1,6 +1,6 @@
 import pathlib
 import time
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 import h5py
 import numpy as np
@@ -22,9 +22,9 @@ from rbms.utils import get_saved_updates
 def setup_training(
     args: dict,
     train_dataset: RBMDataset,
-    test_dataset: Optional[RBMDataset] = None,
+    test_dataset: RBMDataset | None = None,
     map_model: dict[str, EBM] = map_model,
-) -> Tuple[
+) -> tuple[
     EBM,
     dict[str, Tensor],
     dict[str, Any],
@@ -69,7 +69,6 @@ def setup_training(
         print(train_dataset)
         print("Test dataset:")
         print(test_dataset)
-    
 
     # Open the log file if it exists
     log_filename = pathlib.Path(args["filename"]).parent / pathlib.Path(
@@ -118,7 +117,7 @@ def create_machine(
     learning_rate: float,
     train_size: float,
     log: bool,
-    flags: List[str],
+    flags: list[str],
     seed: int,
     L1: float,
     L2: float,
@@ -192,9 +191,7 @@ def get_checkpoints(num_updates: int, n_save: int, spacing: str = "exp") -> np.n
         case "linear":
             checkpoints = np.linspace(1, num_updates, n_save).astype(np.int32)
         case _:
-            raise ValueError(
-                f"spacing should be one of ('exp', 'linear'), got {spacing}"
-            )
+            raise ValueError(f"spacing should be one of ('exp', 'linear'), got {spacing}")
     checkpoints = np.unique(np.append(checkpoints, num_updates))
     return checkpoints
 
@@ -203,9 +200,9 @@ def initialize_model_archive(
     args: dict,
     model_type: str,
     train_dataset: RBMDataset,
-    test_dataset: Optional[RBMDataset],
+    test_dataset: RBMDataset | None,
     dtype: torch.dtype,
-    flags: List[str] = ["checkpoint"],
+    flags: list[str] = ["checkpoint"],
     map_model: dict[str, EBM] = map_model,
 ):
     num_visibles = train_dataset.get_num_visibles()

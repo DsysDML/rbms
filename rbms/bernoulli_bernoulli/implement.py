@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
@@ -8,7 +6,7 @@ from torch.nn.functional import softmax
 @torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     mh = torch.sigmoid(beta * (hbias + (v @ weight_matrix)))
     h = torch.bernoulli(mh)
     return h, mh
@@ -17,7 +15,7 @@ def _sample_hiddens(
 @torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     mv = torch.sigmoid(beta * (vbias + (h @ weight_matrix.T)))
     v = torch.bernoulli(mv)
     return v, mv
@@ -47,9 +45,7 @@ def _compute_energy_visibles(
 ) -> Tensor:
     field = v @ vbias
     exponent = hbias + (v @ weight_matrix)
-    log_term = torch.where(
-        exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent
-    )
+    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
     return -field - log_term.sum(1)
 
 
@@ -59,9 +55,7 @@ def _compute_energy_hiddens(
 ) -> Tensor:
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
-    log_term = torch.where(
-        exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent
-    )
+    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
     return -field - log_term.sum(1)
 
 
@@ -142,7 +136,7 @@ def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,
     hbias: Tensor,
-    start_v: Optional[Tensor] = None,
+    start_v: Tensor | None = None,
 ):
     num_visibles, _ = weight_matrix.shape
     device = weight_matrix.device
@@ -156,9 +150,7 @@ def _init_chains(
 
     if start_v is None:
         # Dummy mean visible
-        mv = (
-            torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
-        )
+        mv = torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
         v = torch.bernoulli(mv)
     else:
         # Dummy mean visible
@@ -177,7 +169,7 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
-) -> Tuple[Tensor, Tensor, Tensor]:
+) -> tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     eps = 1e-4
     weight_matrix = (

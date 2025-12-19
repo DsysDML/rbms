@@ -1,6 +1,5 @@
 import argparse
 from pathlib import Path
-from typing import Optional
 
 import h5py
 import numpy as np
@@ -54,8 +53,8 @@ def create_parser():
 
 def split_data_train_test(
     input_file: str,
-    output_train_file: Optional[str] = None,
-    output_test_file: Optional[str] = None,
+    output_train_file: str | None = None,
+    output_test_file: str | None = None,
     train_size=0.6,
     remove_duplicates: bool = False,
     seed: int = None,
