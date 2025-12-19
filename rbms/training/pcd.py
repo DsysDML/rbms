@@ -117,18 +117,19 @@ def train(
     args = set_args_default(args=args, default_args=default_args)
 
     optimizer = optim(params.parameters(), lr=args["learning_rate"], maximize=True)
-    
+
     if args["optim"] == "nag":
         optimizer = SGD(
-            params.parameters(), 
-            lr=args["learning_rate"], 
-            maximize=True, 
+            params.parameters(),
+            lr=args["learning_rate"],
+            maximize=True,
             momentum=0.9,
-            nesterov=True
+            nesterov=True,
         )
     update_lr = False
     warmup = True
     from rbms.classes import RBM
+
     # Continue the training
     with torch.no_grad():
         for idx in range(num_updates + 1, args["num_updates"] + 1):
@@ -140,7 +141,6 @@ def train(
                 parallel_chains = params.init_chains(
                     batch[0].shape[0], weights=batch[1], start_v=batch[0]
                 )
-<<<<<<< HEAD
 
             if warmup and isinstance(params, RBM):
                 if params.weight_matrix.norm() > 10 and args["optim"] == "nag":
@@ -150,15 +150,13 @@ def train(
                     #     maximize=True,
                     # )
                     optimizer = SGD(
-                        params.parameters(), 
-                        lr=args["learning_rate"], 
-                        maximize=True, 
+                        params.parameters(),
+                        lr=args["learning_rate"],
+                        maximize=True,
                         momentum=0.9,
-                        nesterov=True
+                        nesterov=True,
                     )
                     warmup = False
-=======
->>>>>>> 0dfca34d6e47839074bbadc53719500dff7a19c7
             optimizer.zero_grad(set_to_none=False)
 
             parallel_chains, logs = fit_batch_pcd(
