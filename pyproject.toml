@@ -19,12 +19,12 @@ maintainers = [
 ]
 description = "Training and analyzing Restricted Boltzmann Machines in PyTorch"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12, <3.14"
 dependencies = [
   "h5py>=3.12.0",
   "numpy>=2.0.0",
   "matplotlib>=3.8.0",
-  "torch>=2.5.0",
+  "torch>=2.6.0", 
   "tqdm>=4.65.0",
 ]
 
