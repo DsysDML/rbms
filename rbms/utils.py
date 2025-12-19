@@ -8,8 +8,10 @@ import numpy as np
 import torch
 from torch import Tensor
 
+from rbms.bernoulli_bernoulli.classes import BBRBM
 from rbms.classes import EBM
 from rbms.const import LOG_FILE_HEADER
+from rbms.ising_ising.classes import IIRBM
 
 
 def get_eigenvalues_history(filename: str, backend="cpu"):
@@ -308,3 +310,17 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
                         flagged_updates.append(update)
     flagged_updates = np.sort(np.array(flagged_updates, dtype=int))
     return flagged_updates
+
+
+def bernoulli_to_ising(params: BBRBM) -> IIRBM:
+    weight_matrix = 0.25 * params.weight_matrix
+    vbias = 0.5 * params.vbias + weight_matrix.sum(axis=1)
+    hbias = 0.5 * params.hbias + weight_matrix.sum(axis=0)
+    return IIRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
+
+
+def ising_to_bernoulli(params: IIRBM) -> BBRBM:
+    weight_matrix = 4.0 * params.weight_matrix
+    vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(axis=1)
+    hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(axis=0)
+    return BBRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
