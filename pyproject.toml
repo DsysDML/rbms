@@ -47,8 +47,8 @@ Issues = "https://github.com/DsysDML/rbms/issues"
 line-length = 90
 indent-width = 4
 
-# Assume Python 3.11
-target-version = "py311"
+# Assume Python 3.12
+target-version = "py312"
 
 [tool.ruff.lint]
 exclude = ["*.ipynb"]
