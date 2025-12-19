@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
@@ -8,7 +6,7 @@ from torch.nn.functional import softmax
 @torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     mh = hbias + (v @ weight_matrix)
     h = torch.randn_like(mh) + mh
     return h, mh
@@ -17,7 +15,7 @@ def _sample_hiddens(
 @torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     mv = torch.sigmoid(vbias + h @ weight_matrix.T)
     v = torch.bernoulli(mv)
     return v, mv
@@ -44,21 +42,25 @@ def _compute_energy(
 
 @torch.jit.script
 def _compute_energy_visibles(
-    v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor, const: Tensor,
+    v: Tensor,
+    vbias: Tensor,
+    hbias: Tensor,
+    weight_matrix: Tensor,
+    const: Tensor,
 ) -> Tensor:
-    field = v @ vbias  
-    t = hbias + (v @ weight_matrix) 
+    field = v @ vbias
+    t = hbias + (v @ weight_matrix)
     num_visibles = weight_matrix.shape[0]
     quad_term = 0.5 * (t * t).sum(1) / num_visibles
-    return -field - quad_term + const  
+    return -field - quad_term + const
 
 
 @torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:
-    field = h @ hbias 
-    exponent = vbias + (h @ weight_matrix.T) 
+    field = h @ hbias
+    exponent = vbias + (h @ weight_matrix.T)
     log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
     num_visibles = weight_matrix.shape[0]
     quad = 0.5 * (h * h).sum(1) * num_visibles
@@ -139,7 +141,7 @@ def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,
     hbias: Tensor,
-    start_v: Optional[Tensor] = None,
+    start_v: Tensor | None = None,
 ):
     num_visibles, num_hiddens = weight_matrix.shape
     device = weight_matrix.device
