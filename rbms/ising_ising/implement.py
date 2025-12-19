@@ -1,15 +1,14 @@
-from typing import Optional, Tuple
-
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
+
 from rbms.custom_fn import log2cosh
 
 
 @torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     effective_field = beta * (hbias + (v @ weight_matrix))
     mh = torch.tanh(effective_field)
     h = 2 * torch.bernoulli(torch.sigmoid(2 * effective_field)) - 1
@@ -19,7 +18,7 @@ def _sample_hiddens(
 @torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
-) -> Tuple[Tensor, Tensor]:
+) -> tuple[Tensor, Tensor]:
     effective_field = beta * (vbias + (h @ weight_matrix.T))
     mv = torch.tanh(effective_field)
     v = 2 * torch.bernoulli(torch.sigmoid(2 * effective_field)) - 1
@@ -141,7 +140,7 @@ def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,
     hbias: Tensor,
-    start_v: Optional[Tensor] = None,
+    start_v: Tensor | None = None,
 ):
     num_visibles, _ = weight_matrix.shape
     device = weight_matrix.device
@@ -174,7 +173,7 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
-) -> Tuple[Tensor, Tensor, Tensor]:
+) -> tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     eps = 1e-4
     weight_matrix = (
