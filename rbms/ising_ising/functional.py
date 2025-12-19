@@ -1,9 +1,8 @@
-from typing import Optional
-
 import numpy as np
 import torch
 from torch import Tensor
 
+from rbms.dataset.dataset_class import RBMDataset
 from rbms.ising_ising.classes import IIRBM
 from rbms.ising_ising.implement import (
     _compute_energy,
@@ -15,7 +14,6 @@ from rbms.ising_ising.implement import (
     _sample_hiddens,
     _sample_visibles,
 )
-from rbms.dataset.dataset_class import RBMDataset
 
 
 def sample_hiddens(
@@ -150,8 +148,8 @@ def compute_gradient(
 def init_chains(
     num_samples: int,
     params: IIRBM,
-    weights: Optional[Tensor] = None,
-    start_v: Optional[Tensor] = None,
+    weights: Tensor | None = None,
+    start_v: Tensor | None = None,
 ) -> dict[str, Tensor]:
     """Initialize a Markov chain for the RBM by sampling a uniform distribution on the visible layer
     and sampling the hidden layer according to the visible one.

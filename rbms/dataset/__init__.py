@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -12,14 +11,14 @@ from rbms.dataset.utils import get_subset_labels, get_unique_indices
 
 def load_dataset(
     dataset_name: str,
-    test_dataset_name: Optional[str] = None,
-    subset_labels: Optional[List[int]] = None,
+    test_dataset_name: str | None = None,
+    subset_labels: list[int] | None = None,
     use_weights: bool = False,
     binarize: bool = False,
     alphabet="protein",
     device: str = "cpu",
     dtype: torch.dtype = torch.float32,
-) -> Tuple[RBMDataset, RBMDataset | None]:
+) -> tuple[RBMDataset, RBMDataset | None]:
     return_datasets = []
     for dset_name in [dataset_name, test_dataset_name]:
         data = None

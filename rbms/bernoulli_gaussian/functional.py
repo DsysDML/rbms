@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 import torch
 from torch import Tensor
@@ -62,7 +60,7 @@ def compute_energy_visibles(v: Tensor, params: BGRBM) -> Tensor:
         vbias=params.vbias,
         hbias=params.hbias,
         weight_matrix=params.weight_matrix,
-        const=params.const
+        const=params.const,
     )
 
 
@@ -103,8 +101,8 @@ def compute_gradient(
 def init_chains(
     num_samples: int,
     params: BGRBM,
-    weights: Optional[Tensor] = None,
-    start_v: Optional[Tensor] = None,
+    weights: Tensor | None = None,
+    start_v: Tensor | None = None,
 ) -> dict[str, Tensor]:
     visible, hidden, mean_visible, mean_hidden = _init_chains(
         num_samples=num_samples,

@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import h5py
 import numpy as np
 import torch
@@ -16,7 +14,7 @@ def save_model(
     chains: dict[str, Tensor],
     num_updates: int,
     time: float,
-    flags: List[str] = [],
+    flags: list[str] = [],
 ) -> None:
     """Save the current state of the model.
 
@@ -100,7 +98,7 @@ def load_model(
     dtype: torch.dtype,
     restore: bool = False,
     map_model: dict[str, EBM] = map_model,
-) -> Tuple[EBM, dict[str, Tensor], float, dict]:
+) -> tuple[EBM, dict[str, Tensor], float, dict]:
     """Load a RBM from a h5 archive.
 
     Args:

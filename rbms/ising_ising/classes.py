@@ -1,9 +1,11 @@
-from typing import List, Optional, Self
+from typing import Self
 
 import numpy as np
 import torch
 from torch import Tensor
 
+from rbms.classes import RBM
+from rbms.custom_fn import log2cosh
 from rbms.ising_ising.implement import (
     _compute_energy,
     _compute_energy_hiddens,
@@ -14,8 +16,6 @@ from rbms.ising_ising.implement import (
     _sample_hiddens,
     _sample_visibles,
 )
-from rbms.classes import RBM
-from rbms.custom_fn import log2cosh
 
 
 class IIRBM(RBM):
@@ -26,8 +26,8 @@ class IIRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        device: torch.device | None = None,
+        dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Ising-Ising RBM.
 
@@ -65,9 +65,7 @@ class IIRBM(RBM):
             hbias=self.hbias * other,
         )
 
-    def clone(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is None:
             device = self.device
         if dtype is None:
@@ -175,7 +173,7 @@ class IIRBM(RBM):
     def num_visibles(self):
         return self.vbias.shape[0]
 
-    def parameters(self) -> List[Tensor]:
+    def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
     def ref_log_z(self):
@@ -218,9 +216,7 @@ class IIRBM(RBM):
             )
         return params
 
-    def to(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
-    ):
+    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is not None:
             self.device = device
         if dtype is not None:
