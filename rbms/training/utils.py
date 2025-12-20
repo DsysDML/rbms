@@ -19,6 +19,7 @@ from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.utils import get_saved_updates
 
 
+@torch.compiler.disable
 def setup_training(
     args: dict,
     train_dataset: RBMDataset,
@@ -191,6 +192,7 @@ def get_checkpoints(num_updates: int, n_save: int, spacing: str = "exp") -> np.n
     return checkpoints
 
 
+@torch.compiler.disable
 def initialize_model_archive(
     args: dict,
     model_type: str,

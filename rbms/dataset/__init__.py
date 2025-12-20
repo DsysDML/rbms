@@ -9,6 +9,7 @@ from rbms.dataset.load_h5 import load_HDF5
 from rbms.dataset.utils import get_subset_labels, get_unique_indices
 
 
+@torch.compiler.disable
 def load_dataset(
     dataset_name: str,
     test_dataset_name: str | None = None,

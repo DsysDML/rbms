@@ -17,6 +17,7 @@ from rbms.training.utils import initialize_model_archive, setup_training
 from rbms.utils import check_file_existence, log_to_csv
 
 
+# @torch.compile
 def fit_batch_pcd(
     batch: tuple[Tensor, Tensor],
     parallel_chains: dict[str, Tensor],
@@ -62,6 +63,8 @@ def fit_batch_pcd(
     return parallel_chains, logs
 
 
+@torch.compile
+@torch.no_grad
 def train(
     train_dataset: RBMDataset,
     test_dataset: RBMDataset | None,
@@ -118,62 +121,61 @@ def train(
     optimizer = optim(params.parameters(), lr=args["learning_rate"], maximize=True)
 
     # Continue the training
-    with torch.no_grad():
-        for idx in range(num_updates + 1, args["num_updates"] + 1):
-            rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
-            batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
-            if args["training_type"] == "rdm":
-                parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
-            elif args["training_type"] == "cd":
-                parallel_chains = params.init_chains(
-                    batch[0].shape[0], weights=batch[1], start_v=batch[0]
-                )
-            optimizer.zero_grad(set_to_none=False)
-
-            parallel_chains, logs = fit_batch_pcd(
-                batch=batch,
-                parallel_chains=parallel_chains,
-                params=params,
-                gibbs_steps=args["gibbs_steps"],
-                beta=args["beta"],
-                centered=not (args["no_center"]),
-                lambda_l1=args["L1"],
-                lambda_l2=args["L2"],
+    for idx in range(num_updates + 1, args["num_updates"] + 1):
+        rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
+        batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
+        if args["training_type"] == "rdm":
+            parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
+        elif args["training_type"] == "cd":
+            parallel_chains = params.init_chains(
+                batch[0].shape[0], weights=batch[1], start_v=batch[0]
             )
-            optimizer.step()
-            if isinstance(params, PBRBM):
-                ensure_zero_sum_gauge(params)
+        optimizer.zero_grad(set_to_none=False)
 
-            # Save current model if necessary
-            if idx in checkpoints:
-                curr_time = time.time() - start
-                save_model(
-                    filename=args["filename"],
-                    params=params,
-                    chains=parallel_chains,
-                    num_updates=idx,
-                    time=curr_time + elapsed_time,
-                    flags=["checkpoint"],
-                )
+        parallel_chains, logs = fit_batch_pcd(
+            batch=batch,
+            parallel_chains=parallel_chains,
+            params=params,
+            gibbs_steps=args["gibbs_steps"],
+            beta=args["beta"],
+            centered=not (args["no_center"]),
+            lambda_l1=args["L1"],
+            lambda_l2=args["L2"],
+        )
+        optimizer.step()
+        if isinstance(params, PBRBM):
+            ensure_zero_sum_gauge(params)
 
-            # Save some logs
-            learning_rates = np.array([optimizer.param_groups[0]["lr"]])
-            with h5py.File(args["filename"], "a") as f:
-                if "learning_rate" in f.keys():
-                    learning_rates = np.append(f["learning_rate"][()], learning_rates)
-                    del f["learning_rate"]
-                f["learning_rate"] = learning_rates
-                if hasattr(optimizer, "cosine_similarity"):
-                    if "cosine_similarities" in f.keys():
-                        cosine_similarities = np.append(
-                            f["cosine_similarities"][()],
-                            optimizer.cosine_similarity,
-                        )
-                        del f["cosine_similarities"]
-                    f["cosine_similarities"] = cosine_similarities
+        # Save current model if necessary
+        if idx in checkpoints:
+            curr_time = time.time() - start
+            save_model(
+                filename=args["filename"],
+                params=params,
+                chains=parallel_chains,
+                num_updates=idx,
+                time=curr_time + elapsed_time,
+                flags=["checkpoint"],
+            )
 
-            if args["log"]:
-                log_to_csv(logs, log_file=log_filename)
-            pbar.set_postfix_str(f"lr: {optimizer.param_groups[0]['lr']:.6f}")
-            # Update progress bar
-            pbar.update(1)
+        # Save some logs
+        learning_rates = np.array([optimizer.param_groups[0]["lr"]])
+        with h5py.File(args["filename"], "a") as f:
+            if "learning_rate" in f.keys():
+                learning_rates = np.append(f["learning_rate"][()], learning_rates)
+                del f["learning_rate"]
+            f["learning_rate"] = learning_rates
+            if hasattr(optimizer, "cosine_similarity"):
+                if "cosine_similarities" in f.keys():
+                    cosine_similarities = np.append(
+                        f["cosine_similarities"][()],
+                        optimizer.cosine_similarity,
+                    )
+                    del f["cosine_similarities"]
+                f["cosine_similarities"] = cosine_similarities
+
+        if args["log"]:
+            log_to_csv(logs, log_file=log_filename)
+        pbar.set_postfix_str(f"lr: {optimizer.param_groups[0]['lr']:.6f}")
+        # Update progress bar
+        pbar.update(1)

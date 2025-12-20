@@ -3,7 +3,7 @@ from torch import Tensor
 from torch.nn.functional import softmax
 
 
-@torch.jit.script
+@torch.compiler.nested_compile_region
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
@@ -12,7 +12,7 @@ def _sample_hiddens(
     return h, mh
 
 
-@torch.jit.script
+@torch.compiler.nested_compile_region
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
@@ -21,7 +21,7 @@ def _sample_visibles(
     return v, mv
 
 
-@torch.jit.script
+@torch.compiler.nested_compile_region
 def _compute_energy(
     v: Tensor,
     h: Tensor,
@@ -39,7 +39,7 @@ def _compute_energy(
     return -fields - interaction
 
 
-@torch.jit.script
+@torch.compiler.nested_compile_region
 def _compute_energy_visibles(
     v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:
@@ -49,7 +49,7 @@ def _compute_energy_visibles(
     return -field - log_term.sum(1)
 
 
-@torch.jit.script
+@torch.compiler.nested_compile_region
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:
@@ -59,13 +59,41 @@ def _compute_energy_hiddens(
     return -field - log_term.sum(1)
 
 
-@torch.jit.script
+@torch.library.custom_op("mylib::set_grad_inplace", mutates_args=("tensor",))
+def set_grad_inplace(tensor: Tensor, grad: Tensor) -> None:
+    tensor.grad.set_(grad)
+
+
+def center_gradient(v_data, mh_data, v_chain, mh_chain, v_data_mean, mh_data_mean):
+    v_data_centered = v_data - v_data_mean
+    mh_data_centered = mh_data - mh_data_mean
+    v_gen_centered = v_chain - v_data_mean
+    mh_gen_centered = mh_chain - mh_data_mean
+    return v_data_centered, mh_data_centered, v_gen_centered, mh_gen_centered
+
+
+def do_nothing(v_data, mh_data, v_chain, mh_chain, v_data_mean, mh_data_mean):
+    return v_data, mh_data, v_chain, mh_chain
+
+
+def apply_l1(tensor, tensor_grad, lambda_l1):
+    return tensor_grad - lambda_l1 * torch.sign(tensor)
+
+
+def do_nothing_reg(tensor, tensor_grad, lambda_):
+    return tensor_grad
+
+
+def apply_l2(tensor, tensor_grad, lambda_l2):
+    return tensor_grad - 2 * lambda_l2 * tensor
+
+
 def _compute_gradient(
     v_data: Tensor,
     mh_data: Tensor,
     w_data: Tensor,
     v_chain: Tensor,
-    h_chain: Tensor,
+    mh_chain: Tensor,
     w_chain: Tensor,
     vbias: Tensor,
     hbias: Tensor,
@@ -83,55 +111,43 @@ def _compute_gradient(
     # Averages over data and generated samples
     v_data_mean = (v_data * w_data).sum(0) / w_data_norm
     torch.clamp_(v_data_mean, min=1e-7, max=(1.0 - 1e-7))
-    h_data_mean = (mh_data * w_data).sum(0) / w_data_norm
+    mh_data_mean = (mh_data * w_data).sum(0) / w_data_norm
     v_gen_mean = (v_chain * chain_weights).sum(0)
     torch.clamp_(v_gen_mean, min=1e-7, max=(1.0 - 1e-7))
-    h_gen_mean = (h_chain * chain_weights).sum(0)
+    mh_gen_mean = (mh_chain * chain_weights).sum(0)
 
-    if centered:
-        # Centered variables
-        v_data_centered = v_data - v_data_mean
-        h_data_centered = mh_data - h_data_mean
-        v_gen_centered = v_chain - v_data_mean
-        h_gen_centered = h_chain - h_data_mean
+    v_data_centered, mh_data_centered, v_gen_centered, mh_gen_centered = torch.cond(
+        centered,
+        center_gradient,
+        do_nothing,
+        (v_data, mh_data, v_chain, mh_chain, v_data_mean, mh_data_mean),
+    )
 
-        # Gradient
-        grad_weight_matrix = (
-            (v_data_centered * w_data).T @ h_data_centered
-        ) / w_data_norm - ((v_gen_centered * chain_weights).T @ h_gen_centered)
-        grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ h_data_mean)
-        grad_hbias = h_data_mean - h_gen_mean - (v_data_mean @ grad_weight_matrix)
-    else:
-        v_data_centered = v_data
-        h_data_centered = mh_data
-        v_gen_centered = v_chain
-        h_gen_centered = h_chain
+    grad_weight_matrix = (
+        (v_data_centered * w_data).T @ mh_data_centered
+    ) / w_data_norm - ((v_gen_centered * chain_weights).T @ mh_gen_centered)
+    grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ mh_data_mean)
+    grad_hbias = mh_data_mean - mh_gen_mean - (v_data_mean @ grad_weight_matrix)
 
-        # Gradient
-        grad_weight_matrix = ((v_data * w_data).T @ mh_data) / w_data_norm - (
-            (v_chain * chain_weights).T @ h_chain
-        )
-        grad_vbias = v_data_mean - v_gen_mean
-        grad_hbias = h_data_mean - h_gen_mean
-
-    if lambda_l1 > 0:
-        grad_weight_matrix -= lambda_l1 * torch.sign(weight_matrix)
-        grad_vbias -= lambda_l1 * torch.sign(vbias)
-        grad_hbias -= lambda_l1 * torch.sign(hbias)
-
-    if lambda_l2 > 0:
-        grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
-        grad_vbias -= 2 * lambda_l2 * vbias
-        grad_hbias -= 2 * lambda_l2 * hbias
+    grad_weight_matrix = torch.cond(
+        lambda_l1 > 0,
+        apply_l1,
+        do_nothing_reg,
+        (weight_matrix, grad_weight_matrix, lambda_l1),
+    )
+    grad_weight_matrix = torch.cond(
+        lambda_l2 > 0,
+        apply_l2,
+        do_nothing_reg,
+        (weight_matrix, grad_weight_matrix, lambda_l2),
+    )
 
     # Attach to the parameters
+    set_grad_inplace(weight_matrix, grad_weight_matrix)
+    set_grad_inplace(vbias, grad_vbias)
+    set_grad_inplace(hbias, grad_hbias)
 
-    weight_matrix.grad.set_(grad_weight_matrix)
-    vbias.grad.set_(grad_vbias)
-    hbias.grad.set_(grad_hbias)
 
-
-@torch.jit.script
 def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,
