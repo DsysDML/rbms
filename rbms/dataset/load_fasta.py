@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import numpy as np
-import torch
+# import torch
 
-from rbms.custom_fn import one_hot
+# from rbms.custom_fn import one_hot
 from rbms.dataset.fasta_utils import (
     compute_weights,
     encode_sequence,
@@ -15,7 +15,7 @@ from rbms.dataset.fasta_utils import (
 
 def load_FASTA(
     filename: str | Path,
-    binarize: bool = False,
+    # binarize: bool = False,
     use_weights: bool = False,
     alphabet: str = "protein",
     device="cuda",
@@ -35,6 +35,10 @@ def load_FASTA(
     # Select the proper encoding
     tokens = get_tokens(alphabet)
     names, sequences = import_from_fasta(filename)
+    if len(sequences) == 0:
+        raise ValueError(
+            f"The input dataset is empty. Check that the alphabet is correct. Current alphabet: {alphabet}"
+        )
     validate_alphabet(sequences=sequences, tokens=tokens)
     names = np.array(names)
     dataset = np.vectorize(
@@ -49,11 +53,11 @@ def load_FASTA(
         weights = np.ones((num_data, 1), dtype=np.float32)
 
     weights = weights.squeeze(-1)
-    if binarize:
-        num_categories = len(np.unique(dataset))
-        dataset = (
-            one_hot(torch.from_numpy(dataset).int(), num_classes=num_categories)
-            .view(dataset.shape[0], -1)
-            .numpy()
-        )
+    # if binarize:
+    #     num_categories = len(np.unique(dataset))
+    #     dataset = (
+    #         one_hot(torch.from_numpy(dataset).int(), num_classes=num_categories)
+    #         .view(dataset.shape[0], -1)
+    #         .numpy()
+    #     )
     return dataset, weights, names

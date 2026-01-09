@@ -74,20 +74,23 @@ def import_from_fasta(fasta_name: Union[str, Path]) -> tuple[np.ndarray, np.ndar
     seq = ""
     with open(fasta_name, "r", encoding="utf-8") as f:
         first_line = f.readline()
-        if not first_line.startswith(">"):
+        if not first_line:
+            raise ValueError(f"The input file is empty: {fasta_name}")
+        if first_line.startswith(">"):
+            f.seek(0)
+            for line in f:
+                if not line.strip():
+                    continue
+                if line.startswith(">"):
+                    if seq:
+                        sequences.append(seq)
+                    header = line[1:].strip().replace(" ", "_")
+                    names.append(header)
+                    seq = ""
+                else:
+                    seq += line.strip()
+        else:
             raise RuntimeError(f"The file {fasta_name} is not in a fasta format.")
-        f.seek(0)
-        for line in f:
-            if not line.strip():
-                continue
-            if line.startswith(">"):
-                if seq:
-                    sequences.append(seq)
-                header = line[1:].strip().replace(" ", "_")
-                names.append(header)
-                seq = ""
-            else:
-                seq += line.strip()
     if seq:
         sequences.append(seq)
     return np.array(names), np.array(sequences)

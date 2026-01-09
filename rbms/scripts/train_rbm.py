@@ -1,5 +1,6 @@
 import argparse
 
+import h5py
 import torch
 
 from rbms.dataset import load_dataset
@@ -8,11 +9,11 @@ from rbms.map_model import map_model
 from rbms.parser import (
     add_args_pytorch,
     add_args_rbm,
-    add_args_saves,
     add_args_regularization,
+    add_args_saves,
+    default_args,
     match_args_dtype,
     remove_argument,
-    default_args,
 )
 from rbms.training.pcd import train
 from rbms.training.utils import get_checkpoints
@@ -46,10 +47,20 @@ def train_rbm(args: dict):
         dtype=args["dtype"],
     )
     print(train_dataset)
-    if train_dataset.is_binary:
-        model_type = "BBRBM"
+    if args["restore"]:
+        with h5py.File(args["filename"], "r") as f:
+            model_type = f["model_type"][()].decode()
     else:
-        model_type = "PBRBM"
+        model_type = args["model_type"]
+        if model_type is None:
+            match train_dataset.visible_type:
+                case "binary":
+                    model_type = "BBRBM"
+                case "categorical":
+                    model_type = "PBRBM"
+                case _:
+                    raise NotImplementedError()
+    print(model_type)
     train(
         train_dataset=train_dataset,
         test_dataset=test_dataset,
