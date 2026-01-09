@@ -167,8 +167,8 @@ def compute_weights(
 def validate_alphabet(sequences: ArrayLike, tokens: str):
     all_char = "".join(sequences)
     tokens_data = "".join(sorted(set(all_char)))
-    sorted_tokens = "".join(sorted(tokens))
-    if sorted_tokens != tokens_data:
-        raise KeyError(
-            f"The chosen alphabet is incompatible with the Multi-Sequence Alignment. The missing tokens are: {[c for c in tokens_data if c not in sorted_tokens]}"
-        )
+    for c in tokens_data:
+        if c not in tokens:
+            raise KeyError(
+                f"The chosen alphabet is incompatible with the Multi-Sequence Alignment. The unexpected token is: '{c}'"
+            )
