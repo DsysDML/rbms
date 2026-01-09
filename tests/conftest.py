@@ -76,9 +76,9 @@ def sample_dataset_bbrbm():
         weights=weights,
         names=-np.ones(pytest.NUM_SAMPLES),
         dataset_name="test",
+        variable_type="binary",
         device=torch.device("cpu"),
         dtype=torch.float32,
-        is_binary=True,
     )
     return dataset
 
@@ -158,6 +158,7 @@ def sample_args(tmp_path):
         "training_type": "pcd",
         "optim": "sgd",
         "remove_duplicates": False,
+        "model_type": None,
     }
 
 
@@ -246,9 +247,9 @@ def sample_dataset_pbrbm():
         weights=weights,
         names=-np.ones(pytest.NUM_SAMPLES),
         dataset_name="test",
+        variable_type="categorical",
         device=torch.device("cpu"),
         dtype=torch.float32,
-        is_binary=True,
     )
     return dataset
 

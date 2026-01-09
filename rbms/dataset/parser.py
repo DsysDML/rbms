@@ -52,12 +52,6 @@ def add_args_dataset(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help="(Defaults to protein). Type of encoding for the sequences. Choose among ['protein', 'rna', 'dna'] or a user-defined string of tokens.",
     )
     dataset_args.add_argument(
-        "--binarize",
-        default=False,
-        action="store_true",
-        help="(Defaults to False). Binarize the dataset.",
-    )
-    dataset_args.add_argument(
         "--remove_duplicates",
         default=False,
         action="store_true",

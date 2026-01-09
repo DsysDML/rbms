@@ -55,7 +55,6 @@ def test_use_case_train_bbrbm():
         "test_size": None,
         "n_save": 50,
         "spacing": "exp",
-        "binarize": False,
         "overwrite": True,
         "seed": 42,
         "no_center": False,
@@ -64,6 +63,7 @@ def test_use_case_train_bbrbm():
         "training_type": "pcd",
         "optim": "sgd",
         "remove_duplicates": False,
+        "model_type": "BBRBM",
     }
     train_rbm(args)
 

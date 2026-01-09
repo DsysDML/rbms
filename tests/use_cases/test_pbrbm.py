@@ -55,7 +55,6 @@ def test_use_case_train_pbrbm_no_weights():
         "test_size": None,
         "n_save": 50,
         "spacing": "exp",
-        "binarize": False,
         "overwrite": True,
         "seed": 42,
         "no_center": False,
@@ -64,6 +63,7 @@ def test_use_case_train_pbrbm_no_weights():
         "training_type": "pcd",
         "optim": "sgd",
         "remove_duplicates": False,
+        "model_type": "PBRBM",
     }
     train_rbm(args)
 
@@ -71,7 +71,6 @@ def test_use_case_train_pbrbm_no_weights():
         "dummy.fasta",
         subset_labels=SUBSET_LABELS,
         use_weights=args["use_weights"],
-        binarize=args["binarize"],
         device=DEVICE,
     )
 
@@ -135,7 +134,6 @@ def test_use_case_train_pbrbm_weights():
         "test_size": None,
         "n_save": 50,
         "spacing": "exp",
-        "binarize": False,
         "overwrite": True,
         "seed": 42,
         "no_center": False,
@@ -144,6 +142,7 @@ def test_use_case_train_pbrbm_weights():
         "training_type": "pcd",
         "optim": "sgd",
         "remove_duplicates": False,
+        "model_type": "PBRBM",
     }
     train_rbm(args)
 
@@ -151,7 +150,6 @@ def test_use_case_train_pbrbm_weights():
         "dummy.fasta",
         subset_labels=SUBSET_LABELS,
         use_weights=args["use_weights"],
-        binarize=args["binarize"],
         device=DEVICE,
     )
 

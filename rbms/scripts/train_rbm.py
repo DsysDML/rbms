@@ -1,5 +1,6 @@
 import argparse
 
+import h5py
 import torch
 
 from rbms.dataset import load_dataset
@@ -42,16 +43,26 @@ def train_rbm(args: dict):
         subset_labels=args["subset_labels"],
         use_weights=args["use_weights"],
         alphabet=args["alphabet"],
-        binarize=args["binarize"],
         remove_duplicates=args["remove_duplicates"],
         device=args["device"],
         dtype=args["dtype"],
+
     )
     print(train_dataset)
-    if train_dataset.is_binary:
-        model_type = "BBRBM"
+    if args["restore"]:
+        with h5py.File(args["filename"], "r") as f:
+            model_type = f["model_type"][()].decode()
     else:
-        model_type = "PBRBM"
+        model_type = args["model_type"]
+        if model_type is None:
+            match train_dataset.visible_type:
+                case "binary":
+                    model_type = "BBRBM"
+                case "categorical":
+                    model_type = "PBRBM"
+                case _:
+                    raise NotImplementedError()
+    print(model_type)
     train(
         train_dataset=train_dataset,
         test_dataset=test_dataset,

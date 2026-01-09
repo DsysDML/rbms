@@ -74,20 +74,23 @@ def import_from_fasta(fasta_name: Union[str, Path]) -> tuple[np.ndarray, np.ndar
     seq = ""
     with open(fasta_name, "r", encoding="utf-8") as f:
         first_line = f.readline()
-        if not first_line.startswith(">"):
+        if not first_line:
+            raise ValueError(f"The input file is empty: {fasta_name}")
+        if first_line.startswith(">"):
+            f.seek(0)
+            for line in f:
+                if not line.strip():
+                    continue
+                if line.startswith(">"):
+                    if seq:
+                        sequences.append(seq)
+                    header = line[1:].strip().replace(" ", "_")
+                    names.append(header)
+                    seq = ""
+                else:
+                    seq += line.strip()
+        else:
             raise RuntimeError(f"The file {fasta_name} is not in a fasta format.")
-        f.seek(0)
-        for line in f:
-            if not line.strip():
-                continue
-            if line.startswith(">"):
-                if seq:
-                    sequences.append(seq)
-                header = line[1:].strip().replace(" ", "_")
-                names.append(header)
-                seq = ""
-            else:
-                seq += line.strip()
     if seq:
         sequences.append(seq)
     return np.array(names), np.array(sequences)
@@ -164,8 +167,16 @@ def compute_weights(
 def validate_alphabet(sequences: ArrayLike, tokens: str):
     all_char = "".join(sequences)
     tokens_data = "".join(sorted(set(all_char)))
-    sorted_tokens = "".join(sorted(tokens))
-    if sorted_tokens != tokens_data:
-        raise KeyError(
-            f"The chosen alphabet is incompatible with the Multi-Sequence Alignment. The missing tokens are: {[c for c in tokens_data if c not in sorted_tokens]}"
+    for c in tokens_data:
+        if c not in tokens:
+            raise KeyError(
+                f"The chosen alphabet is incompatible with the Multi-Sequence Alignment. The unexpected token is: '{c}'"
+            )
+    if tokens_data != tokens:
+        print(
+            f"""
+        The Multi-Sequence Alignment  set of characters is a subset of the alphabet:
+        - Unique MSA tokens : {tokens_data}
+        - Alphabet tokens : {tokens}
+        """
         )

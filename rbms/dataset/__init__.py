@@ -14,7 +14,6 @@ def load_dataset(
     test_dataset_name: str | None = None,
     subset_labels: list[int] | None = None,
     use_weights: bool = False,
-    binarize: bool = False,
     alphabet="protein",
     remove_duplicates: bool = False,
     device: str = "cpu",
@@ -23,7 +22,6 @@ def load_dataset(
     return_datasets = []
     for dset_name in [dataset_name, test_dataset_name]:
         data = None
-        is_binary = True
         labels = None
         weights = None
         names = None
@@ -33,30 +31,19 @@ def load_dataset(
             print(f"Reading dataset from {str(dset_name)}...")
             match dset_name.suffix:
                 case ".h5":
-                    data, labels = load_HDF5(filename=dset_name, binarize=binarize)
-                case ".fasta":
+                    data, labels, variable_type, weights = load_HDF5(
+                        filename=dset_name,
+                        use_weights=use_weights,
+                        device=device,
+                    )
+                case _:
                     data, weights, names = load_FASTA(
                         filename=dset_name,
-                        binarize=binarize,
                         use_weights=use_weights,
                         alphabet=alphabet,
                         device=device,
                     )
-                    if not binarize:
-                        is_binary = False
-                case ".dat":
-                    data = np.genfromtxt(dset_name)
-                    is_binary = False
-                case _:
-                    raise ValueError(
-                        """
-                    Dataset could not be loaded as the type is not recognized.
-                    It should be either:
-                        - '.h5',
-                        - '.fasta'
-                    """
-                    )
-
+                    variable_type = "categorical"
             # Select subset of dataset w.r.t. labels
             if subset_labels is not None and labels is not None:
                 data, labels = get_subset_labels(data, labels, subset_labels)
@@ -88,8 +75,8 @@ def load_dataset(
                     labels=labels,
                     weights=weights,
                     names=names,
-                    dataset_name=dset_name,
-                    is_binary=is_binary,
+                    dataset_name=dataset_name,
+                    variable_type=variable_type,
                     device=device,
                     dtype=dtype,
                 )

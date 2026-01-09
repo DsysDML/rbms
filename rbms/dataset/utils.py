@@ -37,3 +37,39 @@ def get_unique_indices(input_dataset: Tensor) -> Tensor:
     cum_sum = torch.cat((torch.tensor([0], device=cum_sum.device), cum_sum[:-1]))
     unique_ind = ind_sorted[cum_sum]
     return unique_ind
+
+
+def bernoulli_to_ising(x):
+    return x * 2 - 1
+
+
+def ising_to_bernoulli(x):
+    return (x + 1) / 2
+
+
+def bernoulli_to_categorical(x):
+    pass
+
+
+def categorical_to_bernoulli(x):
+    pass
+
+
+convert_data = {
+    "bernoulli": {
+        "bernoulli": (lambda x: x),
+        "ising": (lambda x: bernoulli_to_ising(x)),
+        "categorical": (lambda x: bernoulli_to_categorical(x)),
+        # "continuous": lambda x: raise ValueError("Cannot convert from 'bernoulli' to 'continuous' data.")
+    },
+    "ising": {
+        "bernoulli": (lambda x: ising_to_bernoulli(x)),
+        "ising": (lambda x: x),
+        "categorical": (lambda x: bernoulli_to_categorical(ising_to_bernoulli(x))),
+    },
+    "categorical": {
+        "bernoulli": (lambda x: categorical_to_bernoulli(x)),
+        "ising": (lambda x: bernoulli_to_ising(categorical_to_bernoulli(x))),
+        "categorical": (lambda x: x),
+    },
+}
