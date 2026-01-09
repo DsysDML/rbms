@@ -15,7 +15,6 @@ from rbms.dataset.fasta_utils import (
 
 def load_FASTA(
     filename: str | Path,
-    # binarize: bool = False,
     use_weights: bool = False,
     alphabet: str = "protein",
     device="cuda",

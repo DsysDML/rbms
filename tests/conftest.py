@@ -156,6 +156,7 @@ def sample_args(tmp_path):
         "L1": 0.0,
         "L2": 1.0,
         "training_type": "pcd",
+        "model_type": None,
     }
 
 

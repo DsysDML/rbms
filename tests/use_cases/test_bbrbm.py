@@ -62,6 +62,7 @@ def test_use_case_train_bbrbm():
         "L1": 0.0,
         "L2": 1.0,
         "training_type": "pcd",
+        "model_type": "BBRBM",
     }
     train_rbm(args)
 
