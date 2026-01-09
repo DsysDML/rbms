@@ -23,7 +23,6 @@ def load_FASTA(
 
     Args:
         filename (str): The name of the FASTA file to load.
-        binarize (bool, optional): Binarize the dataset to [0,1]. Defaults to "Potts".
         use_weights (bool, optional): Whether to use weights in the dataset. Defaults to False.
         alphabet (str, optional): The alphabet used in the dataset. Defaults to "protein".
         device (str, optional): The device to use for PyTorch tensors. Defaults to "cuda".
@@ -52,11 +51,4 @@ def load_FASTA(
         weights = np.ones((num_data, 1), dtype=np.float32)
 
     weights = weights.squeeze(-1)
-    # if binarize:
-    #     num_categories = len(np.unique(dataset))
-    #     dataset = (
-    #         one_hot(torch.from_numpy(dataset).int(), num_classes=num_categories)
-    #         .view(dataset.shape[0], -1)
-    #         .numpy()
-    #     )
     return dataset, weights, names

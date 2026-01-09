@@ -14,7 +14,6 @@ def load_HDF5(
 
     Args:
         filename (str): The name of the HDF5 file to load.
-        binarize (str, optional): Binarize the dataset. Defaults to True.
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: The dataset and labels.

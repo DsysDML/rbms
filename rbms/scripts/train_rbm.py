@@ -42,7 +42,6 @@ def train_rbm(args: dict):
         subset_labels=args["subset_labels"],
         use_weights=args["use_weights"],
         alphabet=args["alphabet"],
-        binarize=args["binarize"],
         device=args["device"],
         dtype=args["dtype"],
     )
