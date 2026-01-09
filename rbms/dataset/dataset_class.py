@@ -70,7 +70,7 @@ class RBMDataset(Dataset):
         return textwrap.dedent(
             f"""
         Dataset: {self.dataset_name}
-        Variable type: {"Bernoulli" if self.is_binary else "Potts"}
+        Variable type: {self.variable_type}
         Number of samples: {self.data.shape[0]}
         Number of features: {self.data.shape[1]}
         """
