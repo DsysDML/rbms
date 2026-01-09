@@ -172,3 +172,11 @@ def validate_alphabet(sequences: ArrayLike, tokens: str):
             raise KeyError(
                 f"The chosen alphabet is incompatible with the Multi-Sequence Alignment. The unexpected token is: '{c}'"
             )
+    if tokens_data != tokens:
+        print(
+            f"""
+        The Multi-Sequence Alignment  set of characters is a subset of the alphabet:
+        - Unique MSA tokens : {tokens_data}
+        - Alphabet tokens : {tokens}
+        """
+        )
