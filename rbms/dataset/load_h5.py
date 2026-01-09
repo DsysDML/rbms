@@ -9,7 +9,6 @@ def load_HDF5(
     filename: str | Path,
     use_weights: bool = False,
     device: str = "cuda",
-    # binarize: bool = True
 ) -> tuple[np.ndarray, np.ndarray | None, str]:
     """Load a dataset from an HDF5 file.
 
@@ -25,7 +24,7 @@ def load_HDF5(
     with h5py.File(filename, "r") as f:
         if "samples" not in f.keys():
             raise ValueError(
-                f"Could not find 'samples' key if hdf5 file keys: {f.keys()}"
+                f"Could not find 'samples' key in hdf5 file keys: {f.keys()}"
             )
         dataset = np.array(f["samples"][()])
         if "variable_type" not in f.keys():
