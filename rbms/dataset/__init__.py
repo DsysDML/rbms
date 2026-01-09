@@ -14,7 +14,6 @@ def load_dataset(
     test_dataset_name: str | None = None,
     subset_labels: list[int] | None = None,
     use_weights: bool = False,
-    binarize: bool = False,
     alphabet="protein",
     device: str = "cpu",
     dtype: torch.dtype = torch.float32,
