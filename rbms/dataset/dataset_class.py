@@ -28,6 +28,10 @@ class RBMDataset(Dataset):
         self.device = device
         self.dtype = dtype
         self.is_binary = is_binary
+        if self.is_binary:
+            self.visible_type = "binary"
+        else:
+            self.visible_type = "categorical"
         self.data = torch.from_numpy(data).to(device=self.device, dtype=self.dtype)
         # Weights should have shape n_visibles
         self.weights = (
@@ -169,3 +173,7 @@ class RBMDataset(Dataset):
                 dtype=self.dtype,
             )
         return train_dataset, test_dataset
+
+    def batch(self, batch_size: int) -> dict[str, Union[np.ndarray, torch.Tensor]]:
+        rand_idx = torch.randperm(len(self))
+        return self[rand_idx[:batch_size]]
