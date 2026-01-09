@@ -133,22 +133,19 @@ def train(
     # Continue the training
     with torch.no_grad():
         for idx in range(num_updates + 1, args["num_updates"] + 1):
-            rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
-            batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
+            # rand_idx = torch.randperm(len(train_dataset))[: args["batch_size"]]
+            # batch = (train_dataset.data[rand_idx], train_dataset.weights[rand_idx])
+            batch = train_dataset.batch(args["batch_size"])
+
             if args["training_type"] == "rdm":
                 parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
             elif args["training_type"] == "cd":
                 parallel_chains = params.init_chains(
-                    batch[0].shape[0], weights=batch[1], start_v=batch[0]
+                    batch["data"].shape[0], weights=batch["weights"], start_v=batch["data"]
                 )
 
             if warmup and isinstance(params, RBM):
                 if params.weight_matrix.norm() > 10 and args["optim"] == "nag":
-                    # optimizer = SGD_cossim(
-                    #     params.updated_params.parameters(),
-                    #     lr=args["learning_rate"],
-                    #     maximize=True,
-                    # )
                     optimizer = SGD(
                         params.parameters(),
                         lr=args["learning_rate"],
@@ -160,7 +157,7 @@ def train(
             optimizer.zero_grad(set_to_none=False)
 
             parallel_chains, logs = fit_batch_pcd(
-                batch=batch,
+                batch=(batch["data"], batch["weights"]),
                 parallel_chains=parallel_chains,
                 params=params,
                 gibbs_steps=args["gibbs_steps"],
