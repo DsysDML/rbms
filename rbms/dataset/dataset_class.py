@@ -1,6 +1,7 @@
 import gzip
 import textwrap
 from typing import Self, Union
+from rbms.dataset.utils import convert_data
 
 import numpy as np
 import torch
@@ -18,7 +19,7 @@ class RBMDataset(Dataset):
         weights: np.ndarray,
         names: np.ndarray,
         dataset_name: str,
-        is_binary: bool,
+        variable_type: str,
         device: str = "cuda",
         dtype: torch.dtype = torch.float32,
     ) -> None:
@@ -27,7 +28,7 @@ class RBMDataset(Dataset):
         self.dataset_name = dataset_name
         self.device = device
         self.dtype = dtype
-        self.is_binary = is_binary
+        self.variable_type: str = variable_type
         self.data = torch.from_numpy(data).to(device=self.device, dtype=self.dtype)
         # Weights should have shape n_visibles
         self.weights = (
@@ -69,7 +70,7 @@ class RBMDataset(Dataset):
         return textwrap.dedent(
             f"""
         Dataset: {self.dataset_name}
-        Variable type: {"Bernoulli" if self.is_binary else "Potts"}
+        Variable type: {self.variable_type}
         Number of samples: {self.data.shape[0]}
         Number of features: {self.data.shape[1]}
         """
@@ -123,6 +124,9 @@ class RBMDataset(Dataset):
             )
         return np.mean(en)
 
+    def match_model_variable_type(self, visible_type: str):
+        self.data = convert_data[self.variable_type][visible_type](self.data)
+
     def split_train_test(
         self,
         rng: np.random.Generator,
@@ -144,7 +148,7 @@ class RBMDataset(Dataset):
             weights=self.weights[permutation_index[:train_size]].cpu().numpy(),
             names=self.names[permutation_index[:train_size]],
             dataset_name=self.dataset_name,
-            is_binary=self.is_binary,
+            variable_type=self.variable_type,
             device=self.device,
             dtype=self.dtype,
         )
@@ -164,7 +168,7 @@ class RBMDataset(Dataset):
                 .numpy(),
                 names=self.names[permutation_index[train_size : train_size + test_size]],
                 dataset_name=self.dataset_name,
-                is_binary=self.is_binary,
+                variable_type=self.variable_type,
                 device=self.device,
                 dtype=self.dtype,
             )
