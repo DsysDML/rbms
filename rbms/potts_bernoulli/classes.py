@@ -20,6 +20,8 @@ from rbms.potts_bernoulli.implement import (
 class PBRBM(RBM):
     """Parameters of the Potts-Bernoulli RBM"""
 
+    visible_type: str = "categorical"
+
     def __init__(
         self,
         weight_matrix: Tensor,

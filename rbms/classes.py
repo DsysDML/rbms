@@ -14,6 +14,7 @@ class EBM(ABC):
 
     name: str
     device: torch.device
+    visible_type: str
 
     @abstractmethod
     def __init__(self): ...
