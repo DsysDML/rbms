@@ -92,6 +92,8 @@ def setup_training(
     # Start recording training time
     start = time.time()
 
+    train_dataset.match_model_variable_type(params.visible_type)
+    test_dataset.match_model_variable_type(params.visible_type)
     return (
         params,
         parallel_chains,
@@ -212,6 +214,7 @@ def initialize_model_archive(
         train_dataset, _ = train_dataset.split_train_test(
             rng, args["train_size"], args["test_size"]
         )
+    train_dataset.match_model_variable_type(visible_type=map_model[model_type].visible_type)
     params = map_model[model_type].init_parameters(
         num_hiddens=args["num_hiddens"],
         dataset=train_dataset,
