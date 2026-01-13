@@ -55,7 +55,7 @@ def train_rbm(args: dict):
     else:
         model_type = args["model_type"]
         if model_type is None:
-            match train_dataset.visible_type:
+            match train_dataset.variable_type:
                 case "binary":
                     model_type = "BBRBM"
                 case "categorical":
