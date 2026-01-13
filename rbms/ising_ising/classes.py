@@ -21,6 +21,8 @@ from rbms.ising_ising.implement import (
 class IIRBM(RBM):
     """Parameters of the Ising-Ising RBM"""
 
+    visible_type: str = "ising"
+
     def __init__(
         self,
         weight_matrix: Tensor,
