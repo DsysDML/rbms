@@ -19,7 +19,7 @@ def load_HDF5(
         Tuple[np.ndarray, np.ndarray]: The dataset and labels.
     """
     labels = None
-    variable_type = "binary"
+    variable_type = "bernoulli"
     with h5py.File(filename, "r") as f:
         if "samples" not in f.keys():
             raise ValueError(
@@ -28,10 +28,10 @@ def load_HDF5(
         dataset = np.array(f["samples"][()])
         if "variable_type" not in f.keys():
             print(
-                f"No variable_type found in the hdf5 file keys: {f.keys()}. Assuming 'binary'."
+                f"No variable_type found in the hdf5 file keys: {f.keys()}. Assuming 'bernoulli'."
             )
             print(
-                "Set a 'variable_type' with value 'binary', 'categorical' or 'continuous' in the hdf5 archive to remove this message"
+                "Set a 'variable_type' with value 'bernoulli', 'ising', 'categorical' or 'continuous' in the hdf5 archive to remove this message"
             )
         else:
             variable_type = f["variable_type"][()].decode()
