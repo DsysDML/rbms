@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import Tensor
+from rbms.custom_fn import one_hot
 
 
 def get_subset_labels(
@@ -47,25 +48,24 @@ def ising_to_bernoulli(x):
     return (x + 1) / 2
 
 
-def bernoulli_to_categorical(x):
-    pass
 
 
 def categorical_to_bernoulli(x):
-    pass
+    return one_hot(x.long()).reshape(x.shape[0], -1)
+
 
 
 convert_data = {
     "bernoulli": {
         "bernoulli": (lambda x: x),
         "ising": (lambda x: bernoulli_to_ising(x)),
-        "categorical": (lambda x: bernoulli_to_categorical(x)),
+        "categorical": (lambda x: x),
         # "continuous": lambda x: raise ValueError("Cannot convert from 'bernoulli' to 'continuous' data.")
     },
     "ising": {
         "bernoulli": (lambda x: ising_to_bernoulli(x)),
         "ising": (lambda x: x),
-        "categorical": (lambda x: bernoulli_to_categorical(ising_to_bernoulli(x))),
+        "categorical": (lambda x: ising_to_bernoulli(x)),
     },
     "categorical": {
         "bernoulli": (lambda x: categorical_to_bernoulli(x)),
