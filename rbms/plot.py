@@ -151,6 +151,7 @@ def plot_one_PCA(
     labels: list[str] | None = None,
     dir1: int = 0,
     dir2: int = 1,
+    log_scale: bool = False,
 ):
     label_1 = None
     label_2 = None
@@ -238,6 +239,9 @@ def plot_one_PCA(
             orientation="horizontal",
             lw=1,
         )
+        if log_scale:
+            ax_hist_x.semilogy()
+            ax_hist_y.semilogx()
     if labels is not None:
         ax_hist_x.legend(fontsize=12, bbox_to_anchor=(1, 1))
 
@@ -247,7 +251,8 @@ def plot_mult_PCA(
     data2: np.ndarray | None = None,
     labels: list[str] | None = None,
     n_dir: int = 2,
-    figsize_factor=4
+    figsize_factor=4,
+    log_scale: bool = False,
 ):
     if data2 is not None:
         if data2.shape[1] < data1.shape[1]:
@@ -284,6 +289,7 @@ def plot_mult_PCA(
                     labels=labels if curr_plot_idx == 0 else None,
                     dir1=curr_plot_idx * 2,
                     dir2=curr_plot_idx * 2 + 1,
+                    log_scale=log_scale,
                 )
             else:
                 ax[*indexes].set_axis_off()
