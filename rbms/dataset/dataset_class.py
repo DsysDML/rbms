@@ -177,4 +177,10 @@ class RBMDataset(Dataset):
 
     def batch(self, batch_size: int) -> dict[str, Union[np.ndarray, torch.Tensor]]:
         rand_idx = torch.randperm(len(self))
-        return self[rand_idx[:batch_size]]
+        sampled_batch = self[rand_idx[:batch_size]]
+        match self.variable_type:
+            case "bernoulli":
+                sampled_batch["data"] = torch.bernoulli(sampled_batch["data"])
+            case _:
+                pass
+        return sampled_batch
