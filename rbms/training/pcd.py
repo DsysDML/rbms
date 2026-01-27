@@ -6,7 +6,7 @@ import torch
 from torch import Tensor
 from torch.optim import SGD, Optimizer
 
-from rbms.classes import EBM
+from rbms.classes import EBM, RBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model
 from rbms.map_model import map_model
@@ -26,6 +26,7 @@ def fit_batch_pcd(
     centered: bool = True,
     lambda_l1: float = 0.0,
     lambda_l2: float = 0.0,
+    normalize_grad: bool = True,
 ) -> tuple[dict[str, Tensor], dict]:
     """Sample the EBM and compute the gradient.
 
@@ -57,7 +58,8 @@ def fit_batch_pcd(
         lambda_l1=lambda_l1,
         lambda_l2=lambda_l2,
     )
-    params.normalize_grad()
+    if normalize_grad:
+        params.normalize_grad()
     logs = {}
     return parallel_chains, logs
 
@@ -128,7 +130,6 @@ def train(
         )
     update_lr = False
     warmup = True
-    from rbms.classes import RBM
 
     # Continue the training
     with torch.no_grad():
@@ -141,7 +142,9 @@ def train(
                 parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
             elif args["training_type"] == "cd":
                 parallel_chains = params.init_chains(
-                    batch["data"].shape[0], weights=batch["weights"], start_v=batch["data"]
+                    batch["data"].shape[0],
+                    weights=batch["weights"],
+                    start_v=batch["data"],
                 )
 
             if warmup and isinstance(params, RBM):
@@ -165,6 +168,7 @@ def train(
                 centered=not (args["no_center"]),
                 lambda_l1=args["L1"],
                 lambda_l2=args["L2"],
+                normalize_grad=args["normalize_grad"],
             )
             if update_lr:
                 optimizer.step(update_lr=update_lr)
