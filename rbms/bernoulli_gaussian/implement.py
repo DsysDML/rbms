@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-from torch.nn.functional import softmax
 
 
 @torch.jit.script
@@ -84,7 +83,7 @@ def _compute_gradient(
 ) -> None:
     w_data = w_data.view(-1, 1)
     w_chain = w_chain.view(-1, 1)
-    chain_weights = softmax(-w_chain, dim=0)
+    chain_weights = w_chain / w_chain.sum()
     w_data_norm = w_data.sum()
 
     v_data_mean = (v_data * w_data).sum(0) / w_data_norm
@@ -108,11 +107,6 @@ def _compute_gradient(
         grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ h_data_mean)
         grad_hbias = h_data_mean - h_gen_mean - (v_data_mean @ grad_weight_matrix)
     else:
-        v_data_centered = v_data
-        h_data_centered = h_data
-        v_gen_centered = v_chain
-        h_gen_centered = h_chain
-
         # Gradient: h_data instead of mh_data
         grad_weight_matrix = ((v_data * w_data).T @ h_data) / w_data_norm - (
             (v_chain * chain_weights).T @ h_chain

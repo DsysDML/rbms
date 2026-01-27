@@ -150,22 +150,17 @@ def _compute_gradient(
             - torch.tensordot(v_data_mean, grad_weight_matrix, dims=[[0, 1], [0, 1]])
         )
     else:
-        v_data_centered = v_data_one_hot
-        h_data_centered = mh_data
-        v_gen_centered = v_gen_one_hot
-        h_gen_centered = h_chain
-
         # Gradient
         grad_weight_matrix = (
             torch.tensordot(
-                v_data_centered,
-                h_data_centered,
+                v_data_one_hot,
+                mh_data,
                 dims=[[0], [0]],
             )
             / v_data.shape[0]
             - torch.tensordot(
-                v_gen_centered,
-                h_gen_centered,
+                v_gen_one_hot,
+                h_chain,
                 dims=[[0], [0]],
             )
             / v_chain.shape[0]
@@ -218,6 +213,7 @@ def _init_chains(
 def _init_parameters(
     num_hiddens: int,
     data: Tensor,
+    weights: Tensor,
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
@@ -240,5 +236,23 @@ def _init_parameters(
         )
         * var_init
     )
+    U, S, V = torch.svd(weight_matrix.reshape(num_visibles * num_states, num_hiddens))
+    # print(S.shape)
+    from rbms.potts_bernoulli.tools import get_covariance_matrix
+
+    data_oh = (
+        torch.eye(num_states, device=device)[data.long()]
+        .float()
+        .reshape(-1, num_states * num_visibles)
+    )
+    cov_data = torch.tensor(
+        get_covariance_matrix(data_oh, weights, device=device), device=device
+    ).float()
+    U_data, S_data, V_data = torch.svd(cov_data)
+    weight_matrix = (
+        V_data.T[:, : min(num_hiddens, num_visibles * num_states)] @ torch.diag(S) @ V
+    ).reshape(num_visibles, num_states, num_hiddens)
+
     # print(torch.svd(weight_matrix.reshape(-1, weight_matrix.shape[-1])).S)
-    return vbias, hbias, weight_matrix
+    beta = 1.0
+    return beta * vbias, beta * hbias, beta * weight_matrix

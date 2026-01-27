@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-from torch.nn.functional import softmax
 
 from rbms.custom_fn import log2cosh
 
@@ -81,7 +80,7 @@ def _compute_gradient(
     w_data = w_data.view(-1, 1)
     w_chain = w_chain.view(-1, 1)
     # Turn the weights of the chains into normalized weights
-    chain_weights = softmax(-w_chain, dim=0)
+    chain_weights = w_chain / w_chain.sum()
     w_data_norm = w_data.sum()
 
     # Averages over data and generated samples
@@ -106,11 +105,6 @@ def _compute_gradient(
         grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ h_data_mean)
         grad_hbias = h_data_mean - h_gen_mean - (v_data_mean @ grad_weight_matrix)
     else:
-        v_data_centered = v_data
-        h_data_centered = mh_data
-        v_gen_centered = v_chain
-        h_gen_centered = h_chain
-
         # Gradient
         grad_weight_matrix = ((v_data * w_data).T @ mh_data) / w_data_norm - (
             (v_chain * chain_weights).T @ h_chain
