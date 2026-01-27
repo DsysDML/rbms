@@ -236,22 +236,22 @@ def _init_parameters(
         )
         * var_init
     )
-    U, S, V = torch.svd(weight_matrix.reshape(num_visibles * num_states, num_hiddens))
-    # print(S.shape)
-    from rbms.potts_bernoulli.tools import get_covariance_matrix
+    # U, S, V = torch.svd(weight_matrix.reshape(num_visibles * num_states, num_hiddens))
+    # # print(S.shape)
+    # from rbms.potts_bernoulli.tools import get_covariance_matrix
 
-    data_oh = (
-        torch.eye(num_states, device=device)[data.long()]
-        .float()
-        .reshape(-1, num_states * num_visibles)
-    )
-    cov_data = torch.tensor(
-        get_covariance_matrix(data_oh, weights, device=device), device=device
-    ).float()
-    U_data, S_data, V_data = torch.svd(cov_data)
-    weight_matrix = (
-        V_data.T[:, : min(num_hiddens, num_visibles * num_states)] @ torch.diag(S) @ V
-    ).reshape(num_visibles, num_states, num_hiddens)
+    # data_oh = (
+    #     torch.eye(num_states, device=device)[data.long()]
+    #     .float()
+    #     .reshape(-1, num_states * num_visibles)
+    # )
+    # cov_data = torch.tensor(
+    #     get_covariance_matrix(data_oh, weights, device=device), device=device
+    # ).float()
+    # U_data, S_data, V_data = torch.svd(cov_data)
+    # weight_matrix = (
+    #     V_data.T[:, : min(num_hiddens, num_visibles * num_states)] @ torch.diag(S) @ V
+    # ).reshape(num_visibles, num_states, num_hiddens)
 
     # print(torch.svd(weight_matrix.reshape(-1, weight_matrix.shape[-1])).S)
     beta = 1.0
