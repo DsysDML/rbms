@@ -126,7 +126,13 @@ class RBMDataset(Dataset):
 
     def match_model_variable_type(self, visible_type: str):
         self.data = convert_data[self.variable_type][visible_type](self.data)
+        if self.variable_type != visible_type:
+            print(f"Converting from '{self.variable_type}' to '{visible_type}'")
+            print(self.data)
         self.variable_type = visible_type
+
+    def astype(self, target_variable_type: str):
+        return convert_data[self.variable_type][target_variable_type](self.data)
 
     def split_train_test(
         self,
