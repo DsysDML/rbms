@@ -29,6 +29,14 @@ class EBM(ABC):
         """Multiplies the parameters of the RBM by a float."""
         ...
 
+    def __eq__(self, other: EBM):
+        other_params = other.named_parameters()
+        for k, v in self.named_parameters().items():
+            if not torch.equal(other_params[k], v):
+                return False
+        return True    
+
+
     @abstractmethod
     def sample_visibles(
         self, chains: dict[str, Tensor], beta: float = 1.0
@@ -217,7 +225,8 @@ class EBM(ABC):
         )
         for p in self.parameters():
             p.grad /= norm_grad
-
+        # for p in self.parameters():
+        #     p.grad /= p.grad.norm()
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
