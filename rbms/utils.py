@@ -25,33 +25,36 @@ def get_eigenvalues_history(filename: str, backend="cpu"):
             - gradient_updates (np.ndarray): Array of gradient update steps.
             - eigenvalues (np.ndarray): Eigenvalues along training.
     """
-    with h5py.File(filename, "r") as f:
-        gradient_updates = []
-        eigenvalues = []
-        for key in f.keys():
-            if "update_" in key:
-                weight_matrix = f[key]["params"]["weight_matrix"][()]
-                weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
-                if backend == "gpu":
-                    eig = (
-                        torch.svd(
-                            torch.from_numpy(weight_matrix).to(device="cuda"),
-                            compute_uv=False,
-                        )
-                        .S.cpu()
-                        .numpy()
+    saved_updates = get_saved_updates(filename)
+    eigenvalues = []
+    for upd in saved_updates:
+        compute = False
+        with h5py.File(filename, "a") as f:
+            if "singular_values" not in f[f"update_{upd}"]:
+                compute = True
+                weight_matrix = f[f"update_{upd}"]["params"]["weight_matrix"][()]
+        
+        if compute:
+            weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
+            if backend == "gpu":
+                eig = (
+                    torch.svd(
+                        torch.from_numpy(weight_matrix).to(device="cuda"),
+                        compute_uv=False,
                     )
-                else:
-                    eig = np.linalg.svd(weight_matrix, compute_uv=False)
-                eigenvalues.append(eig.reshape(*eig.shape, 1))
-                gradient_updates.append(int(key.split("_")[1]))
-
-        # Sort the results
-        sorting = np.argsort(gradient_updates)
-        gradient_updates = np.array(gradient_updates)[sorting]
-        eigenvalues = np.array(np.hstack(eigenvalues).T)[sorting]
-
-    return gradient_updates, eigenvalues
+                    .S.cpu()
+                    .numpy()
+                )
+            else:
+                eig = np.linalg.svd(weight_matrix, compute_uv=False)
+            with h5py.File(filename, "a") as f:
+                f[f"update_{upd}"]["singular_values"] = eig
+            
+        with h5py.File(filename, "a") as f:
+            eig = f[f"update_{upd}"]["singular_values"][()]
+            eigenvalues.append(eig.reshape(*eig.shape, 1))
+    eigenvalues = np.array(np.hstack(eigenvalues).T)
+    return saved_updates, eigenvalues
 
 
 def get_saved_updates(filename: str) -> np.ndarray:
