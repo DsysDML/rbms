@@ -56,10 +56,12 @@ def train_rbm(args: dict):
         model_type = args["model_type"]
         if model_type is None:
             match train_dataset.variable_type:
-                case "binary":
+                case "bernoulli":
                     model_type = "BBRBM"
                 case "categorical":
                     model_type = "PBRBM"
+                case "ising":
+                    model_type = "IIRBM"
                 case _:
                     raise NotImplementedError()
     print(model_type)
