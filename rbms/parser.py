@@ -143,10 +143,21 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     rbm_args.add_argument(
         "--training_type",
         type=str,
-        default = "pcd",
-        help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}."
+        default="pcd",
+        help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}.",
     )
-    rbm_args.add_argument("--model_type", type=str, default=None, help="(Defaults to None). Model to use. If None is provided, will be a RBM with the same visible type as the dataset and binary hiddens. If restore, this argument is ignored.")
+    rbm_args.add_argument(
+        "--normalize_grad",
+        default=False,
+        action="store_true",
+        help="(Defaults to False). Normalize the gradient before update.",
+    )
+    rbm_args.add_argument(
+        "--model_type",
+        type=str,
+        default=None,
+        help="(Defaults to None). Model to use. If None is provided, will be a RBM with the same visible type as the dataset and binary hiddens. If restore, this argument is ignored.",
+    )
     return parser
 
 
