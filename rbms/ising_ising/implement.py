@@ -2,13 +2,16 @@ import torch
 from torch import Tensor
 from torch.nn.functional import softmax
 
+from rbms.custom_fn import log2cosh
+
 
 @torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
-    mh = torch.sigmoid(beta * (hbias + (v @ weight_matrix)))
-    h = torch.bernoulli(mh)
+    effective_field = beta * (hbias + (v @ weight_matrix))
+    mh = torch.tanh(effective_field)
+    h = 2 * torch.bernoulli(torch.sigmoid(2 * effective_field)) - 1
     return h, mh
 
 
@@ -16,8 +19,9 @@ def _sample_hiddens(
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
-    mv = torch.sigmoid(beta * (vbias + (h @ weight_matrix.T)))
-    v = torch.bernoulli(mv)
+    effective_field = beta * (vbias + (h @ weight_matrix.T))
+    mv = torch.tanh(effective_field)
+    v = 2 * torch.bernoulli(torch.sigmoid(2 * effective_field)) - 1
     return v, mv
 
 
@@ -45,7 +49,7 @@ def _compute_energy_visibles(
 ) -> Tensor:
     field = v @ vbias
     exponent = hbias + (v @ weight_matrix)
-    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
+    log_term = log2cosh(exponent)
     return -field - log_term.sum(1)
 
 
@@ -55,7 +59,7 @@ def _compute_energy_hiddens(
 ) -> Tensor:
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
-    log_term = torch.where(exponent < 10, torch.log(1.0 + torch.exp(exponent)), exponent)
+    log_term = log2cosh(exponent)
     return -field - log_term.sum(1)
 
 
@@ -82,10 +86,10 @@ def _compute_gradient(
 
     # Averages over data and generated samples
     v_data_mean = (v_data * w_data).sum(0) / w_data_norm
-    torch.clamp_(v_data_mean, min=1e-7, max=(1.0 - 1e-7))
+    torch.clamp_(v_data_mean, min=-(1.0 - 1e-7), max=(1.0 - 1e-7))
     h_data_mean = (mh_data * w_data).sum(0) / w_data_norm
     v_gen_mean = (v_chain * chain_weights).sum(0)
-    torch.clamp_(v_gen_mean, min=1e-7, max=(1.0 - 1e-7))
+    torch.clamp_(v_gen_mean, min=-(1.0 - 1e-7), max=(1.0 - 1e-7))
     h_gen_mean = (h_chain * chain_weights).sum(0)
 
     if centered:
@@ -150,11 +154,11 @@ def _init_chains(
 
     if start_v is None:
         # Dummy mean visible
-        mv = torch.ones(size=(num_samples, num_visibles), device=device, dtype=dtype) / 2
-        v = torch.bernoulli(mv)
+        mv = torch.zeros(size=(num_samples, num_visibles), device=device, dtype=dtype)
+        v = 2 * torch.bernoulli(mv) - 1
     else:
         # Dummy mean visible
-        mv = torch.ones_like(start_v, device=device, dtype=dtype) / 2
+        mv = torch.zeros_like(start_v, device=device, dtype=dtype)
         v = start_v.to(device=device, dtype=dtype)
 
     # Initialize chains
@@ -177,9 +181,7 @@ def _init_parameters(
         * var_init
     )
     frequencies = data.mean(0)
-    frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
-    vbias = (torch.log(frequencies) - torch.log(1.0 - frequencies)).to(
-        device=device, dtype=dtype
-    )
+    frequencies = torch.clamp(frequencies, min=-(1.0 - eps), max=(1.0 - eps))
+    vbias = torch.atanh(frequencies).to(device=device, dtype=dtype)
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
     return vbias, hbias, weight_matrix

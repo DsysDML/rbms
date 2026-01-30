@@ -146,7 +146,7 @@ def add_args_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default = "pcd",
         help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}."
     )
-
+    rbm_args.add_argument("--model_type", type=str, default=None, help="(Defaults to None). Model to use. If None is provided, will be a RBM with the same visible type as the dataset and binary hiddens. If restore, this argument is ignored.")
     return parser
 
 

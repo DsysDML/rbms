@@ -1,9 +1,12 @@
+from typing import Self
+
 import numpy as np
 import torch
 from torch import Tensor
 
-# use the Bernoulli-Gaussian backend
-from rbms.bernoulli_gaussian.implement import (
+from rbms.classes import RBM
+from rbms.custom_fn import log2cosh
+from rbms.ising_ising.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
@@ -13,11 +16,10 @@ from rbms.bernoulli_gaussian.implement import (
     _sample_hiddens,
     _sample_visibles,
 )
-from rbms.classes import RBM
 
 
-class BGRBM(RBM):
-    """Bernoulli-Gaussian RBM with fixed hidden variance = 1/Nv, 0-1 visibles, hidden and visible biases"""
+class IIRBM(RBM):
+    """Parameters of the Ising-Ising RBM"""
 
     def __init__(
         self,
@@ -27,61 +29,48 @@ class BGRBM(RBM):
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
+        """Initialize the parameters of the Ising-Ising RBM.
+
+        Args:
+            weight_matrix (Tensor): The weight matrix of the RBM.
+            vbias (Tensor): The visible bias of the RBM.
+            hbias (Tensor): The hidden bias of the RBM.
+            device (Optional[torch.device], optional): The device for the parameters.
+                Defaults to the device of `weight_matrix`.
+            dtype (Optional[torch.dtype], optional): The data type for the parameters.
+                Defaults to the data type of `weight_matrix`.
+        """
         if device is None:
             device = weight_matrix.device
         if dtype is None:
             dtype = weight_matrix.dtype
-        self.device, self.dtype = device, dtype
-
+        self.device = device
+        self.dtype = dtype
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
-        log_two_pi = torch.log(2.0 * torch.pi, dtype=vbias.dtype, device=vbias.device)
-        self.const = (
-            0.5
-            * float(weight_matrix.shape[1])
-            * (
-                torch.log(
-                    torch.tensor(
-                        float(weight_matrix.shape[0]),
-                        dtype=vbias.dtype,
-                        device=vbias.device,
-                    )
-                )
-                - log_two_pi
-            )
-        )
-
-        self.name = "BGRBM"
+        self.name = "IIRBM"
 
     def __add__(self, other):
-        # keep fixed variance policy; recompute eta from resulting vbias size
-        out = BGRBM(
+        return IIRBM(
             weight_matrix=self.weight_matrix + other.weight_matrix,
             vbias=self.vbias + other.vbias,
             hbias=self.hbias + other.hbias,
-            device=self.device,
-            dtype=self.dtype,
         )
-        return out
 
     def __mul__(self, other):
-        # scalar multiply trained params only; variance stays fixed to Nv
-        out = BGRBM(
+        return IIRBM(
             weight_matrix=self.weight_matrix * other,
             vbias=self.vbias * other,
             hbias=self.hbias * other,
-            device=self.device,
-            dtype=self.dtype,
         )
-        return out
 
     def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is None:
             device = self.device
         if dtype is None:
             dtype = self.dtype
-        return BGRBM(
+        return IIRBM(
             weight_matrix=self.weight_matrix.clone(),
             vbias=self.vbias.clone(),
             hbias=self.hbias.clone(),
@@ -96,12 +85,14 @@ class BGRBM(RBM):
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
-            const=self.const,
         )
 
     def compute_energy_hiddens(self, h: Tensor) -> Tensor:
         return _compute_energy_hiddens(
-            h=h, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
+            h=h,
+            vbias=self.vbias,
+            hbias=self.hbias,
+            weight_matrix=self.weight_matrix,
         )
 
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
@@ -110,14 +101,12 @@ class BGRBM(RBM):
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
-            const=self.const,
         )
 
     def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
-        # backend should ignore grads on eta or treat it as const; we pass it for conditionals
         _compute_gradient(
             v_data=data["visible"],
-            h_data=data["hidden_mag"],
+            mh_data=data["hidden_mag"],
             w_data=data["weights"],
             v_chain=chains["visible"],
             h_chain=chains["hidden_mag"],
@@ -131,12 +120,10 @@ class BGRBM(RBM):
         )
 
     def independent_model(self):
-        return BGRBM(
+        return IIRBM(
             weight_matrix=torch.zeros_like(self.weight_matrix),
             vbias=self.vbias,
-            hbias=torch.zeros_like(self.hbias),
-            device=self.device,
-            dtype=self.dtype,
+            hbias=self.hbias,
         )
 
     def init_chains(self, num_samples, weights=None, start_v=None):
@@ -161,6 +148,7 @@ class BGRBM(RBM):
     @staticmethod
     def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.0001):
         data = dataset.data
+        # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):
             data = torch.from_numpy(dataset.data).to(device=device, dtype=dtype)
         vbias, hbias, weight_matrix = _init_parameters(
@@ -170,13 +158,7 @@ class BGRBM(RBM):
             dtype=dtype,
             var_init=var_init,
         )
-        return BGRBM(
-            weight_matrix=weight_matrix,
-            vbias=vbias,
-            hbias=hbias,
-            device=device,
-            dtype=dtype,
-        )
+        return IIRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
 
     def named_parameters(self):
         return {
@@ -192,17 +174,10 @@ class BGRBM(RBM):
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
-        # keep trainables only
         return [self.weight_matrix, self.vbias, self.hbias]
 
     def ref_log_z(self):
-        K = self.num_hiddens()
-        Nv = self.num_visibles()
-        logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
-        inv_gamma = 1.0 / float(Nv)
-        quad = 0.5 * inv_gamma * torch.dot(self.hbias, self.hbias)
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(Nv))
-        return (logZ_v + quad + log_norm).item()
+        return (log2cosh(self.vbias).sum() + log2cosh(self.hbias).sum()).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:
         chains["hidden"], chains["hidden_mag"] = _sample_hiddens(
@@ -223,27 +198,25 @@ class BGRBM(RBM):
         return chains
 
     @staticmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> "BGRBM":
+    def set_named_parameters(named_params: dict[str, Tensor]) -> Self:
         names = ["vbias", "hbias", "weight_matrix"]
         for k in names:
-            if k not in named_params:
+            if k not in named_params.keys():
                 raise ValueError(
                     f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
                 )
-        params = BGRBM(
+        params = IIRBM(
             weight_matrix=named_params.pop("weight_matrix"),
             vbias=named_params.pop("vbias"),
             hbias=named_params.pop("hbias"),
         )
-        if len(named_params) > 0:
+        if len(named_params.keys()) > 0:
             raise ValueError(
                 f"Too many keys in params dictionary. Remaining keys: {named_params.keys()}"
             )
         return params
 
-    def to(
-        self, device: torch.device | None = None, dtype: torch.dtype | None = None
-    ) -> "BGRBM":
+    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
         if device is not None:
             self.device = device
         if dtype is not None:

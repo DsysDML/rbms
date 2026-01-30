@@ -1,12 +1,10 @@
-from typing import Tuple
-
 import torch
 from torch import Tensor
 
 
 def compute_aats(
     sample_data: Tensor, sample_gen: Tensor, n_sample: int, dist: str = "euclid"
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """
     Compute the nearest neighbor Adversarial Accuracy (AATS).
 

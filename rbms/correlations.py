@@ -1,10 +1,8 @@
-from typing import Optional
-
 import torch
 from torch import Tensor
 
 
-def compute_1b_freq(data: Tensor, weights: Optional[Tensor] = None) -> Tensor:
+def compute_1b_freq(data: Tensor, weights: Tensor | None = None) -> Tensor:
     # Uniform weights
     if weights is None:
         weights = torch.ones(data.shape[0], device=data.device)
@@ -30,8 +28,8 @@ def _2b_batched(centered_data: Tensor, weights: Tensor, batch_size: int) -> Tens
 
 def compute_2b_correlations(
     data: Tensor,
-    weights: Optional[Tensor] = None,
-    batch_size: Optional[int] = None,
+    weights: Tensor | None = None,
+    batch_size: int | None = None,
     full_mat=False,
 ) -> Tensor:
     # Uniform weights
@@ -88,8 +86,8 @@ def _3b_full_mat(res: Tensor) -> Tensor:
 
 def compute_3b_correlations(
     data: Tensor,
-    weights: Optional[Tensor] = None,
-    batch_size: Optional[int] = None,
+    weights: Tensor | None = None,
+    batch_size: int | None = None,
     full_mat: bool = False,
 ) -> Tensor:
     # Uniform weights

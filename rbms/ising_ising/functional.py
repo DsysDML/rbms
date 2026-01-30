@@ -3,8 +3,8 @@ import torch
 from torch import Tensor
 
 from rbms.dataset.dataset_class import RBMDataset
-from rbms.potts_bernoulli.classes import PBRBM
-from rbms.potts_bernoulli.implement import (
+from rbms.ising_ising.classes import IIRBM
+from rbms.ising_ising.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
@@ -17,13 +17,13 @@ from rbms.potts_bernoulli.implement import (
 
 
 def sample_hiddens(
-    chains: dict[str, Tensor], params: PBRBM, beta: float = 1.0
+    chains: dict[str, Tensor], params: IIRBM, beta: float = 1.0
 ) -> dict[str, Tensor]:
     """Sample the hidden layer conditionally to the visible one.
 
     Args:
         chains (dict[str, Tensor]): The parallel chains used for sampling.
-        params (PBRBM): The parameters of the RBM.
+        params (IIRBM): The parameters of the RBM.
         beta (float, optional): The inverse temperature. Defaults to 1.0.
 
     Returns:
@@ -39,13 +39,13 @@ def sample_hiddens(
 
 
 def sample_visibles(
-    chains: dict[str, Tensor], params: PBRBM, beta: float = 1.0
+    chains: dict[str, Tensor], params: IIRBM, beta: float = 1.0
 ) -> dict[str, Tensor]:
     """Sample the visible layer conditionally to the hidden one.
 
     Args:
         chains (dict[str, Tensor]): The parallel chains used for sampling.
-        params (PBRBM): The parameters of the RBM.
+        params (IIRBM): The parameters of the RBM.
         beta (float, optional): The inverse temperature. Defaults to 1.0.
 
     Returns:
@@ -63,14 +63,14 @@ def sample_visibles(
 def compute_energy(
     v: Tensor,
     h: Tensor,
-    params: PBRBM,
+    params: IIRBM,
 ) -> Tensor:
     """Compute the energy of the RBM on the visible and hidden variables.
 
     Args:
         v (Tensor): Visible configurations.
         h (Tensor): Hidden configurations.
-        params (PBRBM): Parameters of the RBM.
+        params (IIRBM): Parameters of the RBM.
 
     Returns:
         Tensor: The computed energy.
@@ -84,12 +84,12 @@ def compute_energy(
     )
 
 
-def compute_energy_visibles(v: Tensor, params: PBRBM) -> Tensor:
+def compute_energy_visibles(v: Tensor, params: IIRBM) -> Tensor:
     """Returns the marginalized energy of the model computed on the visible configurations
 
     Args:
         v (Tensor): Visible configurations
-        params (PBRBM): Parameters of the RBM
+        params (IIRBM): Parameters of the RBM
 
     Returns:
         Tensor: The computed energy.
@@ -99,12 +99,12 @@ def compute_energy_visibles(v: Tensor, params: PBRBM) -> Tensor:
     )
 
 
-def compute_energy_hiddens(h: Tensor, params: PBRBM) -> Tensor:
+def compute_energy_hiddens(h: Tensor, params: IIRBM) -> Tensor:
     """Returns the marginalized energy of the model computed on hidden configurations
 
     Args:
         h (Tensor): Hidden configurations.
-        params (PBRBM): Parameters of the RBM.
+        params (IIRBM): Parameters of the RBM.
     """
     return _compute_energy_hiddens(
         h=h, vbias=params.vbias, hbias=params.hbias, weight_matrix=params.weight_matrix
@@ -114,7 +114,7 @@ def compute_energy_hiddens(h: Tensor, params: PBRBM) -> Tensor:
 def compute_gradient(
     data: dict[str, Tensor],
     chains: dict[str, Tensor],
-    params: PBRBM,
+    params: IIRBM,
     centered: bool = True,
     lambda_l1: float = 0.0,
     lambda_l2: float = 0.0,
@@ -124,7 +124,7 @@ def compute_gradient(
     Args:
         data (dict[str, Tensor]): The data state.
         chains (dict[str, Tensor]): The parallel chains used for gradient computation.
-        params (PBRBM): The parameters of the RBM.
+        params (IIRBM): The parameters of the RBM.
         centered (bool, optional): Whether to use centered gradients. Defaults to True.
         lambda_l1 (float, optional): factor for the L1 regularization. Defaults to 0.
         lambda_l2 (float, optional): factor for the L2 regularization. Defaults to 0.
@@ -147,7 +147,7 @@ def compute_gradient(
 
 def init_chains(
     num_samples: int,
-    params: PBRBM,
+    params: IIRBM,
     weights: Tensor | None = None,
     start_v: Tensor | None = None,
 ) -> dict[str, Tensor]:
@@ -156,7 +156,7 @@ def init_chains(
 
     Args:
         num_samples (int): The number of samples to initialize.
-        params (PBRBM): The parameters of the RBM.
+        params (IIRBM): The parameters of the RBM.
         weights (Tensor, optional): The weights of each configuration. Defaults to None.
         start_v (Optional[Tensor], optional): The initial visible states. Defaults to None.
 
@@ -189,7 +189,7 @@ def init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
-) -> PBRBM:
+) -> IIRBM:
     """Initialize the parameters of the RBM.
 
     Args:
@@ -216,4 +216,4 @@ def init_parameters(
         dtype=dtype,
         var_init=var_init,
     )
-    return PBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+    return IIRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)

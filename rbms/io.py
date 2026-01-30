@@ -1,5 +1,3 @@
-from typing import List, Tuple
-
 import h5py
 import numpy as np
 import torch
@@ -16,7 +14,7 @@ def save_model(
     chains: dict[str, Tensor],
     num_updates: int,
     time: float,
-    flags: List[str] = [],
+    flags: list[str] = [],
 ) -> None:
     """Save the current state of the model.
 
@@ -100,7 +98,7 @@ def load_model(
     dtype: torch.dtype,
     restore: bool = False,
     map_model: dict[str, EBM] = map_model,
-) -> Tuple[EBM, dict[str, Tensor], float, dict]:
+) -> tuple[EBM, dict[str, Tensor], float, dict]:
     """Load a RBM from a h5 archive.
 
     Args:
@@ -125,19 +123,20 @@ def load_model(
         start = np.array(f[last_file_key]["time"]).item()
 
         # Hyperparameters
-        hyperparameters["batch_size"] = int(f["hyperparameters"]["batch_size"][()])
-        hyperparameters["gibbs_steps"] = int(f["hyperparameters"]["gibbs_steps"][()])
-        hyperparameters["learning_rate"] = float(
-            f["hyperparameters"]["learning_rate"][()]
-        )
-        hyperparameters["L1"] = float(f["hyperparameters"]["L1"][()])
-        hyperparameters["L2"] = float(f["hyperparameters"]["L2"][()])
-        if "seed" in f["hyperparameters"].keys():
-            hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
-        if "train_size" in f["hyperparameters"].keys():
-            hyperparameters["train_size"] = float(
-                f["hyperparameters"]["train_size"][()]
+        if "hyperparameters" in f.keys():
+            hyperparameters["batch_size"] = int(f["hyperparameters"]["batch_size"][()])
+            hyperparameters["gibbs_steps"] = int(f["hyperparameters"]["gibbs_steps"][()])
+            hyperparameters["learning_rate"] = float(
+                f["hyperparameters"]["learning_rate"][()]
             )
+            hyperparameters["L1"] = float(f["hyperparameters"]["L1"][()])
+            hyperparameters["L2"] = float(f["hyperparameters"]["L2"][()])
+            if "seed" in f["hyperparameters"].keys():
+                hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
+            if "train_size" in f["hyperparameters"].keys():
+                hyperparameters["train_size"] = float(
+                    f["hyperparameters"]["train_size"][()]
+                )
     params = load_params(
         filename=filename, index=index, device=device, dtype=dtype, map_model=map_model
     )

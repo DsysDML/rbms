@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 import torch
 from torch import Tensor
@@ -9,8 +7,8 @@ from rbms.custom_fn import one_hot
 
 def get_covariance_matrix(
     data: Tensor,
-    weights: Optional[Tensor] = None,
-    num_extract: Optional[int] = None,
+    weights: Tensor | None = None,
+    num_extract: int | None = None,
     center: bool = True,
     device: torch.device = torch.device("cpu"),
     dtype: torch.dtype = torch.float32,
