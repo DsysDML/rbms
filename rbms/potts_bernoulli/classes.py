@@ -156,7 +156,6 @@ class PBRBM(RBM):
         vbias, hbias, weight_matrix = _init_parameters(
             num_hiddens=num_hiddens,
             data=data,
-            weights=dataset.weights,
             device=device,
             dtype=dtype,
             var_init=var_init,

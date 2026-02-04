@@ -213,7 +213,6 @@ def _init_chains(
 def _init_parameters(
     num_hiddens: int,
     data: Tensor,
-    weights: Tensor,
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
