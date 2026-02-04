@@ -34,8 +34,7 @@ class EBM(ABC):
         for k, v in self.named_parameters().items():
             if not torch.equal(other_params[k], v):
                 return False
-        return True    
-
+        return True
 
     @abstractmethod
     def sample_visibles(
@@ -227,6 +226,14 @@ class EBM(ABC):
             p.grad /= norm_grad
         # for p in self.parameters():
         #     p.grad /= p.grad.norm()
+
+    def clip_grad(self, max_norm=5):
+        for p in self.parameters():
+            grad_norm = p.grad.norm()
+            if grad_norm > max_norm:
+                p.grad /= grad_norm
+                p.grad *= max_norm
+
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
