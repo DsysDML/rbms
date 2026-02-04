@@ -4,13 +4,12 @@ import sys
 
 
 def main():
-
     # Get the directory of the current script
     SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
     # Check if the first positional argument is provided
     if len(sys.argv) < 2:
-        print("Error: No command provided. Use 'train' or 'pt_sampling'.")
+        print("Error: No command provided. Use 'train', 'restore', 'split' or 'pt_sampling'.")
         sys.exit(1)
 
     # Assign the first positional argument to a variable
@@ -23,9 +22,13 @@ def main():
         case "pt_sampling":
             SCRIPT = "pt_sampling.py"
         case "split":
-            SCRIPT = "split_data.py" 
+            SCRIPT = "split_data.py"
+        case "restore":
+            SCRIPT = "restore.py"
         case _:
-            print(f"Error: Invalid command '{COMMAND}'. Use 'train', 'split' or 'pt_sampling'.")
+            print(
+                f"Error: Invalid command '{COMMAND}'. Use 'train', 'restore', 'split' or 'pt_sampling'."
+            )
             sys.exit(1)
 
     # Run the corresponding Python script with the remaining optional arguments
