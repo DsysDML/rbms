@@ -14,6 +14,7 @@ def save_model(
     chains: dict[str, Tensor],
     num_updates: int,
     time: float,
+    learning_rate: Tensor,
     flags: list[str] = [],
 ) -> None:
     """Save the current state of the model.
@@ -46,7 +47,7 @@ def save_model(
         checkpoint["numpy_rng_arg3"] = np.random.get_state()[3]
         checkpoint["numpy_rng_arg4"] = np.random.get_state()[4]
         checkpoint["time"] = time
-
+        checkpoint["learning_rate"] = learning_rate.cpu().numpy()
         # Update the parallel chains to resume training
         if "parallel_chains" in f.keys():
             f["parallel_chains"][...] = chains["visible"].cpu().numpy()
@@ -98,7 +99,7 @@ def load_model(
     dtype: torch.dtype,
     restore: bool = False,
     map_model: dict[str, EBM] = map_model,
-) -> tuple[EBM, dict[str, Tensor], float, dict]:
+) -> tuple[EBM, dict[str, Tensor], float]:
     """Load a RBM from a h5 archive.
 
     Args:
@@ -111,10 +112,9 @@ def load_model(
 
     Returns:
         Tuple[EBM, dict[str, Tensor], float, dict]: A tuple containing the loaded RBM parameters,
-        the parallel chains, the time taken, and the model's hyperparameters.
+        the parallel chains and the time taken
     """
     last_file_key = f"update_{index}"
-    hyperparameters = dict()
     with h5py.File(filename, "r") as f:
         visible = torch.from_numpy(f["parallel_chains"][()]).to(
             device=device, dtype=dtype
@@ -122,21 +122,6 @@ def load_model(
         # Elapsed time
         start = np.array(f[last_file_key]["time"]).item()
 
-        # Hyperparameters
-        if "hyperparameters" in f.keys():
-            hyperparameters["batch_size"] = int(f["hyperparameters"]["batch_size"][()])
-            hyperparameters["gibbs_steps"] = int(f["hyperparameters"]["gibbs_steps"][()])
-            hyperparameters["learning_rate"] = float(
-                f["hyperparameters"]["learning_rate"][()]
-            )
-            hyperparameters["L1"] = float(f["hyperparameters"]["L1"][()])
-            hyperparameters["L2"] = float(f["hyperparameters"]["L2"][()])
-            if "seed" in f["hyperparameters"].keys():
-                hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
-            if "train_size" in f["hyperparameters"].keys():
-                hyperparameters["train_size"] = float(
-                    f["hyperparameters"]["train_size"][()]
-                )
     params = load_params(
         filename=filename, index=index, device=device, dtype=dtype, map_model=map_model
     )
@@ -144,4 +129,4 @@ def load_model(
 
     if restore:
         restore_rng_state(filename=filename, index=index)
-    return (params, perm_chains, start, hyperparameters)
+    return (params, perm_chains, start)
