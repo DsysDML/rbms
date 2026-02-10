@@ -105,10 +105,10 @@ class IGRBM(RBM):
     def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
         _compute_gradient(
             v_data=data["visible"],
-            h_data=data["hidden"],
+            h_data=data["hidden_mag"],
             w_data=data["weights"],
             v_chain=chains["visible"],
-            h_chain=chains["hidden"],
+            h_chain=chains["hidden_mag"],
             w_chain=chains["weights"],
             vbias=self.vbias,
             hbias=self.hbias,

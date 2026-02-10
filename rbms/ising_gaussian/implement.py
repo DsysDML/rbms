@@ -18,8 +18,9 @@ def _sample_hiddens(
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
-    mv = torch.tanh(vbias + h @ weight_matrix.T)
-    v = torch.bernoulli(0.5 * (1 + mv)) * 2 - 1
+    effective_field = beta * (vbias + (h @ weight_matrix.T))
+    mv = torch.tanh(effective_field)
+    v = 2 * torch.bernoulli(torch.sigmoid(2 * effective_field)) - 1
     return v, mv
 
 
