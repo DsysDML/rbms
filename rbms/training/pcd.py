@@ -61,6 +61,7 @@ def fit_batch_pcd(
     return parallel_chains
 
 
+@torch.compile
 @torch.no_grad
 def train(
     train_dataset: RBMDataset,
@@ -105,6 +106,26 @@ def train(
     # save
     filename: str = args_save["filename"]
 
+    # _train(
+    #     params=params,
+    #     parallel_chains=parallel_chains,
+    #     optimizer=optimizer,
+    #     train_dataset=train_dataset,
+    #     checkpoints=checkpoints,
+    #     curr_update=curr_update,
+    #     num_updates=num_updates,
+    #     batch_size=batch_size,
+    #     training_type=training_type,
+    #     gibbs_steps=gibbs_steps,
+    #     beta=beta,
+    #     centered=centered,
+    #     L1=L1,
+    #     L2=L2,
+    #     normalize_grad=normalize_grad,
+    #     max_norm_grad=max_norm_grad,
+    #     filename=filename,
+    #     elapsed_time=elapsed_time,
+    # )
     # pbar
     pbar = tqdm(
         initial=curr_update,
@@ -115,7 +136,7 @@ def train(
     )
     pbar.set_description(f"Training {params.name}")
 
-    start = time.time()
+    start = time.perf_counter()
 
     for idx in range(curr_update + 1, num_updates + 1):
         batch = train_dataset.batch(batch_size)
@@ -151,7 +172,7 @@ def train(
 
         # Save current model if necessary
         if idx in checkpoints or idx == num_updates:
-            curr_time = time.time() - start
+            curr_time = time.perf_counter() - start
             learning_rate = torch.tensor([opt.param_groups[0]["lr"] for opt in optimizer])
             save_model(
                 filename=filename,

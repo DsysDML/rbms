@@ -132,6 +132,9 @@ def recover_args(
         args_train["training_type"] = args["training_type"]
         if args_train["training_type"] is None:
             args_train["training_type"] = train_args["training_type"][()].decode()
+        if args_train["max_lr"] is None:
+            args_train["max_lr"] = train_args["max_lr"][()].item()
+        args_train["scale_lr"] = args["scale_lr"]
 
         # Torch
         args_torch = {}
@@ -152,6 +155,7 @@ def recover_args(
 
 
 def main():
+    torch.set_float32_matmul_precision("high")
     torch.backends.cudnn.benchmark = True
     parser = create_parser_restore()
     args = parser.parse_args()

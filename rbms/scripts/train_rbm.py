@@ -1,5 +1,7 @@
 import argparse
+
 import torch
+
 from rbms.dataset import load_dataset
 from rbms.dataset.parser import add_args_dataset
 from rbms.map_model import map_model
@@ -46,32 +48,56 @@ def process_args(args: dict):
         "remove_duplicates": args["remove_duplicates"],
         "seed": args["seed"],
     }
-    args_grad = {
-        "no_center": args["no_center"],
-        "normalize_grad": args["normalize_grad"],
-        "max_norm_grad": args["max_norm_grad"],
-        "L1": args["L1"],
-        "L2": args["L2"],
-    }
-    args_sampling = {"gibbs_steps": args["gibbs_steps"], "beta": args["beta"]}
-    args_train = {
-        "optim": args["optim"],
-        "learning_rate": args["learning_rate"],
-        "batch_size": args["batch_size"],
-        "num_updates": args["num_updates"],
-        "mult_optim": args["mult_optim"],
-        "training_type": args["training_type"],
-    }
-    args_save = {
-        "filename": args["filename"],
-        "n_save": args["n_save"],
-        "spacing": args["spacing"],
-    }
-    args_init = {
-        "num_chains": args["num_chains"],
-        "num_hiddens": args["num_hiddens"],
-        "model_type": args["model_type"],
-    }
+    key_args_grad = [
+        "no_center",
+        "normalize_grad",
+        "max_norm_grad",
+        "L1",
+        "L2",
+    ]
+    key_args_sampling = [
+        "gibbs_steps",
+        "beta",
+    ]
+    key_args_train = [
+        "optim",
+        "learning_rate",
+        "batch_size",
+        "num_updates",
+        "mult_optim",
+        "training_type",
+        "max_lr",
+        "scale_lr",
+    ]
+    key_args_save = [
+        "filename",
+        "n_save",
+        "spacing",
+        "overwrite",
+    ]
+    key_args_init = [
+        "num_chains",
+        "num_hiddens",
+        "model_type",
+    ]
+
+    args_grad = {}
+    args_sampling = {}
+    args_train = {}
+    args_save = {}
+    args_init = {}
+    all_target = [args_grad, args_sampling, args_train, args_save, args_init]
+    all_keys = [
+        key_args_grad,
+        key_args_sampling,
+        key_args_train,
+        key_args_save,
+        key_args_init,
+    ]
+    for target, keys in zip(all_target, all_keys):
+        for k in keys:
+            target[k] = args[k]
+
     return (
         args_dataset,
         args_save,
@@ -84,6 +110,7 @@ def process_args(args: dict):
 
 
 def main():
+    torch.set_float32_matmul_precision("high")
     torch.backends.cudnn.benchmark = True
     parser = create_parser()
     args = parser.parse_args()

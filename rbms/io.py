@@ -8,6 +8,7 @@ from rbms.map_model import map_model
 from rbms.utils import restore_rng_state
 
 
+@torch.compiler.disable
 def save_model(
     filename: str,
     params: EBM,

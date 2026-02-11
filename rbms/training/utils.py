@@ -1,16 +1,11 @@
-import h5py
 import numpy as np
 import torch
 from torch import Tensor
-from tqdm.autonotebook import tqdm
 
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
-from rbms.io import load_model, save_model
 from rbms.map_model import map_model
-from rbms.potts_bernoulli.classes import PBRBM
-from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
-from rbms.utils import get_saved_updates
+from rbms.training.implement import _init_training, _restore_training
 
 
 def get_checkpoints(num_updates: int, n_save: int, spacing: str = "exp") -> np.ndarray:
@@ -50,6 +45,7 @@ def init_training(
     args_torch: dict[str, str | torch.dtype],
     train_dataset: RBMDataset,
     flags: list[str] = ["checkpoint"],
+    map_model: dict[str, EBM] = map_model,
 ):
     # Torch
     device: str = args_torch["device"]
@@ -73,6 +69,7 @@ def init_training(
     mult_optim: bool = args_train["mult_optim"]
     training_type: str = args_train["training_type"]
     learning_rate: float = args_train["learning_rate"]
+    max_lr: float = args_train["max_lr"]
 
     # save
     filename: str = args_save["filename"]
@@ -94,88 +91,124 @@ def init_training(
     num_hiddens: int = args_init["num_hiddens"]
     num_chains: int = args_init["num_chains"]
     model_type: str = args_init["model_type"]
-    if model_type is None:
-        match train_dataset.variable_type:
-            case "bernoulli":
-                model_type = "BBRBM"
-            case "categorical":
-                model_type = "PBRBM"
-            case "ising":
-                model_type = "IIRBM"
-            case _:
-                raise NotImplementedError()
 
-    # Setup dataset
-    num_visibles = train_dataset.get_num_visibles()
-
-    # Setup RBM
-    params = map_model[model_type].init_parameters(
+    _init_training(
+        train_dataset=train_dataset,
+        seed=seed,
+        train_size=train_size,
+        test_size=test_size,
         num_hiddens=num_hiddens,
-        dataset=train_dataset,
-        device=device,
-        dtype=dtype,
-    )
-    if isinstance(params, PBRBM):
-        ensure_zero_sum_gauge(params)
-
-    # Permanent chains
-    parallel_chains = params.init_chains(num_samples=num_chains)
-    parallel_chains = params.sample_state(chains=parallel_chains, n_steps=gibbs_steps)
-
-    # Save hyperparameters
-    if mult_optim:
-        learning_rate = torch.tensor([learning_rate] * len(params.parameters()))
-    else:
-        learning_rate = torch.tensor([learning_rate])
-
-    with h5py.File(filename, "w") as file_model:
-        hyperparameters = file_model.create_group("hyperparameters")
-        hyperparameters["num_visibles"] = num_visibles
-        hyperparameters["num_hiddens"] = num_hiddens
-        hyperparameters["num_chains"] = num_chains
-        hyperparameters["filename"] = str(filename)
-
-    save_model(
+        num_chains=num_chains,
+        model_type=model_type,
         filename=filename,
-        params=params,
-        chains=parallel_chains,
-        num_updates=1,
-        time=0.0,
-        flags=flags,
+        n_save=n_save,
+        spacing=spacing,
+        batch_size=batch_size,
+        optim=optim,
+        mult_optim=mult_optim,
+        training_type=training_type,
         learning_rate=learning_rate,
+        max_lr=max_lr,
+        gibbs_steps=gibbs_steps,
+        beta=beta,
+        centered=centered,
+        L1=L1,
+        L2=L2,
+        normalize_grad=normalize_grad,
+        max_norm_grad=max_norm_grad,
+        subset_labels=subset_labels,
+        use_weights=use_weights,
+        alphabet=alphabet,
+        remove_duplicates=remove_duplicates,
+        dtype=dtype,
+        device=device,
+        flags=flags,
+        map_model=map_model,
     )
 
-    with h5py.File(filename, "a") as f:
-        dataset = f.create_group("dataset_args")
-        if subset_labels is not None:
-            dataset["subset_labels"] = subset_labels
-        dataset["use_weights"] = use_weights
-        dataset["train_size"] = train_size
-        dataset["test_size"] = test_size
-        dataset["alphabet"] = alphabet
-        dataset["remove_duplicates"] = remove_duplicates
-        dataset["seed"] = seed
+    # if model_type is None:
+    #     match train_dataset.variable_type:
+    #         case "bernoulli":
+    #             model_type = "BBRBM"
+    #         case "categorical":
+    #             model_type = "PBRBM"
+    #         case "ising":
+    #             model_type = "IIRBM"
+    #         case _:
+    #             raise NotImplementedError()
 
-        grad = f.create_group("grad_args")
-        grad["no_center"] = not (centered)
-        grad["normalize_grad"] = normalize_grad
-        grad["max_norm_grad"] = max_norm_grad
-        grad["L1"] = L1
-        grad["L2"] = L2
+    # # Setup dataset
+    # num_visibles = train_dataset.get_num_visibles()
 
-        sampling = f.create_group("sampling_args")
-        sampling["gibbs_steps"] = gibbs_steps
-        sampling["beta"] = beta
+    # # Setup RBM
+    # params = map_model[model_type].init_parameters(
+    #     num_hiddens=num_hiddens,
+    #     dataset=train_dataset,
+    #     device=device,
+    #     dtype=dtype,
+    # )
+    # if isinstance(params, PBRBM):
+    #     ensure_zero_sum_gauge(params)
 
-        train_args = f.create_group("train_args")
-        train_args["optim"] = optim
-        train_args["batch_size"] = batch_size
-        train_args["learning_rate"] = learning_rate
-        train_args["training_type"] = training_type
+    # # Permanent chains
+    # parallel_chains = params.init_chains(num_samples=num_chains)
+    # parallel_chains = params.sample_state(chains=parallel_chains, n_steps=gibbs_steps)
 
-        save_args = f.create_group("save_args")
-        save_args["n_save"] = n_save
-        save_args["spacing"] = spacing
+    # # Save hyperparameters
+    # if mult_optim:
+    #     learning_rate = torch.tensor([learning_rate] * len(params.parameters()))
+    # else:
+    #     learning_rate = torch.tensor([learning_rate])
+
+    # with h5py.File(filename, "w") as file_model:
+    #     hyperparameters = file_model.create_group("hyperparameters")
+    #     hyperparameters["num_visibles"] = num_visibles
+    #     hyperparameters["num_hiddens"] = num_hiddens
+    #     hyperparameters["num_chains"] = num_chains
+    #     hyperparameters["filename"] = str(filename)
+
+    # save_model(
+    #     filename=filename,
+    #     params=params,
+    #     chains=parallel_chains,
+    #     num_updates=1,
+    #     time=0.0,
+    #     flags=flags,
+    #     learning_rate=learning_rate,
+    # )
+
+    # with h5py.File(filename, "a") as f:
+    #     dataset = f.create_group("dataset_args")
+    #     if subset_labels is not None:
+    #         dataset["subset_labels"] = subset_labels
+    #     dataset["use_weights"] = use_weights
+    #     dataset["train_size"] = train_size
+    #     dataset["test_size"] = test_size
+    #     dataset["alphabet"] = alphabet
+    #     dataset["remove_duplicates"] = remove_duplicates
+    #     dataset["seed"] = seed
+
+    #     grad = f.create_group("grad_args")
+    #     grad["no_center"] = not (centered)
+    #     grad["normalize_grad"] = normalize_grad
+    #     grad["max_norm_grad"] = max_norm_grad
+    #     grad["L1"] = L1
+    #     grad["L2"] = L2
+
+    #     sampling = f.create_group("sampling_args")
+    #     sampling["gibbs_steps"] = gibbs_steps
+    #     sampling["beta"] = beta
+
+    #     train_args = f.create_group("train_args")
+    #     train_args["optim"] = optim
+    #     train_args["batch_size"] = batch_size
+    #     train_args["learning_rate"] = learning_rate
+    #     train_args["training_type"] = training_type
+    #     train_args["max_lr"] = max_lr
+
+    #     save_args = f.create_group("save_args")
+    #     save_args["n_save"] = n_save
+    #     save_args["spacing"] = spacing
 
 
 def restore_training(
@@ -191,7 +224,6 @@ def restore_training(
     dict[str, Tensor],
     int,
     float,
-    tqdm,
     RBMDataset,
     RBMDataset,
 ]:
@@ -208,65 +240,68 @@ def restore_training(
     train_size: float = args_dataset["train_size"]
     test_size: float = args_dataset["test_size"]
 
-    # Retrieve the the number of training updates already performed on the model
-    print(f"Restoring training from update {target_update}")
-
-    if num_updates <= target_update:
-        raise RuntimeError(
-            f"The parameter /'num_updates/' ({num_updates}) must be greater than the previous number of updates ({target_update})."
-        )
-
-    params, parallel_chains, elapsed_time = load_model(
-        filename,
-        target_update,
+    return _restore_training(
+        filename=filename,
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+        num_updates=num_updates,
+        target_update=target_update,
+        seed=seed,
+        train_size=train_size,
+        test_size=test_size,
         device=device,
         dtype=dtype,
-        restore=True,
-        map_model=map_model,
     )
 
-    # Delete all updates after the current one
-    saved_updates = get_saved_updates(filename)
-    if saved_updates[-1] > target_update:
-        to_delete = saved_updates[saved_updates > target_update]
-        with h5py.File(filename, "a") as f:
-            print("Deleting:")
-            for upd in to_delete:
-                print(f" - {upd}")
-                del f[f"update_{upd}"]
+    # # Retrieve the the number of training updates already performed on the model
+    # print(f"Restoring training from update {target_update}")
 
-    if test_dataset is None:
-        print("Splitting dataset")
-        train_dataset, test_dataset = train_dataset.split_train_test(
-            rng=np.random.default_rng(seed),
-            train_size=train_size,
-            test_size=test_size,
-        )
-        print("Train dataset:")
-        print(train_dataset)
-        print("Test dataset:")
-        print(test_dataset)
+    # if num_updates <= target_update:
+    #     raise RuntimeError(
+    #         f"The parameter /'num_updates/' ({num_updates}) must be greater than the previous number of updates ({target_update})."
+    #     )
 
-    # # Progress bar
-    # pbar = tqdm(
-    #     initial=target_update,
-    #     total=num_updates,
-    #     colour="red",
-    #     dynamic_ncols=True,
-    #     ascii="-#",
+    # params, parallel_chains, elapsed_time = load_model(
+    #     filename,
+    #     target_update,
+    #     device=device,
+    #     dtype=dtype,
+    #     restore=True,
+    #     map_model=map_model,
     # )
-    # pbar.set_description(f"Training {params.name}")
 
-    # Initialize gradients for the parameters
-    params.init_grad()
+    # # Delete all updates after the current one
+    # saved_updates = get_saved_updates(filename)
+    # if saved_updates[-1] > target_update:
+    #     to_delete = saved_updates[saved_updates > target_update]
+    #     with h5py.File(filename, "a") as f:
+    #         print("Deleting:")
+    #         for upd in to_delete:
+    #             print(f" - {upd}")
+    #             del f[f"update_{upd}"]
 
-    train_dataset.match_model_variable_type(params.visible_type)
-    test_dataset.match_model_variable_type(params.visible_type)
-    return (
-        params,
-        parallel_chains,
-        target_update,
-        elapsed_time,
-        train_dataset,
-        test_dataset,
-    )
+    # if test_dataset is None:
+    #     print("Splitting dataset")
+    #     train_dataset, test_dataset = train_dataset.split_train_test(
+    #         rng=np.random.default_rng(seed),
+    #         train_size=train_size,
+    #         test_size=test_size,
+    #     )
+    #     print("Train dataset:")
+    #     print(train_dataset)
+    #     print("Test dataset:")
+    #     print(test_dataset)
+
+    # # Initialize gradients for the parameters
+    # params.init_grad()
+
+    # train_dataset.match_model_variable_type(params.visible_type)
+    # test_dataset.match_model_variable_type(params.visible_type)
+    # return (
+    #     params,
+    #     parallel_chains,
+    #     target_update,
+    #     elapsed_time,
+    #     train_dataset,
+    #     test_dataset,
+    # )

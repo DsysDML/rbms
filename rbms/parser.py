@@ -178,7 +178,18 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default="pcd",
         help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}.",
     )
-
+    train_args.add_argument(
+        "--max_lr",
+        type=float,
+        default=None,
+        help="(Defaults to 10). Maximum learning rate when adaptative learning rate is used.",
+    )
+    train_args.add_argument(
+        "--scale_lr",
+        action="store_true",
+        default=False,
+        help="Set it to scale learning rate with the number of variables of the system",
+    )
     return parser
 
 
@@ -347,6 +358,7 @@ default_args: dict[str, Any] = {
     "L2": 0.0,
     "max_norm_grad": -1,
     "optim": "sgd",
+    "max_lr": 10,
 }
 
 
