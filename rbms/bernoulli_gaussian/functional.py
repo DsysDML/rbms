@@ -79,8 +79,6 @@ def compute_gradient(
     chains: dict[str, Tensor],
     params: BGRBM,
     centered: bool,
-    lambda_l1: float = 0.0,
-    lambda_l2: float = 0.0,
 ) -> None:
     _compute_gradient(
         v_data=data["visible"],
@@ -93,8 +91,6 @@ def compute_gradient(
         hbias=params.hbias,
         weight_matrix=params.weight_matrix,
         centered=centered,
-        lambda_l1=lambda_l1,
-        lambda_l2=lambda_l2,
     )
 
 

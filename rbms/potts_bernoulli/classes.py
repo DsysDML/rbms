@@ -51,6 +51,7 @@ class PBRBM(RBM):
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "PBRBM"
+        self.flags = []
 
     def __add__(self, other):
         return PBRBM(
@@ -105,7 +106,7 @@ class PBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
+    def compute_gradient(self, data, chains, centered=True):
         _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
@@ -117,8 +118,6 @@ class PBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
-            lambda_l1=lambda_l1,
-            lambda_l2=lambda_l2,
         )
 
     def independent_model(self):
@@ -241,3 +240,11 @@ class PBRBM(RBM):
         self.weight_matrix.grad /= norm_factor
         self.vbias.grad /= norm_factor
         self.hbias.grad /= norm_factor
+
+    def post_grad_update(self):
+        mean_W = self.weight_matrix.mean(1, keepdim=True)
+        self.weight_matrix -= mean_W
+        self.hbias += mean_W.squeeze().sum(0)
+        self.vbias -= self.vbias.mean(1, keepdim=True)
+
+        return super().post_grad_update()

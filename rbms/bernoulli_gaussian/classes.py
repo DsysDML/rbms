@@ -20,7 +20,7 @@ class BGRBM(RBM):
     """Bernoulli-Gaussian RBM with fixed hidden variance = 1/Nv, 0-1 visibles, hidden and visible biases"""
 
     visible_type: str = "bernoulli"
-    
+
     def __init__(
         self,
         weight_matrix: Tensor,
@@ -55,6 +55,7 @@ class BGRBM(RBM):
         )
 
         self.name = "BGRBM"
+        self.flags = []
 
     def __add__(self, other):
         # keep fixed variance policy; recompute eta from resulting vbias size
@@ -115,7 +116,7 @@ class BGRBM(RBM):
             const=self.const,
         )
 
-    def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
+    def compute_gradient(self, data, chains, centered=True):
         # backend should ignore grads on eta or treat it as const; we pass it for conditionals
         _compute_gradient(
             v_data=data["visible"],
@@ -128,8 +129,6 @@ class BGRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
-            lambda_l1=lambda_l1,
-            lambda_l2=lambda_l2,
         )
 
     def independent_model(self):

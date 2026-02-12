@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Self
 
+import h5py
 import torch
 from torch import Tensor
 
@@ -15,6 +16,7 @@ class EBM(ABC):
     name: str
     device: torch.device
     visible_type: str
+    flags: list[str]
 
     @abstractmethod
     def __init__(self): ...
@@ -91,8 +93,6 @@ class EBM(ABC):
         data: dict[str, Tensor],
         chains: dict[str, Tensor],
         centered: bool = True,
-        lambda_l1: float = 0.0,
-        lambda_l2: float = 0.0,
     ) -> None:
         """Compute the gradient for each of the parameters and attach it.
 
@@ -219,13 +219,17 @@ class EBM(ABC):
 
     @torch.compile
     def normalize_grad(self) -> None:
-        norm_grad = torch.sqrt(
-            torch.sum(torch.tensor([p.grad.square().sum() for p in self.parameters()]))
+        norm_grad = torch.nn.utils.get_total_norm(
+            [p.grad for p in self.parameters() if p.grad is not None]
         )
         for p in self.parameters():
             p.grad /= norm_grad
-        # for p in self.parameters():
-        #     p.grad /= p.grad.norm()
+
+    def post_grad_update(self):
+        pass
+
+    def center_grad(self):
+        pass
 
     def clip_grad(self, max_norm=5):
         for p in self.parameters():
@@ -234,6 +238,12 @@ class EBM(ABC):
                 p.grad /= grad_norm
                 p.grad *= max_norm
 
+    def save_flags(self, flags: list[str]):
+        if len(self.flags) > 0:
+            for elt in self.flags:
+                flags.append(elt)
+        self.flags = []
+        return flags
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
@@ -290,3 +300,108 @@ class RBM(EBM):
             new_chains = self.sample_visibles(chains=new_chains, beta=beta)
         new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
         return new_chains
+
+
+class Sampler(ABC):
+    name: str
+    flags: list[str]
+
+    @abstractmethod
+    def __init__(self): ...
+
+    @abstractmethod
+    def sample(self, batch: Tensor) -> dict[str, Tensor]: ...
+
+    @abstractmethod
+    def save(self, filename): ...
+
+    def save_flags(self, flags: list[str]):
+        if len(self.flags) > 0:
+            for elt in self.flags:
+                flags.append(elt)
+        self.flags = []
+        return flags
+
+
+class PCD(Sampler):
+    def __init__(
+        self,
+        params: EBM,
+        chains: dict[str, Tensor],
+        num_steps: int,
+        beta: float = 1,
+        **kwargs,
+    ):
+        self.name = "PCD"
+        self.chains = chains
+        self.params = params
+        self.beta = beta
+        self.num_steps = num_steps
+        self.flags = []
+
+    def sample(self, batch: Tensor):
+        self.chains = self.params.sample_state(
+            chains=self.chains, n_steps=self.num_steps, beta=self.beta
+        )
+        return self.chains
+
+    def save(self, filename):
+        if self.chains is not None:
+            with h5py.File(filename, "a") as f:
+                if "parallel_chains" in f.keys():
+                    f["parallel_chains"][...] = self.chains["visible"].cpu().numpy()
+                else:
+                    f["parallel_chains"] = self.chains["visible"].cpu().numpy()
+
+
+class RDM(Sampler):
+    def __init__(
+        self, params: EBM, num_chains: int, num_steps: int, beta: float = 1, **kwargs
+    ):
+        self.name = "RDM"
+        self.params = params
+        self.beta = beta
+        self.num_chains = num_chains
+        self.num_steps = num_steps
+        self.chains = None
+        self.flags = []
+
+    def sample(self, batch: Tensor):
+        chains = self.params.init_chains(num_samples=self.num_chains)
+        chains = self.params.sample_state(
+            chains=chains, n_steps=self.num_steps, beta=self.beta
+        )
+        return chains
+
+    def save(self, filename):
+        if self.chains is not None:
+            with h5py.File(filename, "a") as f:
+                if "parallel_chains" in f.keys():
+                    f["parallel_chains"][...] = self.chains["visible"].cpu().numpy()
+                else:
+                    f["parallel_chains"] = self.chains["visible"].cpu().numpy()
+
+
+class CD(Sampler):
+    def __init__(self, params: EBM, num_steps: int, beta: float = 1, **kwargs):
+        self.name = "CD"
+        self.params = params
+        self.beta = beta
+        self.num_steps = num_steps
+        self.chains = None
+        self.flags = []
+
+    def sample(self, batch: Tensor):
+        self.chains = self.params.init_chains(num_samples=batch.shape[0], start_v=batch)
+        self.chains = self.params.sample_state(
+            chains=self.chains, n_steps=self.num_steps, beta=self.beta
+        )
+        return self.chains
+
+    def save(self, filename):
+        if self.chains is not None:
+            with h5py.File(filename, "a") as f:
+                if "parallel_chains" in f.keys():
+                    f["parallel_chains"][...] = self.chains["visible"].cpu().numpy()
+                else:
+                    f["parallel_chains"] = self.chains["visible"].cpu().numpy()

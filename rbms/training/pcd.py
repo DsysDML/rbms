@@ -3,9 +3,10 @@ import time
 import numpy as np
 import torch
 from torch import Tensor
+from torch.optim import Optimizer
 from tqdm.autonotebook import tqdm
 
-from rbms.classes import EBM
+from rbms.classes import EBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model
 from rbms.potts_bernoulli.classes import PBRBM
@@ -186,4 +187,80 @@ def train(
 
         pbar.set_postfix_str(f"lr: {optimizer[0].param_groups[0]['lr']:.6f}")
         # Update progress bar
+        pbar.update(1)
+
+@torch.no_grad
+@torch.compile
+def train_v2(
+    train_dataset: RBMDataset,
+    test_dataset: RBMDataset,
+    params: EBM,
+    sampler: Sampler,
+    optimizer: list[Optimizer],
+    batch_size: int,
+    centered: bool,
+    curr_update: int,
+    pre_grad_update: torch.nn.Sequential,
+    elapsed_time: float,
+    checkpoints: np.ndarray,
+    num_updates: int,
+    filename: str,
+):
+    pbar = tqdm(
+        initial=curr_update,
+        total=num_updates,
+        colour="red",
+        dynamic_ncols=True,
+        ascii="-#",
+    )
+    pbar.set_description(f"Training {params.name}")
+
+    start = time.perf_counter()
+
+    for idx in range(curr_update + 1, num_updates + 1):
+        batch = train_dataset.batch(batch_size)
+        data, weights = batch["data"], batch["weights"]
+
+        for opt in optimizer:
+            opt.zero_grad(set_to_none=False)
+
+        # Initialize batch
+        curr_batch = params.init_chains(
+            num_samples=data.shape[0],
+            weights=weights,
+            start_v=data,
+        )
+        parallel_chains = sampler.sample(batch=data)
+
+        params.compute_gradient(
+            data=curr_batch,
+            chains=parallel_chains,
+            centered=centered,
+        )
+        # Do a bunch of modification on the gradient
+
+        pre_grad_update(input=None)
+
+        for opt in optimizer:
+            opt.step()
+        # Get flags for save
+        flags = []
+        flags = params.save_flags(flags)
+        flags = sampler.save_flags(flags)
+        if idx in checkpoints or idx == num_updates:
+            flags.append("checkpoint")
+
+        if len(flags) > 0:
+            curr_time = time.perf_counter() - start
+            learning_rate = torch.tensor([opt.param_groups[0]["lr"] for opt in optimizer])
+            save_model(
+                filename=filename,
+                params=params,
+                chains=parallel_chains,
+                num_updates=idx,
+                time=curr_time + elapsed_time,
+                learning_rate=learning_rate,
+                flags=flags,
+            )
+            sampler.save(filename)
         pbar.update(1)

@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch import Tensor
+from torch.optim import Optimizer
 
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
@@ -305,3 +306,26 @@ def restore_training(
     #     train_dataset,
     #     test_dataset,
     # )
+
+
+def pre_grad_update(
+    optimizer: list[Optimizer],
+    normalize_grad: bool,
+    max_grad_norm: float,
+    lambda_l1: float,
+    lambda_l2: float,
+):
+    for opt in optimizer:
+        if normalize_grad:
+            norm_grad = torch.nn.utils.get_total_norm(
+                [p.grad for p in opt.param_groups[0]["params"] if p.grad is not None]
+            )
+            for p in opt.param_groups[0]["params"]:
+                p.grad /= norm_grad
+        if max_grad_norm > 0:
+            torch.nn.utils.clip_grad_norm_(opt.param_groups[0]["params"])
+        for p in opt.param_groups[0]["params"]:
+            if lambda_l1 > 0:
+                p.grad -= lambda_l1 * torch.sign(p)
+            if lambda_l2 > 0:
+                p.grad -= lambda_l2 * p
