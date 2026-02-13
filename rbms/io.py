@@ -64,6 +64,36 @@ def save_model(
             checkpoint[f"save_{fl}"] = True
 
 
+from rbms.classes import Sampler
+
+
+@torch.compiler.disable
+def save_sampler(
+    filename: str,
+    sampler: Sampler,
+) -> None:
+    """Save the current state of the model.
+
+    Args:
+        filename (str): The name of the file to save the model state.
+        params (RBM): The parameters of the RBM.
+        chains (dict[str, Tensor]): The parallel chains used for sampling.
+        num_updates (int): The number of updates performed.
+        time (float): Elapsed time.
+        flags (List[str]): flags for the current update. Defaults to []
+    """
+
+    named_params = sampler.named_parameters()
+    with h5py.File(filename, "a") as f:
+        if sampler not in f.keys():
+            sampler_archive = f.create_group("sampler")
+        else:
+            sampler_archive = f["sampler"]
+        for n, p in named_params.items():
+            if n in sampler_archive.keys():
+                sampler_archive[n] = p.detach().cpu().numpy()
+
+
 def load_params(
     filename: str,
     index: int,

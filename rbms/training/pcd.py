@@ -189,6 +189,7 @@ def train(
         # Update progress bar
         pbar.update(1)
 
+
 @torch.no_grad
 @torch.compile
 def train_v2(
@@ -243,6 +244,9 @@ def train_v2(
 
         for opt in optimizer:
             opt.step()
+
+        sampler.post_grad_update(params=params)
+
         # Get flags for save
         flags = []
         flags = params.save_flags(flags)
