@@ -227,3 +227,6 @@ class BBRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    def get_metrics(self, metrics):
+        return metrics

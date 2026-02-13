@@ -244,6 +244,9 @@ class EBM(ABC):
         self.flags = []
         return flags
 
+    @abstractmethod
+    def get_metrics(self, metrics: dict[str, float]) -> dict[str, float]: ...
+
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
@@ -331,3 +334,6 @@ class Sampler(ABC):
 
     @abstractmethod
     def post_grad_update(self, params: EBM) -> None: ...
+
+    @abstractmethod
+    def get_metrics(self, metrics: dict[str, float]) -> dict[str, float]: ...

@@ -241,6 +241,7 @@ class PBRBM(RBM):
         self.vbias.grad /= norm_factor
         self.hbias.grad /= norm_factor
 
+    @override
     def post_grad_update(self):
         mean_W = self.weight_matrix.mean(1, keepdim=True)
         self.weight_matrix -= mean_W
@@ -248,3 +249,6 @@ class PBRBM(RBM):
         self.vbias -= self.vbias.mean(1, keepdim=True)
 
         return super().post_grad_update()
+
+    def get_metrics(self, metrics):
+        return metrics

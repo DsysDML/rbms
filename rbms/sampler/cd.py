@@ -52,3 +52,6 @@ class CD(Sampler):
 
     def post_grad_update(self, params: EBM):
         self.params = params
+
+    def get_metrics(self, metrics):
+        return metrics
