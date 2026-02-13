@@ -1,17 +1,19 @@
+import pathlib
+
 import hydra
 import numpy as np
 import torch
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig, ListConfig, OmegaConf
+
 from rbms import get_saved_updates
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
-from rbms.training.implement import _init_training, _restore_training, _train
+from rbms.io import save_model, save_sampler
+from rbms.training.implement import _init_training, _restore_training
 from rbms.training.pcd import train_v2
 from rbms.training.utils import (
     get_checkpoints,
 )
-from torch import Tensor
-from torch.optim import Optimizer
 
 
 def my_app(cfg: DictConfig) -> None:
@@ -29,7 +31,7 @@ dtype_lookup = {
 def extract_optim_from_hydra_conf(cfg: DictConfig):
     if cfg.optim._target_.split(".")[-1] == "SGD_cossim":
         return "cossim"
-    if 'nesterov' in cfg.optim.keys():
+    if "nesterov" in cfg.optim.keys():
         return "nag"
     return "sgd"
 
@@ -39,9 +41,7 @@ def init_training_hydra(cfg: DictConfig, train_dataset: RBMDataset, flags: list[
     if cfg.rbm.model_type is None:
         match train_dataset.variable_type:
             case "bernoulli":
-                OmegaConf.update(
-                    cfg, "rbm.model_type", value="BBRBM", force_add=True, merge=False
-                )
+                OmegaConf.update(cfg, "rbm.model_type", value="BBRBM")
             case "ising":
                 OmegaConf.update(cfg, "rbm.model_type", value="IIRBM")
             case "categorical":
@@ -81,9 +81,14 @@ def init_training_hydra(cfg: DictConfig, train_dataset: RBMDataset, flags: list[
         flags=flags,
     )
 
-import pathlib
-def init_training_v2(cfg: DictConfig, train_dataset: RBMDataset, map_model: dict[str, EBM]):
-    save_folder = pathlib.Path(cfg.save.folder)  
+
+def init_training_v2(
+    cfg: DictConfig,
+    train_dataset: RBMDataset,
+    flags: list[str],
+    map_model: dict[str, EBM],
+):
+    save_folder = pathlib.Path(cfg.save.folder)
     # Initialize Model
     params = map_model[cfg.rbm.model_type].init_parameters(
         num_hiddens=cfg.rbm.num_hiddens,
@@ -96,6 +101,9 @@ def init_training_v2(cfg: DictConfig, train_dataset: RBMDataset, map_model: dict
     sampler = hydra.utils.instantiate(cfg.sampler, params=params, chains=parallel_chains)
 
     # Learning rate
+    if cfg.mult_optim:
+        if not isinstance(cfg.optim.lr, ListConfig):
+            OmegaConf.update(cfg, "optim.lr", [cfg.optim.lr] * len(params.parameters()))
 
     # Save model
     save_model(
@@ -105,11 +113,12 @@ def init_training_v2(cfg: DictConfig, train_dataset: RBMDataset, map_model: dict
         num_updates=1,
         time=0.0,
         flags=flags,
-        learning_rate=learning_rate,
+        learning_rate=cfg.optim.lr,
     )
     # Save Sampler
+    save_sampler(filename=save_folder / "model.h5", sampler=sampler)
 
-    # Save updated config 
+    # Save updated config
     OmegaConf.save(cfg, save_folder / "config.yaml")
 
 
@@ -128,7 +137,6 @@ def restore_training_hydra(
         device=cfg.device,
         dtype=dtype_lookup[cfg.dtype],
     )
-
 
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
@@ -152,9 +160,7 @@ def main(cfg: DictConfig):
     flags = ["checkpoint"]
     init_training_hydra(cfg=cfg, train_dataset=train_dataset, flags=flags)
     if cfg.restore_update is None:
-        OmegaConf.update(
-            cfg, "restore_update", int(get_saved_updates(cfg.filename)[-1])
-        )
+        OmegaConf.update(cfg, "restore_update", int(get_saved_updates(cfg.filename)[-1]))
     # Restore training
     (
         params,
@@ -166,16 +172,16 @@ def main(cfg: DictConfig):
     ) = restore_training_hydra(
         cfg=cfg, train_dataset=train_dataset, test_dataset=test_dataset
     )
-    sampler = hydra.utils.instantiate(
-        cfg.sampler, params=params, chains=parallel_chains
-    )
+    sampler = hydra.utils.instantiate(cfg.sampler, params=params, chains=parallel_chains)
     # Setup optimizer
-    from omegaconf import ListConfig
+
     if cfg.mult_optim:
         if not isinstance(cfg.optim.lr, ListConfig):
-            OmegaConf.update(cfg, "optim.lr",[cfg.optim.lr] * len(params.parameters()))
+            OmegaConf.update(cfg, "optim.lr", [cfg.optim.lr] * len(params.parameters()))
         optimizer = [
-            hydra.utils.instantiate(cfg.optim, params=params.parameters(), lr=cfg.optim.lr[i])
+            hydra.utils.instantiate(
+                cfg.optim, params=params.parameters(), lr=cfg.optim.lr[i]
+            )
             for i, p in enumerate(params.parameters())
         ]
     else:
@@ -198,7 +204,6 @@ def main(cfg: DictConfig):
         num_updates=cfg.num_updates,
         filename=cfg.filename,
     )
-
 
 
 if __name__ == "__main__":
