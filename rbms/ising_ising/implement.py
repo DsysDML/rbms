@@ -173,7 +173,6 @@ def _init_parameters(
     weight_matrix = (
         torch.randn(size=(num_visibles, num_hiddens), device=device, dtype=dtype)
         * var_init
-        * 0.1
     )
     frequencies = data.mean(0)
     frequencies = torch.clamp(frequencies, min=-(1.0 - eps), max=(1.0 - eps))
