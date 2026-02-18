@@ -175,7 +175,7 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     train_args.add_argument(
         "--training_type",
         type=str,
-        default="pcd",
+        default=None,
         help="(Defaults to 'pcd'). Type of the training, should be one of {'pcd', 'cd', 'rdm'}.",
     )
     train_args.add_argument(
@@ -189,6 +189,18 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         action="store_true",
         default=False,
         help="Set it to scale learning rate with the number of variables of the system",
+    )
+    train_args.add_argument(
+        "--restore",
+        default=False,
+        action="store_true",
+        help="(Defaults to False). Restore the training",
+    )
+    train_args.add_argument(
+        "--update",
+        default=None,
+        type=int,
+        help="(Defaults to None). Update to restore from, if None the last is selected.",
     )
     return parser
 
@@ -359,6 +371,7 @@ default_args: dict[str, Any] = {
     "max_norm_grad": -1,
     "optim": "sgd",
     "max_lr": 10,
+    "training_type": "pcd",
 }
 
 

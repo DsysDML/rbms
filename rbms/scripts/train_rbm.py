@@ -1,7 +1,9 @@
 import argparse
 
+import h5py
 import torch
 
+from rbms import get_saved_updates
 from rbms.dataset import load_dataset
 from rbms.dataset.parser import add_args_dataset
 from rbms.map_model import map_model
@@ -204,7 +206,6 @@ def main_v2(args, map_model=map_model):
         dtype=args["dtype"],
     )
     flags = ["checkpoint"]
-    args["restore"] = False
     if not args["restore"]:
         _init_training(
             train_dataset=train_dataset,
@@ -240,6 +241,13 @@ def main_v2(args, map_model=map_model):
             map_model=map_model,
         )
         args["update"] = 1
+    print(args)
+
+    args = load_args_from_filename(args)
+    print(args)
+    args = set_args_default(args, default_args)
+    if args["update"] is None:
+        args["update"] = get_saved_updates(args["filename"])[-1]
     (
         params,
         parallel_chains,
@@ -310,12 +318,40 @@ def main_v2(args, map_model=map_model):
     )
 
 
+def load_args_from_filename(args: dict):
+    with h5py.File(args["filename"], "r") as f:
+        if args["gibbs_steps"] is None:
+            args["gibbs_steps"] = f["sampling_args"]["gibbs_steps"][()].item()
+        if args["beta"] is None:
+            args["beta"] = f["sampling_args"]["beta"][()].item()
+        if args["optim"] is None:
+            args["optim"] = f["train_args"]["optim"][()].decode()
+        if args["batch_size"] is None:
+            args["batch_size"] = f["train_args"]["batch_size"][()].item()
+        if args["training_type"] is None:
+            args["training_type"] = f["train_args"]["training_type"][()].decode()
+        args["no_center"] = f["grad_args"]["no_center"][()].item()
+        args["seed"] = f["dataset_args"]["seed"][()].item()
+        args["train_size"] = f["dataset_args"]["train_size"][()].item()
+        args["test_size"] = f["dataset_args"]["test_size"][()].item()
+        if args["L1"] is None:
+            args["L1"] = f["grad_args"]["L1"][()].item()
+        if args["L2"] is None:
+            args["L2"] = f["grad_args"]["L2"][()].item()
+        if args["normalize_grad"] is None:
+            args["normalize_grad"] = f["grad_args"]["normalize_grad"][()].item()
+        if args["max_norm_grad"] is None:
+            args["max_norm_grad"] = f["grad_args"]["max_norm_grad"][()].item()
+
+    return args
+
+
 if __name__ == "__main__":
     torch.set_float32_matmul_precision("high")
     torch.backends.cudnn.benchmark = True
     parser = create_parser()
     args = parser.parse_args()
     args = vars(args)
-    args = set_args_default(args, default_args=default_args)
+    # args = set_args_default(args, default_args=default_args)
     args = match_args_dtype(args)
     main_v2(args=args)
