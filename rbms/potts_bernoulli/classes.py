@@ -51,6 +51,7 @@ class PBRBM(RBM):
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "PBRBM"
+        self.flags = []
 
     def __add__(self, other):
         return PBRBM(
@@ -241,3 +242,6 @@ class PBRBM(RBM):
         self.weight_matrix.grad /= norm_factor
         self.vbias.grad /= norm_factor
         self.hbias.grad /= norm_factor
+
+    def get_metrics(self, metrics):
+        return metrics

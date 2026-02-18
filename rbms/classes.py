@@ -15,6 +15,7 @@ class EBM(ABC):
     name: str
     device: torch.device
     visible_type: str
+    flags: list[str]
 
     @abstractmethod
     def __init__(self): ...
@@ -234,6 +235,16 @@ class EBM(ABC):
                 p.grad /= grad_norm
                 p.grad *= max_norm
 
+    def save_flags(self, flags: list[str]):
+        if len(self.flags) > 0:
+            for elt in self.flags:
+                flags.append(elt)
+        self.flags = []
+        return flags
+
+    @abstractmethod
+    def get_metrics(self, metrics: dict[str, float]) -> dict[str, float]: ...
+
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
@@ -290,3 +301,37 @@ class RBM(EBM):
             new_chains = self.sample_visibles(chains=new_chains, beta=beta)
         new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
         return new_chains
+
+
+class Sampler(ABC):
+    name: str
+    flags: list[str]
+
+    @abstractmethod
+    def __init__(self): ...
+
+    @abstractmethod
+    def sample(self, batch: Tensor) -> dict[str, Tensor]: ...
+
+    @abstractmethod
+    def save(self, filename): ...
+
+    def save_flags(self, flags: list[str]):
+        if len(self.flags) > 0:
+            for elt in self.flags:
+                flags.append(elt)
+        self.flags = []
+        return flags
+
+    @abstractmethod
+    def named_parameters(self) -> dict[str, Tensor]: ...
+
+    @staticmethod
+    @abstractmethod
+    def set_named_parameters(named_params: dict[str, Tensor]) -> Sampler: ...
+
+    @abstractmethod
+    def post_grad_update(self, params: EBM) -> None: ...
+
+    @abstractmethod
+    def get_metrics(self, metrics: dict[str, float]) -> dict[str, float]: ...

@@ -51,6 +51,7 @@ class BBRBM(RBM):
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "BBRBM"
+        self.flags = []
 
     def __add__(self, other):
         return BBRBM(
@@ -228,3 +229,6 @@ class BBRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    def get_metrics(self, metrics):
+        return metrics

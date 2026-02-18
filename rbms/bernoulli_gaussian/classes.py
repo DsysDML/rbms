@@ -55,6 +55,7 @@ class BGRBM(RBM):
         )
 
         self.name = "BGRBM"
+        self.flags = []
 
     def __add__(self, other):
         # keep fixed variance policy; recompute eta from resulting vbias size
@@ -254,3 +255,6 @@ class BGRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    def get_metrics(self, metrics):
+        return metrics
