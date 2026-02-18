@@ -1,10 +1,57 @@
 import numpy as np
 import torch
-from ptt.optim.cossim import SGD_cossim
+
+# from ptt.optim.cossim import SGD_cossim
 from torch import Tensor
 from torch.optim import SGD, Optimizer
 
 from rbms.classes import EBM
+
+
+class SGD_cossim(SGD):
+    def __init__(
+        self,
+        params,
+        lr=0.001,
+        max_lr=0.001,
+        momentum=0,
+        dampening=0,
+        weight_decay=0,
+        nesterov=False,
+        *,
+        maximize=True,
+        foreach=None,
+        differentiable=False,
+        fused=None,
+    ):
+        super().__init__(
+            params,
+            lr,
+            momentum,
+            dampening,
+            weight_decay,
+            nesterov,
+            maximize=maximize,
+            foreach=foreach,
+            differentiable=differentiable,
+            fused=fused,
+        )
+        self.prev_grad = torch.concatenate([p.grad.flatten() for p in params]).flatten()
+        self.max_lr = max_lr
+
+    def step(self, closure=None):
+        for group in self.param_groups:
+            params = group["params"]
+            learning_rate = group["lr"]
+            curr_grad = torch.concatenate([p.grad.flatten() for p in params]).flatten()
+            cosine_similarity = curr_grad @ self.prev_grad
+            if cosine_similarity > 1e-6:
+                learning_rate *= 1.002
+            elif cosine_similarity < -1e-6:
+                learning_rate *= 0.998
+            group["lr"] = min(self.max_lr, learning_rate)
+            self.prev_grad = curr_grad.clone()
+        return super().step(closure)
 
 
 def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
