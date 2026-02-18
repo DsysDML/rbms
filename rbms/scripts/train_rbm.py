@@ -18,7 +18,8 @@ from rbms.parser import (
     remove_argument,
     set_args_default,
 )
-from rbms.training.pcd import train
+from rbms.training.implement import _init_training, _restore_training
+from rbms.training.pcd import train, train_v2
 from rbms.training.utils import get_checkpoints, init_training, restore_training
 
 
@@ -186,5 +187,135 @@ def main():
     )
 
 
+def main_v2(args, map_model=map_model):
+    checkpoints = get_checkpoints(
+        num_updates=args["num_updates"],
+        n_save=args["n_save"],
+        spacing=args["spacing"],
+    )
+    train_dataset, test_dataset = load_dataset(
+        dataset_name=args["dataset"],
+        test_dataset_name=args["test_dataset"],
+        subset_labels=args["subset_labels"],
+        use_weights=args["use_weights"],
+        alphabet=args["alphabet"],
+        remove_duplicates=args["remove_duplicates"],
+        device=args["device"],
+        dtype=args["dtype"],
+    )
+    flags = ["checkpoint"]
+    args["restore"] = False
+    if not args["restore"]:
+        _init_training(
+            train_dataset=train_dataset,
+            seed=args["seed"],
+            train_size=args["train_size"],
+            test_size=1 - args["train_size"],
+            num_hiddens=args["num_hiddens"],
+            num_chains=args["num_chains"],
+            model_type=args["model_type"],
+            filename=args["filename"],
+            n_save=args["n_save"],
+            spacing=args["spacing"],
+            batch_size=args["batch_size"],
+            optim=args["optim"],
+            mult_optim=args["mult_optim"],
+            training_type=args["training_type"],
+            learning_rate=args["learning_rate"],
+            max_lr=args["max_lr"],
+            gibbs_steps=args["gibbs_steps"],
+            beta=args["beta"],
+            centered=not (args["no_center"]),
+            L1=args["L1"],
+            L2=args["L2"],
+            normalize_grad=args["normalize_grad"],
+            max_norm_grad=args["max_norm_grad"],
+            subset_labels=args["subset_labels"],
+            use_weights=args["use_weights"],
+            alphabet=args["alphabet"],
+            remove_duplicates=args["remove_duplicates"],
+            dtype=args["dtype"],
+            device=args["device"],
+            flags=flags,
+            map_model=map_model,
+        )
+        args["update"] = 1
+    (
+        params,
+        parallel_chains,
+        target_update,
+        elapsed_time,
+        train_dataset,
+        test_dataset,
+    ) = _restore_training(
+        filename=args["filename"],
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+        num_updates=args["num_updates"],
+        target_update=args["update"],
+        seed=args["seed"],
+        train_size=args["train_size"],
+        test_size=args["test_size"],
+        device=args["device"],
+        dtype=args["dtype"],
+    )
+
+    optimizer = setup_optim(args["optim"], args, params)
+    from rbms.pre_grad import build_pre_grad_update
+
+    pre_grad_update = build_pre_grad_update(
+        optimizer=optimizer,
+        lambda_l1=args["L1"],
+        lambda_l2=args["L2"],
+        normalize_grad=args["normalize_grad"],
+        max_grad_norm=args["max_norm_grad"],
+    )
+    from rbms.sampler import CD, PCD, RDM
+
+    match args["training_type"]:
+        case "pcd":
+            sampler = PCD(
+                params=params,
+                chains=parallel_chains,
+                num_steps=args["gibbs_steps"],
+                beta=args["beta"],
+            )
+        case "cd":
+            sampler = CD(params=params, num_steps=args["gibbs_steps"], beta=args["beta"])
+        case "rdm":
+            sampler = RDM(
+                params=params,
+                num_chains=parallel_chains["visible"].shape[0],
+                num_steps=args["gibbs_steps"],
+                beta=args["beta"],
+            )
+
+        case _:
+            raise ValueError(f"No training type {args['training_type']} supported.")
+
+    train_v2(
+        train_dataset=train_dataset,
+        test_dataset=test_dataset,
+        params=params,
+        sampler=sampler,
+        optimizer=optimizer,
+        batch_size=args["batch_size"],
+        centered=not (args["no_center"]),
+        curr_update=args["update"],
+        pre_grad_update=pre_grad_update,
+        elapsed_time=elapsed_time,
+        checkpoints=checkpoints,
+        num_updates=args["num_updates"],
+        filename=args["filename"],
+    )
+
+
 if __name__ == "__main__":
-    main()
+    torch.set_float32_matmul_precision("high")
+    torch.backends.cudnn.benchmark = True
+    parser = create_parser()
+    args = parser.parse_args()
+    args = vars(args)
+    args = set_args_default(args, default_args=default_args)
+    args = match_args_dtype(args)
+    main_v2(args=args)
