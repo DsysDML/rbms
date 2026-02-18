@@ -1,12 +1,13 @@
 import gzip
 import textwrap
 from typing import Self, Union
-from rbms.dataset.utils import convert_data
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 from tqdm.autonotebook import tqdm
+
+from rbms.dataset.utils import convert_data
 
 
 class RBMDataset(Dataset):
@@ -117,9 +118,10 @@ class RBMDataset(Dataset):
         for i in pbar:
             en[i] = len(
                 gzip.compress(
-                    (self.data[torch.randperm(self.data.shape[0])[:num_samples]]).astype(
-                        int
-                    )
+                    (self.data[torch.randperm(self.data.shape[0])[:num_samples]])
+                    .cpu()
+                    .numpy()
+                    .astype(int)
                 )
             )
         return np.mean(en)
