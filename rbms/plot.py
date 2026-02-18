@@ -216,7 +216,7 @@ def plot_one_PCA(
             marker="o",
             alpha=1,
             linewidth=0.4,
-            rasterized=True
+            rasterized=True,
         )
         ax_hist_x.hist(
             data2[:, dir1],
@@ -275,7 +275,9 @@ def plot_mult_PCA(
         else ((data1.shape[1] // 2) // max_cols) + 1
     )
 
-    fig, ax = plt.subplots(n_rows, n_cols, figsize=(figsize_factor * n_cols, figsize_factor * n_rows))
+    fig, ax = plt.subplots(
+        n_rows, n_cols, figsize=(figsize_factor * n_cols, figsize_factor * n_rows)
+    )
 
     for i in range(n_rows):
         for j in range(n_cols):

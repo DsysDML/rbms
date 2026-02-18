@@ -19,7 +19,7 @@ from rbms.classes import RBM
 
 class BBRBM(RBM):
     """Parameters of the Bernoulli-Bernoulli RBM"""
-    
+
     visible_type: str = "bernoulli"
 
     def __init__(

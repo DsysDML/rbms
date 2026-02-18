@@ -20,7 +20,7 @@ class BGRBM(RBM):
     """Bernoulli-Gaussian RBM with fixed hidden variance = 1/Nv, 0-1 visibles, hidden and visible biases"""
 
     visible_type: str = "bernoulli"
-    
+
     def __init__(
         self,
         weight_matrix: Tensor,

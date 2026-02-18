@@ -48,7 +48,7 @@ def compute_2b_correlations(
         )
         if full_mat:
             res = torch.triu(res, 1) + torch.tril(res).T
-        return res #/ torch.sqrt(torch.diag(res).unsqueeze(1) @ torch.diag(res).unsqueeze(0))
+        return res  # / torch.sqrt(torch.diag(res).unsqueeze(1) @ torch.diag(res).unsqueeze(0))
     return torch.corrcoef(data.T)
 
 

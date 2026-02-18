@@ -9,7 +9,9 @@ def main():
 
     # Check if the first positional argument is provided
     if len(sys.argv) < 2:
-        print("Error: No command provided. Use 'train', 'restore', 'split' or 'pt_sampling'.")
+        print(
+            "Error: No command provided. Use 'train', 'restore', 'split' or 'pt_sampling'."
+        )
         sys.exit(1)
 
     # Assign the first positional argument to a variable

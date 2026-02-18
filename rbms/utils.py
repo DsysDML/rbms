@@ -33,7 +33,7 @@ def get_eigenvalues_history(filename: str, backend="cpu"):
             if "singular_values" not in f[f"update_{upd}"]:
                 compute = True
                 weight_matrix = f[f"update_{upd}"]["params"]["weight_matrix"][()]
-        
+
         if compute:
             weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
             if backend == "gpu":
@@ -49,7 +49,7 @@ def get_eigenvalues_history(filename: str, backend="cpu"):
                 eig = np.linalg.svd(weight_matrix, compute_uv=False)
             with h5py.File(filename, "a") as f:
                 f[f"update_{upd}"]["singular_values"] = eig
-            
+
         with h5py.File(filename, "a") as f:
             eig = f[f"update_{upd}"]["singular_values"][()]
             eigenvalues.append(eig.reshape(*eig.shape, 1))

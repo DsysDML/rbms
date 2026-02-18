@@ -61,6 +61,7 @@ def _init_training(
             case _:
                 raise NotImplementedError()
 
+    train_dataset.match_model_variable_type(map_model[model_type].visible_type)
     # Setup dataset
     num_visibles = train_dataset.get_num_visibles()
 
