@@ -83,7 +83,7 @@ def compute_gradient(
         mh_data=data["hidden_mag"],
         w_data=data["weights"],
         v_chain=chains["visible"],
-        h_chain=chains["hidden"],
+        h_chain=chains["hidden_mag"],
         w_chain=chains["weights"],
         vbias=params.vbias,
         hbias=params.hbias,
