@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import override
 
 import numpy as np
@@ -166,9 +168,9 @@ class PBRBM(RBM):
 
     def named_parameters(self):
         return {
-            "weight_matrix": self.weight_matrix,
-            "vbias": self.vbias,
-            "hbias": self.hbias,
+            "weight_matrix": self.weight_matrix.cpu().numpy(),
+            "vbias": self.vbias.cpu().numpy(),
+            "hbias": self.hbias.cpu().numpy(),
         }
 
     def num_hiddens(self):
@@ -203,7 +205,11 @@ class PBRBM(RBM):
         return chains
 
     @staticmethod
-    def set_named_parameters(named_params):
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> PBRBM:
         names = ["vbias", "hbias", "weight_matrix"]
         for k in names:
             if k not in named_params.keys():
@@ -211,9 +217,15 @@ class PBRBM(RBM):
                     f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
                 )
         params = PBRBM(
-            weight_matrix=named_params.pop("weight_matrix"),
-            vbias=named_params.pop("vbias"),
-            hbias=named_params.pop("hbias"),
+            weight_matrix=torch.from_numpy(named_params.pop("weight_matrix")).to(
+                device=device, dtype=dtype
+            ),
+            vbias=torch.from_numpy(named_params.pop("vbias")).to(
+                device=device, dtype=dtype
+            ),
+            hbias=torch.from_numpy(named_params.pop("hbias")).to(
+                device=device, dtype=dtype
+            ),
         )
         if len(named_params.keys()) > 0:
             raise ValueError(

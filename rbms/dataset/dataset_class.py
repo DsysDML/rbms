@@ -4,6 +4,7 @@ from typing import Self, Union
 
 import numpy as np
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
 from tqdm.autonotebook import tqdm
 
@@ -183,9 +184,14 @@ class RBMDataset(Dataset):
             )
         return train_dataset, test_dataset
 
-    def batch(self, batch_size: int) -> dict[str, Union[np.ndarray, torch.Tensor]]:
-        rand_idx = torch.randperm(len(self))
-        sampled_batch = self[rand_idx[:batch_size]]
+    def batch(self, batch_size: int) -> dict[str, Tensor]:
+        rand_idx = torch.randperm(len(self))[:batch_size]
+        sampled_batch: dict[str, Tensor] = {
+            "data": self.data[rand_idx],
+            "weights": self.weights[rand_idx],
+            "labels": self.labels[rand_idx],
+        }
+        # sampled_batch = self[rand_idx[:batch_size]]
         match self.variable_type:
             case "bernoulli":
                 sampled_batch["data"] = torch.bernoulli(sampled_batch["data"])

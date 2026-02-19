@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from typing import List, Optional
 
 import numpy as np
 import torch
 from torch import Tensor
 
+from rbms.classes import RBM
 from rbms.ising_gaussian.implement import (
     _compute_energy,
     _compute_energy_hiddens,
@@ -14,7 +17,6 @@ from rbms.ising_gaussian.implement import (
     _sample_hiddens,
     _sample_visibles,
 )
-from rbms.classes import RBM
 
 
 class IGRBM(RBM):
@@ -168,9 +170,9 @@ class IGRBM(RBM):
 
     def named_parameters(self):
         return {
-            "weight_matrix": self.weight_matrix,
-            "vbias": self.vbias,
-            "hbias": self.hbias,
+            "weight_matrix": self.weight_matrix.cpu().numpy(),
+            "vbias": self.vbias.cpu().numpy(),
+            "hbias": self.hbias.cpu().numpy(),
         }
 
     def num_hiddens(self):
@@ -186,7 +188,9 @@ class IGRBM(RBM):
         K = self.num_hiddens()
         logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
         quad = 0.5 * torch.dot(self.hbias, self.hbias) / float(self.num_visibles())
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(self.num_visibles()))
+        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(
+            float(self.num_visibles())
+        )
         return (logZ_v + quad + log_norm).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:
@@ -208,7 +212,11 @@ class IGRBM(RBM):
         return chains
 
     @staticmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> "IGRBM":
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> IGRBM:
         names = ["vbias", "hbias", "weight_matrix"]
         for k in names:
             if k not in named_params:
@@ -216,9 +224,15 @@ class IGRBM(RBM):
                     f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
                 )
         params = IGRBM(
-            weight_matrix=named_params.pop("weight_matrix"),
-            vbias=named_params.pop("vbias"),
-            hbias=named_params.pop("hbias"),
+            weight_matrix=torch.from_numpy(named_params.pop("weight_matrix")).to(
+                device=device, dtype=dtype
+            ),
+            vbias=torch.from_numpy(named_params.pop("vbias")).to(
+                device=device, dtype=dtype
+            ),
+            hbias=torch.from_numpy(named_params.pop("hbias")).to(
+                device=device, dtype=dtype
+            ),
         )
         if len(named_params) > 0:
             raise ValueError(

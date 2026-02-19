@@ -147,6 +147,7 @@ def _restore_training(
     test_size: float,
     device: str,
     dtype: torch.dtype,
+    map_model: dict[str, EBM] = map_model,
 ):
     # Retrieve the the number of training updates already performed on the model
     print(f"Restoring training from update {target_update}")

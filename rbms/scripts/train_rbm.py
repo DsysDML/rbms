@@ -20,12 +20,13 @@ from rbms.parser import (
     remove_argument,
     set_args_default,
 )
+from rbms.sampler import CD, PCD, RDM
 from rbms.training.implement import _init_training, _restore_training
 from rbms.training.pcd import train, train_v2
 from rbms.training.utils import get_checkpoints, init_training, restore_training
 
 
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train a Restricted Boltzmann Machine")
     parser = add_args_dataset(parser)
     parser = add_args_init_rbm(parser)
@@ -207,6 +208,7 @@ def main_v2(args, map_model=map_model):
     )
     flags = ["checkpoint"]
     if not args["restore"]:
+        args = set_args_default(args, default_args=default_args)
         _init_training(
             train_dataset=train_dataset,
             seed=args["seed"],
@@ -266,6 +268,7 @@ def main_v2(args, map_model=map_model):
         test_size=args["test_size"],
         device=args["device"],
         dtype=args["dtype"],
+        map_model=map_model,
     )
 
     optimizer = setup_optim(args["optim"], args, params)
@@ -278,7 +281,6 @@ def main_v2(args, map_model=map_model):
         normalize_grad=args["normalize_grad"],
         max_grad_norm=args["max_norm_grad"],
     )
-    from rbms.sampler import CD, PCD, RDM
 
     match args["training_type"]:
         case "pcd":

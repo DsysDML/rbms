@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import EBM
+from rbms.classes import EBM, Sampler
 from rbms.map_model import map_model
 from rbms.utils import restore_rng_state
 
@@ -37,7 +37,7 @@ def save_model(
         # Save the parameters of the model
         params_ckpt = checkpoint.create_group("params")
         for n, p in named_params.items():
-            params_ckpt[n] = p.detach().cpu().numpy()
+            params_ckpt[n] = p
             # This is for retrocompatibility purpose
             checkpoint[n] = params_ckpt[n]
         # Save current random state
@@ -86,11 +86,9 @@ def load_params(
     params = {}
     with h5py.File(filename, "r") as f:
         for k in f[last_file_key]["params"].keys():
-            params[k] = torch.from_numpy(f[last_file_key]["params"][k][()]).to(
-                device=device, dtype=dtype
-            )
+            params[k] = f[last_file_key]["params"][k][()]
             model_type = f["model_type"][()].decode()
-    return map_model[model_type].set_named_parameters(params)
+    return map_model[model_type].set_named_parameters(params, device=device, dtype=dtype)
 
 
 def load_model(
@@ -131,3 +129,19 @@ def load_model(
     if restore:
         restore_rng_state(filename=filename, index=index)
     return (params, perm_chains, start)
+
+
+def save_sampler(filename: str, sampler: Sampler):
+    named_params = sampler.named_parameters()
+    name = sampler.name
+    with h5py.File(filename, "a") as f:
+        if "sampler" not in f.keys():
+            f.create_group("sampler")
+            f["sampler"]["name"] = name
+
+        # Save the parameters of the model
+        for n, p in named_params.items():
+            if n in f["sampler"].keys():
+                f["sampler"][n][...] = p
+            else:
+                f["sampler"][n] = p

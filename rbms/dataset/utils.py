@@ -58,7 +58,7 @@ convert_data = {
         "bernoulli": (lambda x: x),
         "ising": (lambda x: bernoulli_to_ising(x)),
         "categorical": (lambda x: x),
-        # "continuous": lambda x: raise ValueError("Cannot convert from 'bernoulli' to 'continuous' data.")
+        "continuous": (lambda x: x),
     },
     "ising": {
         "bernoulli": (lambda x: ising_to_bernoulli(x)),
@@ -70,6 +70,7 @@ convert_data = {
         "ising": (lambda x: bernoulli_to_ising(categorical_to_bernoulli(x))),
         "categorical": (lambda x: x),
     },
+    "continuous": {"bernoulli": (lambda x: x), "continuous": (lambda x: x)},
 }
 
 

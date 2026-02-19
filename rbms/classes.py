@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Self
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -22,18 +23,18 @@ class EBM(ABC):
 
     @abstractmethod
     def __add__(self, other: EBM) -> EBM:
-        """Add the parameters of two RBMs. Useful for interpolation"""
+        """Add the parameters of two EBMs. Useful for interpolation"""
         ...
 
     @abstractmethod
     def __mul__(self, other: float) -> EBM:
-        """Multiplies the parameters of the RBM by a float."""
+        """Multiplies the parameters of the EBM by a float."""
         ...
 
     def __eq__(self, other: EBM):
         other_params = other.named_parameters()
         for k, v in self.named_parameters().items():
-            if not torch.equal(other_params[k], v):
+            if not np.equal(other_params[k], v):
                 return False
         return True
 
@@ -71,7 +72,7 @@ class EBM(ABC):
         weights: Tensor | None = None,
         start_v: Tensor | None = None,
     ) -> dict[str, Tensor]:
-        """Initialize a Markov chain for the RBM by sampling a uniform distribution on the visible layer
+        """Initialize a Markov chain for the EBM by sampling a uniform distribution on the visible layer
         and sampling the hidden layer according to the visible one.
 
         Args:
@@ -116,11 +117,15 @@ class EBM(ABC):
         ...
 
     @abstractmethod
-    def named_parameters(self) -> dict[str, Tensor]: ...
+    def named_parameters(self) -> dict[str, np.ndarray]: ...
 
     @staticmethod
     @abstractmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> EBM: ...
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> EBM: ...
 
     @abstractmethod
     def to(
@@ -235,7 +240,7 @@ class EBM(ABC):
                 p.grad /= grad_norm
                 p.grad *= max_norm
 
-    def save_flags(self, flags: list[str]):
+    def save_flags(self, flags: list[str]) -> list[str]:
         if len(self.flags) > 0:
             for elt in self.flags:
                 flags.append(elt)
@@ -316,7 +321,7 @@ class Sampler(ABC):
     @abstractmethod
     def save(self, filename): ...
 
-    def save_flags(self, flags: list[str]):
+    def save_flags(self, flags: list[str]) -> list[str]:
         if len(self.flags) > 0:
             for elt in self.flags:
                 flags.append(elt)
@@ -324,11 +329,16 @@ class Sampler(ABC):
         return flags
 
     @abstractmethod
-    def named_parameters(self) -> dict[str, Tensor]: ...
+    def named_parameters(self) -> dict[str, np.ndarray]: ...
 
     @staticmethod
     @abstractmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> Sampler: ...
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        map_model: dict[str, EBM],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> Sampler: ...
 
     @abstractmethod
     def post_grad_update(self, params: EBM) -> None: ...

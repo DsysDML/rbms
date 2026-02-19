@@ -24,7 +24,7 @@ def fit_batch_pcd(
     lambda_l2: float = 0.0,
     normalize_grad: bool = True,
     max_norm_grad: float = -1,
-) -> tuple[dict[str, Tensor], dict]:
+) -> dict[str, Tensor]:
     """Sample the EBM and compute the gradient.
 
     Args:
@@ -266,5 +266,7 @@ def train_v2(
                 learning_rate=learning_rate,
                 flags=flags,
             )
-            sampler.save(filename)
+            from rbms.io import save_sampler
+
+            save_sampler(filename, sampler)
         pbar.update(1)
