@@ -24,11 +24,14 @@ class PCD(Sampler):
         self.num_steps = num_steps
         self.flags = []
 
-    def sample(self, batch: Tensor):
+    def get_conf_grad(self, batch: Tensor):
+        self.sample(num_steps=None)
+        return self.chains
+
+    def sample(self, num_steps: int | None, **kwargs):
         self.chains = self.params.sample_state(
             chains=self.chains, n_steps=self.num_steps, beta=self.beta
         )
-        return self.chains
 
     def save(self, filename):
         if self.chains is not None:

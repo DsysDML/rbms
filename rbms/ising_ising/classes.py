@@ -241,3 +241,6 @@ class IIRBM(RBM):
 
     def get_metrics(self, metrics):
         return metrics
+
+    def post_grad_update(self):
+        pass

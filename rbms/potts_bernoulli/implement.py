@@ -236,3 +236,12 @@ def _init_parameters(
         * var_init
     )
     return vbias, hbias, weight_matrix
+
+
+@torch.jit.script
+def _zero_sum_gauge(vbias: Tensor, hbias: Tensor, weight_matrix: Tensor):
+    mean_W = weight_matrix.mean(1, keepdim=True)
+    weight_matrix -= mean_W
+    hbias += mean_W.squeeze().sum(0)
+    vbias -= vbias.mean(1, keepdim=True)
+    return vbias, hbias, weight_matrix

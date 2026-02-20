@@ -13,6 +13,7 @@ from rbms.potts_bernoulli.implement import (
     _init_parameters,
     _sample_hiddens,
     _sample_visibles,
+    _zero_sum_gauge,
 )
 
 
@@ -217,3 +218,14 @@ def init_parameters(
         var_init=var_init,
     )
     return PBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+
+
+def ensure_zero_sum_gauge(params: PBRBM) -> None:
+    """Ensure the weight matrix has a zero-sum gauge.
+
+    Args:
+        params (PBRBM): The parameters of the RBM.
+    """
+    params.vbias, params.hbias, params.weight_matrix = _zero_sum_gauge(
+        vbias=params.vbias, hbias=params.hbias, weight_matrix=params.weight_matrix
+    )

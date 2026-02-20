@@ -15,12 +15,16 @@ class CD(Sampler):
         self.chains = self.params.init_chains(2)
         self.flags = []
 
-    def sample(self, batch: Tensor):
+    def get_conf_grad(self, batch: Tensor) -> dict[str, Tensor]:
+        self.sample(num_steps=None, batch=batch)
+        return self.chains
+
+    def sample(self, num_steps: int | None, **kwargs) -> None:
+        batch = kwargs["batch"]
         self.chains = self.params.init_chains(num_samples=batch.shape[0], start_v=batch)
         self.chains = self.params.sample_state(
             chains=self.chains, n_steps=self.num_steps, beta=self.beta
         )
-        return self.chains
 
     def save(self, filename):
         if self.chains is not None:

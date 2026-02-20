@@ -8,7 +8,7 @@ from tqdm.autonotebook import tqdm
 
 from rbms.classes import EBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
-from rbms.io import save_model
+from rbms.io import save_model, save_sampler
 from rbms.potts_bernoulli.classes import PBRBM
 from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 
@@ -231,7 +231,7 @@ def train_v2(
             weights=weights,
             start_v=data,
         )
-        parallel_chains = sampler.sample(batch=data)
+        parallel_chains = sampler.get_conf_grad(batch=data)
 
         params.compute_gradient(
             data=curr_batch,
@@ -245,6 +245,7 @@ def train_v2(
         for opt in optimizer:
             opt.step()
 
+        params.post_grad_update()
         sampler.post_grad_update(params=params)
 
         # Get flags for save
@@ -266,7 +267,6 @@ def train_v2(
                 learning_rate=learning_rate,
                 flags=flags,
             )
-            from rbms.io import save_sampler
 
             save_sampler(filename, sampler)
         pbar.update(1)

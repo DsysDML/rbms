@@ -16,6 +16,7 @@ from rbms.potts_bernoulli.implement import (
     _init_parameters,
     _sample_hiddens,
     _sample_visibles,
+    _zero_sum_gauge,
 )
 
 
@@ -164,6 +165,7 @@ class PBRBM(RBM):
             var_init=var_init,
         )
         params = PBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+        params.set_zero_sum_gauge()
         return params
 
     def named_parameters(self):
@@ -255,5 +257,13 @@ class PBRBM(RBM):
         self.vbias.grad /= norm_factor
         self.hbias.grad /= norm_factor
 
+    def set_zero_sum_gauge(self):
+        self.vbias, self.hbias, self.weight_matrix = _zero_sum_gauge(
+            vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
+        )
+
     def get_metrics(self, metrics):
         return metrics
+
+    def post_grad_update(self):
+        self.set_zero_sum_gauge()
