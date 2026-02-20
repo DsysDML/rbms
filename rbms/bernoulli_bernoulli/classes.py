@@ -15,6 +15,7 @@ from rbms.bernoulli_bernoulli.implement import (
     _sample_visibles,
 )
 from rbms.classes import RBM
+from rbms.custom_fn import check_keys_dict
 
 
 class BBRBM(RBM):
@@ -162,7 +163,7 @@ class BBRBM(RBM):
         )
         return BBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
 
-    def named_parameters(self):
+    def named_parameters(self) -> dict[str, np.ndarray]:
         return {
             "weight_matrix": self.weight_matrix.cpu().numpy(),
             "vbias": self.vbias.cpu().numpy(),
@@ -208,11 +209,7 @@ class BBRBM(RBM):
         dtype: torch.dtype,
     ) -> BBRBM:
         names = ["vbias", "hbias", "weight_matrix"]
-        for k in names:
-            if k not in named_params.keys():
-                raise ValueError(
-                    f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
-                )
+        check_keys_dict(d=named_params, names=names)
         params = BBRBM(
             weight_matrix=torch.from_numpy(named_params.pop("weight_matrix")).to(
                 device=device, dtype=dtype

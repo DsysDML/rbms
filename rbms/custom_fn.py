@@ -39,3 +39,11 @@ def log2cosh(x: Tensor) -> Tensor:
         Tensor: Output tensor.
     """
     return torch.abs(x) + torch.log1p(torch.exp(-2 * torch.abs(x)))
+
+
+def check_keys_dict(d: dict, names: list[str]):
+    for k in names:
+        if k not in d.keys():
+            raise ValueError(
+                f"""Dictionary params missing key '{k}'\n Provided keys : {d.keys()}\n Expected keys: {names}"""
+            )

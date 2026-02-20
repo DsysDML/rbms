@@ -41,6 +41,7 @@ class RDM(Sampler):
     def named_parameters(self):
         params_dict = self.params.named_parameters()
         params_dict["model_type"] = np.asarray(self.params.name, dtype="T")
+        params_dict["sampler_type"] = np.asarray(self.name, dtype="T")
         params_dict["num_chains"] = np.asarray(self.num_chains)
         params_dict["beta"] = np.asarray(self.beta)
         params_dict["num_steps"] = np.asarray(self.num_steps)
