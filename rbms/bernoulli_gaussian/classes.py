@@ -277,3 +277,6 @@ class BGRBM(RBM):
 
     def post_grad_update(self):
         pass
+
+    def pre_grad_update(self):
+        pass

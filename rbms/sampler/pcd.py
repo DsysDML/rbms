@@ -83,3 +83,6 @@ class PCD(Sampler):
 
     def get_metrics(self, metrics):
         return metrics
+
+    def pre_grad_update(self):
+        pass

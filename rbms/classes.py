@@ -253,6 +253,9 @@ class EBM(ABC):
     def get_metrics(self, metrics: dict[str, float]) -> dict[str, float]: ...
 
     @abstractmethod
+    def pre_grad_update(self) -> None: ...
+
+    @abstractmethod
     def post_grad_update(self) -> None: ...
 
     @property
@@ -356,6 +359,9 @@ class Sampler(ABC):
         device: torch.device | str,
         dtype: torch.dtype,
     ) -> Sampler: ...
+
+    @abstractmethod
+    def pre_grad_update(self) -> None: ...
 
     @abstractmethod
     def post_grad_update(self, params: EBM) -> None: ...

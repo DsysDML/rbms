@@ -111,6 +111,8 @@ def train(
         # Do a bunch of modification on the gradient
 
         pre_grad_update(input=None)
+        params.pre_grad_update()
+        sampler.pre_grad_update()
 
         for opt in optimizer:
             opt.step()

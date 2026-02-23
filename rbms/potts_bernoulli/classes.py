@@ -271,3 +271,6 @@ class PBRBM(RBM):
 
     def post_grad_update(self):
         self.set_zero_sum_gauge()
+
+    def pre_grad_update(self):
+        pass
