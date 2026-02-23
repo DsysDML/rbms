@@ -28,7 +28,7 @@ class IIRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Ising-Ising RBM.
@@ -68,7 +68,9 @@ class IIRBM(RBM):
             hbias=self.hbias * other,
         )
 
-    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def clone(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is None:
             device = self.device
         if dtype is None:
@@ -170,15 +172,18 @@ class IIRBM(RBM):
             "hbias": self.hbias.cpu().numpy(),
         }
 
+    @property
     def num_hiddens(self):
         return self.hbias.shape[0]
 
+    @property
     def num_visibles(self):
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
+    @property
     def ref_log_z(self):
         return (log2cosh(self.vbias).sum() + log2cosh(self.hbias).sum()).item()
 
@@ -225,7 +230,9 @@ class IIRBM(RBM):
             )
         return params
 
-    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def to(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is not None:
             self.device = device
         if dtype is not None:

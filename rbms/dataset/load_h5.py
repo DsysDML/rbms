@@ -9,7 +9,7 @@ def load_HDF5(
     filename: str | Path,
     use_weights: bool = False,
     device: str = "cuda",
-) -> tuple[np.ndarray, np.ndarray | None, str]:
+) -> tuple[np.ndarray, np.ndarray | None, str, np.ndarray]:
     """Load a dataset from an HDF5 file.
 
     Args:

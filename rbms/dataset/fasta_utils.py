@@ -137,7 +137,7 @@ def write_fasta(
 
 
 def compute_weights(
-    data: ArrayLike, th: float = 0.8, device: torch.device = "cpu"
+    data: ArrayLike, th: float = 0.8, device: torch.device | str = "cpu"
 ) -> np.ndarray:
     """Computes the weight to be assigned to each sequence 's' in 'data' as 1 / n_clust, where 'n_clust' is the number of sequences
     that have a sequence identity with 's' >= th.

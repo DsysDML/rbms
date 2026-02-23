@@ -10,4 +10,3 @@ from rbms.potts_bernoulli.functional import (
     sample_hiddens,
     sample_visibles,
 )
-from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge

@@ -27,8 +27,8 @@ class IGRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: Optional[torch.device] = None,
-        dtype: Optional[torch.dtype] = None,
+        device: torch.device | str | None = None,
+        dtype: torch.dtype | None = None,
     ):
         if device is None:
             device = weight_matrix.device
@@ -75,7 +75,9 @@ class IGRBM(RBM):
         return out
 
     def clone(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
+        self,
+        device: torch.device | str | None = None,
+        dtype: Optional[torch.dtype] = None,
     ):
         if device is None:
             device = self.device

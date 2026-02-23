@@ -28,7 +28,7 @@ class BGRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
         if device is None:
@@ -81,7 +81,9 @@ class BGRBM(RBM):
         )
         return out
 
-    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def clone(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is None:
             device = self.device
         if dtype is None:
@@ -190,9 +192,11 @@ class BGRBM(RBM):
             "hbias": self.hbias.cpu().numpy(),
         }
 
+    @property
     def num_hiddens(self):
         return self.hbias.shape[0]
 
+    @property
     def num_visibles(self):
         return self.vbias.shape[0]
 
@@ -257,7 +261,7 @@ class BGRBM(RBM):
         return params
 
     def to(
-        self, device: torch.device | None = None, dtype: torch.dtype | None = None
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
     ) -> "BGRBM":
         if device is not None:
             self.device = device

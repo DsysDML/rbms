@@ -172,15 +172,18 @@ class BBRBM(RBM):
             "hbias": self.hbias.cpu().numpy(),
         }
 
+    @property
     def num_hiddens(self):
         return self.hbias.shape[0]
 
+    @property
     def num_visibles(self):
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
+    @property
     def ref_log_z(self):
         return (
             torch.log1p(torch.exp(self.vbias)).sum() + self.num_hiddens() * np.log(2)

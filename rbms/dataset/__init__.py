@@ -46,7 +46,7 @@ def load_dataset(
                     variable_type = "categorical"
             # Select subset of dataset w.r.t. labels
             if subset_labels is not None and labels is not None:
-                data, labels = get_subset_labels(data, labels, subset_labels)
+                data, labels = get_subset_labels(data, labels, np.asarray(subset_labels))
 
             if weights is None:
                 weights = np.ones(data.shape[0])

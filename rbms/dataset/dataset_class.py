@@ -1,6 +1,7 @@
+from __future__ import annotations
 import gzip
 import textwrap
-from typing import Self, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -142,7 +143,7 @@ class RBMDataset(Dataset):
         rng: np.random.Generator,
         train_size: float,
         test_size: float | None = None,
-    ) -> tuple[Self, Self | None]:
+    ) -> tuple[RBMDataset, RBMDataset | None]:
         num_samples = self.data.shape[0]
         if test_size is None:
             test_size = 1.0 - train_size
