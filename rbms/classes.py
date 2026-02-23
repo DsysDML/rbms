@@ -189,14 +189,14 @@ class EBM(ABC):
         """
         ...
 
-    @abstractmethod
     @property
+    @abstractmethod
     def num_visibles(self) -> int:
         """Number of visible units"""
         ...
 
-    @abstractmethod
     @property
+    @abstractmethod
     def ref_log_z(self) -> float:
         """Reference log partition function with weights set to 0 (except for the visible bias)."""
         ...
@@ -255,8 +255,8 @@ class EBM(ABC):
     @abstractmethod
     def post_grad_update(self) -> None: ...
 
-    @abstractmethod
     @property
+    @abstractmethod
     def effective_number_variables(self) -> float: ...
 
 
@@ -300,8 +300,8 @@ class RBM(EBM):
         """
         ...
 
-    @abstractmethod
     @property
+    @abstractmethod
     def num_hiddens(self) -> int:
         """Number of hidden units"""
         ...
