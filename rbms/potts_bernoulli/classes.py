@@ -31,7 +31,7 @@ class PBRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Potts-Bernoulli RBM.
@@ -40,7 +40,7 @@ class PBRBM(RBM):
             weight_matrix (Tensor): The weight matrix of the RBM.
             vbias (Tensor): The visible bias of the RBM.
             hbias (Tensor): The hidden bias of the RBM.
-            device (Optional[torch.device], optional): The device for the parameters.
+            device (torch.device | str | None, optional): The device for the parameters.
                 Defaults to the device of `weight_matrix`.
             dtype (Optional[torch.dtype], optional): The data type for the parameters.
                 Defaults to the data type of `weight_matrix`.
@@ -72,7 +72,9 @@ class PBRBM(RBM):
         )
 
     @torch.jit.export
-    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def clone(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is None:
             device = self.device
         if dtype is None:
@@ -176,23 +178,26 @@ class PBRBM(RBM):
             "hbias": self.hbias.cpu().numpy(),
         }
 
-    def num_hiddens(self):
+    @property
+    def num_hiddens(self) -> int:
         return self.hbias.shape[0]
 
+    @property
     def num_states(self) -> int:
         """Number of colors for the Potts variables"""
         return self.weight_matrix.shape[1]
 
-    def num_visibles(self):
+    @property
+    def num_visibles(self) -> int:
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
+    @property
     def ref_log_z(self):
         return (
-            self.num_hiddens() * np.log(2)
-            + self.num_visibles() * np.log(self.num_states())
+            self.num_hiddens * np.log(2) + self.num_visibles * np.log(self.num_states)
         ).item()
 
     def sample_hiddens(self, chains, beta=1):
@@ -232,7 +237,9 @@ class PBRBM(RBM):
             )
         return params
 
-    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def to(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is not None:
             self.device = device
         if dtype is not None:

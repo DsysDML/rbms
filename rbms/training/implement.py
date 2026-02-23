@@ -12,7 +12,6 @@ from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
 from rbms.potts_bernoulli.classes import PBRBM
-from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 from rbms.training.pcd import fit_batch_pcd
 from rbms.utils import get_saved_updates
 
@@ -46,7 +45,7 @@ def _init_training(
     alphabet: str,
     remove_duplicates: bool,
     dtype: torch.dtype,
-    device: str,
+    device: torch.device | str,
     flags: list[str],
     map_model: dict[str, EBM] = map_model,
 ):
@@ -72,8 +71,6 @@ def _init_training(
         device=device,
         dtype=dtype,
     )
-    if isinstance(params, PBRBM):
-        ensure_zero_sum_gauge(params)
 
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
@@ -206,7 +203,7 @@ def _restore_training(
 def _train(
     params: EBM,
     parallel_chains: dict[str, Tensor],
-    optimizer: Optimizer,
+    optimizer: list[Optimizer],
     train_dataset: RBMDataset,
     checkpoints: np.ndarray,
     curr_update: int,
@@ -264,8 +261,7 @@ def _train(
         for opt in optimizer:
             opt.step()
 
-        if isinstance(params, PBRBM):
-            ensure_zero_sum_gauge(params)
+        params.post_grad_update()
 
         # Save current model if necessary
         if idx in checkpoints or idx == num_updates:

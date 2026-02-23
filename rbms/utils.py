@@ -316,13 +316,13 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
 
 def bernoulli_to_ising(params: BBRBM) -> IIRBM:
     weight_matrix = 0.25 * params.weight_matrix
-    vbias = 0.5 * params.vbias + weight_matrix.sum(axis=1)
-    hbias = 0.5 * params.hbias + weight_matrix.sum(axis=0)
+    vbias = 0.5 * params.vbias + weight_matrix.sum(dim=1)
+    hbias = 0.5 * params.hbias + weight_matrix.sum(dim=0)
     return IIRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
 
 
 def ising_to_bernoulli(params: IIRBM) -> BBRBM:
     weight_matrix = 4.0 * params.weight_matrix
-    vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(axis=1)
-    hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(axis=0)
+    vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(dim=1)
+    hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(dim=0)
     return BBRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)

@@ -57,23 +57,23 @@ class SGD_cossim(SGD):
 def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
     match args["optim"]:
         case "sgd":
-            optim = SGD
+            optim_class = SGD
         case "cossim":
-            optim = SGD_cossim
+            optim_class = SGD_cossim
         case _:
             print(f"Unrecognized optimizer {args['optim']}, falling back to SGD.")
-            optim = SGD
+            optim_class = SGD
     learning_rate = args["learning_rate"]
     max_lr = args["max_lr"]
     if args["scale_lr"]:
-        learning_rate /= np.sqrt(np.sqrt(params.num_visibles() * params.num_hiddens()))
-        max_lr /= np.sqrt(np.sqrt(params.num_visibles() * params.num_hiddens()))
+        learning_rate /= np.sqrt(params.effective_number_variables)
+        max_lr /= np.sqrt(params.effective_number_variables)
 
     if args["mult_optim"]:
         if not isinstance(learning_rate, Tensor):
             learning_rate = torch.tensor([learning_rate] * len(params.parameters()))
         optimizer = [
-            optim(
+            optim_class(
                 [p],
                 lr=learning_rate[i],
                 maximize=True,
@@ -84,7 +84,7 @@ def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
         if not isinstance(learning_rate, Tensor):
             learning_rate = torch.tensor([learning_rate])
         optimizer = [
-            optim(
+            optim_class(
                 params.parameters(),
                 lr=learning_rate[0],
                 maximize=True,

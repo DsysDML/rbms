@@ -14,7 +14,7 @@ class EBM(ABC):
     """An abstract class representing the parameters of an Energy-Based Model."""
 
     name: str
-    device: torch.device
+    device: torch.device | str | None
     visible_type: str
     flags: list[str]
 
@@ -168,7 +168,7 @@ class EBM(ABC):
     def init_parameters(
         num_hiddens: int,
         dataset: RBMDataset,
-        device: torch.device,
+        device: torch.device | str,
         dtype: torch.dtype,
         var_init: float = 1e-4,
     ) -> EBM:
@@ -190,11 +190,13 @@ class EBM(ABC):
         ...
 
     @abstractmethod
+    @property
     def num_visibles(self) -> int:
         """Number of visible units"""
         ...
 
     @abstractmethod
+    @property
     def ref_log_z(self) -> float:
         """Reference log partition function with weights set to 0 (except for the visible bias)."""
         ...
@@ -253,6 +255,10 @@ class EBM(ABC):
     @abstractmethod
     def post_grad_update(self) -> None: ...
 
+    @abstractmethod
+    @property
+    def effective_number_variables(self) -> float: ...
+
 
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
@@ -295,6 +301,7 @@ class RBM(EBM):
         ...
 
     @abstractmethod
+    @property
     def num_hiddens(self) -> int:
         """Number of hidden units"""
         ...
@@ -309,6 +316,10 @@ class RBM(EBM):
             new_chains = self.sample_visibles(chains=new_chains, beta=beta)
         new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
         return new_chains
+
+    @property
+    def effective_number_variables(self) -> float:
+        return np.sqrt(self.num_visibles * self.num_hiddens)
 
 
 class Sampler(ABC):

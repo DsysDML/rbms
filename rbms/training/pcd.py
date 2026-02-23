@@ -9,8 +9,6 @@ from tqdm.autonotebook import tqdm
 from rbms.classes import EBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model, save_sampler
-from rbms.potts_bernoulli.classes import PBRBM
-from rbms.potts_bernoulli.utils import ensure_zero_sum_gauge
 
 
 def fit_batch_pcd(
@@ -107,26 +105,6 @@ def train(
     # save
     filename: str = args_save["filename"]
 
-    # _train(
-    #     params=params,
-    #     parallel_chains=parallel_chains,
-    #     optimizer=optimizer,
-    #     train_dataset=train_dataset,
-    #     checkpoints=checkpoints,
-    #     curr_update=curr_update,
-    #     num_updates=num_updates,
-    #     batch_size=batch_size,
-    #     training_type=training_type,
-    #     gibbs_steps=gibbs_steps,
-    #     beta=beta,
-    #     centered=centered,
-    #     L1=L1,
-    #     L2=L2,
-    #     normalize_grad=normalize_grad,
-    #     max_norm_grad=max_norm_grad,
-    #     filename=filename,
-    #     elapsed_time=elapsed_time,
-    # )
     # pbar
     pbar = tqdm(
         initial=curr_update,
@@ -168,8 +146,7 @@ def train(
         for opt in optimizer:
             opt.step()
 
-        if isinstance(params, PBRBM):
-            ensure_zero_sum_gauge(params)
+        params.post_grad_update()
 
         # Save current model if necessary
         if idx in checkpoints or idx == num_updates:

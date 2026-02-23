@@ -94,7 +94,7 @@ def load_params(
 def load_model(
     filename: str,
     index: int,
-    device: torch.device,
+    device: torch.device | str,
     dtype: torch.dtype,
     restore: bool = False,
     map_model: dict[str, EBM] = map_model,

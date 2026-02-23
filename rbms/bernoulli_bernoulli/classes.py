@@ -28,7 +28,7 @@ class BBRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Bernoulli-Bernoulli RBM.
@@ -68,7 +68,9 @@ class BBRBM(RBM):
             hbias=self.hbias * other,
         )
 
-    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def clone(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is None:
             device = self.device
         if dtype is None:
@@ -227,7 +229,9 @@ class BBRBM(RBM):
             )
         return params
 
-    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def to(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is not None:
             self.device = device
         if dtype is not None:
