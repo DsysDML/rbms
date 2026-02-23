@@ -22,8 +22,8 @@ from rbms.parser import (
 )
 from rbms.sampler import CD, PCD, RDM
 from rbms.training.implement import _init_training, _restore_training
-from rbms.training.pcd import train, train_v2
-from rbms.training.utils import get_checkpoints, init_training, restore_training
+from rbms.training.pcd import train
+from rbms.training.utils import get_checkpoints
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -113,84 +113,7 @@ def process_args(args: dict):
     )
 
 
-def main():
-    torch.set_float32_matmul_precision("high")
-    torch.backends.cudnn.benchmark = True
-    parser = create_parser()
-    args = parser.parse_args()
-    args = vars(args)
-    args = set_args_default(args, default_args=default_args)
-    args = match_args_dtype(args)
-    (
-        args_dataset,
-        args_save,
-        args_train,
-        args_grad,
-        args_sampling,
-        args_torch,
-        args_init,
-    ) = process_args(args)
-    checkpoints = get_checkpoints(
-        num_updates=args_train["num_updates"],
-        n_save=args_save["n_save"],
-        spacing=args_save["spacing"],
-    )
-    train_dataset, test_dataset = load_dataset(
-        dataset_name=args_dataset["dataset_name"],
-        test_dataset_name=args_dataset["test_dataset_name"],
-        subset_labels=args_dataset["subset_labels"],
-        use_weights=args["use_weights"],
-        alphabet=args["alphabet"],
-        remove_duplicates=args["remove_duplicates"],
-        **args_torch,
-    )
-    flags = ["checkpoint"]
-    init_training(
-        args_save,
-        args_train,
-        args_grad,
-        args_sampling,
-        args_init,
-        args_dataset,
-        args_torch,
-        train_dataset,
-        flags,
-    )
-    args_train["update"] = 1
-    (
-        params,
-        parallel_chains,
-        target_update,
-        elapsed_time,
-        train_dataset,
-        test_dataset,
-    ) = restore_training(
-        train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        args_save=args_save,
-        args_train=args_train,
-        args_dataset=args_dataset,
-        args_torch=args_torch,
-        map_model=map_model,
-    )
-    optimizer = setup_optim(args_train["optim"], args_train, params)
-    train(
-        train_dataset=train_dataset,
-        test_dataset=test_dataset,
-        params=params,
-        parallel_chains=parallel_chains,
-        optimizer=optimizer,
-        curr_update=target_update,
-        elapsed_time=elapsed_time,
-        checkpoints=checkpoints,
-        args_save=args_save,
-        args_train=args_train,
-        args_grad=args_grad,
-        args_sampling=args_sampling,
-    )
-
-
-def main_v2(args, map_model=map_model):
+def main(args, map_model=map_model):
     checkpoints = get_checkpoints(
         num_updates=args["num_updates"],
         n_save=args["n_save"],
@@ -303,7 +226,7 @@ def main_v2(args, map_model=map_model):
         case _:
             raise ValueError(f"No training type {args['training_type']} supported.")
 
-    train_v2(
+    train(
         train_dataset=train_dataset,
         test_dataset=test_dataset,
         params=params,
@@ -327,11 +250,11 @@ def load_args_from_filename(args: dict):
         if args["beta"] is None:
             args["beta"] = f["sampling_args"]["beta"][()].item()
         if args["optim"] is None:
-            args["optim"] = f["train_args"]["optim"][()].decode()
+            args["optim"] = str(f["train_args"]["optim"][()])
         if args["batch_size"] is None:
             args["batch_size"] = f["train_args"]["batch_size"][()].item()
         if args["training_type"] is None:
-            args["training_type"] = f["train_args"]["training_type"][()].decode()
+            args["training_type"] = str(f["train_args"]["training_type"][()])
         args["no_center"] = f["grad_args"]["no_center"][()].item()
         args["seed"] = f["dataset_args"]["seed"][()].item()
         args["train_size"] = f["dataset_args"]["train_size"][()].item()
@@ -356,4 +279,4 @@ if __name__ == "__main__":
     args = vars(args)
     # args = set_args_default(args, default_args=default_args)
     args = match_args_dtype(args)
-    main_v2(args=args)
+    main(args=args)

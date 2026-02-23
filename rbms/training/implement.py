@@ -1,19 +1,13 @@
-import time
-
 import h5py
 import numpy as np
 import torch
-from torch import Tensor
-from torch.optim import Optimizer
-from tqdm.autonotebook import tqdm
 
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
-from rbms.potts_bernoulli.classes import PBRBM
-from rbms.training.pcd import fit_batch_pcd
 from rbms.utils import get_saved_updates
+from torch import Tensor
 
 
 def _init_training(
@@ -106,7 +100,7 @@ def _init_training(
         dataset["use_weights"] = use_weights
         dataset["train_size"] = train_size
         dataset["test_size"] = test_size
-        dataset["alphabet"] = alphabet
+        dataset["alphabet"] = np.asarray(alphabet, dtype="T")
         dataset["remove_duplicates"] = remove_duplicates
         dataset["seed"] = seed
 
@@ -122,15 +116,15 @@ def _init_training(
         sampling["beta"] = beta
 
         train_args = f.create_group("train_args")
-        train_args["optim"] = optim
+        train_args["optim"] = np.asarray(optim, dtype="T")
         train_args["batch_size"] = batch_size
         train_args["learning_rate"] = learning_rate
-        train_args["training_type"] = training_type
+        train_args["training_type"] = np.asarray(training_type, dtype="T")
         train_args["max_lr"] = max_lr
 
         save_args = f.create_group("save_args")
         save_args["n_save"] = n_save
-        save_args["spacing"] = spacing
+        save_args["spacing"] = np.asarray(spacing, dtype="T")
 
 
 def _restore_training(
@@ -145,7 +139,7 @@ def _restore_training(
     device: str,
     dtype: torch.dtype,
     map_model: dict[str, EBM] = map_model,
-):
+) -> tuple[EBM, dict[str, Tensor], int, float, RBMDataset, RBMDataset]:
     # Retrieve the the number of training updates already performed on the model
     print(f"Restoring training from update {target_update}")
 
@@ -198,85 +192,3 @@ def _restore_training(
         train_dataset,
         test_dataset,
     )
-
-
-def _train(
-    params: EBM,
-    parallel_chains: dict[str, Tensor],
-    optimizer: list[Optimizer],
-    train_dataset: RBMDataset,
-    checkpoints: np.ndarray,
-    curr_update: int,
-    num_updates: int,
-    batch_size: int,
-    training_type: str,
-    gibbs_steps: int,
-    beta: float,
-    centered: bool,
-    L1: float,
-    L2: float,
-    normalize_grad: bool,
-    max_norm_grad: float,
-    filename: str,
-    elapsed_time: float,
-):
-    # pbar
-    pbar = tqdm(
-        initial=curr_update,
-        total=num_updates,
-        colour="red",
-        dynamic_ncols=True,
-        ascii="-#",
-    )
-    pbar.set_description(f"Training {params.name}")
-
-    start = time.perf_counter()
-
-    for idx in range(curr_update + 1, num_updates + 1):
-        batch = train_dataset.batch(batch_size)
-        data, weights = batch["data"], batch["weights"]
-        if training_type == "rdm":
-            parallel_chains = params.init_chains(parallel_chains["visible"].shape[0])
-        elif training_type == "cd":
-            parallel_chains = params.init_chains(
-                data.shape[0],
-                weights=weights,
-                start_v=data,
-            )
-        for opt in optimizer:
-            opt.zero_grad(set_to_none=False)
-
-        parallel_chains = fit_batch_pcd(
-            batch=(data, weights),
-            parallel_chains=parallel_chains,
-            params=params,
-            gibbs_steps=gibbs_steps,
-            beta=beta,
-            centered=centered,
-            lambda_l1=L1,
-            lambda_l2=L2,
-            normalize_grad=normalize_grad,
-            max_norm_grad=max_norm_grad,
-        )
-        for opt in optimizer:
-            opt.step()
-
-        params.post_grad_update()
-
-        # Save current model if necessary
-        if idx in checkpoints or idx == num_updates:
-            curr_time = time.perf_counter() - start
-            learning_rate = torch.tensor([opt.param_groups[0]["lr"] for opt in optimizer])
-            save_model(
-                filename=filename,
-                params=params,
-                chains=parallel_chains,
-                num_updates=idx,
-                time=curr_time + elapsed_time,
-                learning_rate=learning_rate,
-                flags=["checkpoint"],
-            )
-
-        pbar.set_postfix_str(f"lr: {optimizer[0].param_groups[0]['lr']:.6f}")
-        # Update progress bar
-        pbar.update(1)
