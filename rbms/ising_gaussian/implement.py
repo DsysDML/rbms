@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
+from rbms.custom_fn import log2cosh
 
 
 @torch.jit.script
@@ -10,7 +11,7 @@ def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
     mh = hbias + (v @ weight_matrix)
-    h = torch.randn_like(mh) + mh
+    h = torch.randn_like(mh) / torch.sqrt(weight_matrix.shape[0]) + mh
     return h, mh
 
 
@@ -58,7 +59,8 @@ def _compute_energy_hiddens(
 ) -> Tensor:
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
-    log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
+    # log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
+    log_term = log2cosh(exponent)
     quad = 0.5 * float(weight_matrix.shape[0]) * (h * h).sum(1)
     return -field - log_term.sum(1) + quad
 
@@ -66,7 +68,7 @@ def _compute_energy_hiddens(
 @torch.jit.script
 def _compute_gradient(
     v_data: Tensor,
-    h_data: Tensor,
+    mh_data: Tensor,
     w_data: Tensor,
     v_chain: Tensor,
     h_chain: Tensor,
@@ -85,13 +87,13 @@ def _compute_gradient(
 
     v_data_mean = (v_data * w_data).sum(0) / w_data_norm
     torch.clamp_(v_data_mean, min=1e-4, max=(1.0 - 1e-4))
-    h_data_mean = (h_data * w_data).sum(0) / w_data_norm
+    h_data_mean = (mh_data * w_data).sum(0) / w_data_norm
     v_gen_mean = v_chain.mean(0)
     torch.clamp_(v_gen_mean, min=1e-4, max=(1.0 - 1e-4))
 
     if centered:
         v_data_centered = v_data - v_data_mean
-        h_data_centered = h_data - h_data_mean
+        h_data_centered = mh_data - h_data_mean
         v_gen_centered = v_chain - v_data_mean
         h_gen_centered = h_chain - h_data_mean
 
@@ -106,11 +108,11 @@ def _compute_gradient(
         )  # No training on biases
     else:
         v_data_centered = v_data
-        h_data_centered = h_data
+        h_data_centered = mh_data
         v_gen_centered = v_chain
         h_gen_centered = h_chain
 
-        grad_weight_matrix = ((v_data * w_data).T @ h_data) / w_data_norm - (
+        grad_weight_matrix = ((v_data * w_data).T @ mh_data) / w_data_norm - (
             (v_chain * chain_weights).T @ h_chain
         )
 

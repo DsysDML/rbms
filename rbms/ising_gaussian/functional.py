@@ -58,6 +58,7 @@ def compute_energy_visibles(v: Tensor, params: IGRBM) -> Tensor:
         vbias=params.vbias,
         hbias=params.hbias,
         weight_matrix=params.weight_matrix,
+        const=params.const,
     )
 
 

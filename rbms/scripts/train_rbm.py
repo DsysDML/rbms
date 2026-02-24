@@ -166,7 +166,6 @@ def main(args, map_model=map_model):
             map_model=map_model,
         )
         args["update"] = 1
-    print(args)
 
     args = load_args_from_filename(args)
     print(args)
