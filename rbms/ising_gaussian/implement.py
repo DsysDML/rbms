@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
+from rbms.custom_fn import log2cosh
 
 
 @torch.jit.script
@@ -10,7 +11,7 @@ def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
     mh = hbias + (v @ weight_matrix)
-    h = torch.randn_like(mh) + mh
+    h = torch.randn_like(mh) / torch.sqrt(weight_matrix.shape[0]) + mh
     return h, mh
 
 
@@ -58,7 +59,8 @@ def _compute_energy_hiddens(
 ) -> Tensor:
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
-    log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
+    # log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
+    log_term = log2cosh(exponent)
     quad = 0.5 * float(weight_matrix.shape[0]) * (h * h).sum(1)
     return -field - log_term.sum(1) + quad
 

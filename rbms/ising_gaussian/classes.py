@@ -7,6 +7,7 @@ import torch
 from torch import Tensor
 
 from rbms.classes import RBM
+from rbms.custom_fn import check_keys_dict, log2cosh
 from rbms.ising_gaussian.implement import (
     _compute_energy,
     _compute_energy_hiddens,
@@ -22,6 +23,8 @@ from rbms.ising_gaussian.implement import (
 class IGRBM(RBM):
     """Ising-Gaussian RBM with fixed hidden variance = 1/Nv, \pm 1 visibles, without any bias"""
 
+    visible_type: str = "ising"
+
     def __init__(
         self,
         weight_matrix: Tensor,
@@ -34,8 +37,8 @@ class IGRBM(RBM):
             device = weight_matrix.device
         if dtype is None:
             dtype = weight_matrix.dtype
-        self.device, self.dtype = device, dtype
 
+        self.device, self.dtype = device, dtype
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
@@ -43,36 +46,35 @@ class IGRBM(RBM):
         log_two_pi = torch.log(torch.tensor(2.0 * torch.pi, dtype=dtype, device=device))
         const = (
             0.5
-            * float(self.weight_matrix[1])
+            * float(self.weight_matrix.shape[1])
             * (
-                torch.log(
-                    torch.tensor(float(self.weight_matrix[0]), dtype=dtype, device=device)
+                -torch.log(
+                    torch.tensor(float(self.weight_matrix.shape[0]), dtype=dtype, device=device)
                 )
-                - log_two_pi
+                + log_two_pi
             )
         )
         self.const = const
         self.name = "IGRBM"
+        self.flags = []
 
     def __add__(self, other):
-        out = IGRBM(
+        return IGRBM(
             weight_matrix=self.weight_matrix + other.weight_matrix,
             vbias=self.vbias + other.vbias,
             hbias=self.hbias + other.hbias,
             device=self.device,
             dtype=self.dtype,
         )
-        return out
 
     def __mul__(self, other):
-        out = IGRBM(
+        return IGRBM(
             weight_matrix=self.weight_matrix * other,
             vbias=self.vbias * other,
             hbias=self.hbias * other,
             device=self.device,
             dtype=self.dtype,
         )
-        return out
 
     def clone(
         self,
@@ -93,23 +95,34 @@ class IGRBM(RBM):
 
     def compute_energy(self, v: Tensor, h: Tensor) -> Tensor:
         return _compute_energy(
-            v=v, h=h, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
+            v=v, 
+            h=h, 
+            vbias=self.vbias, 
+            hbias=self.hbias, 
+            weight_matrix=self.weight_matrix
         )
 
     def compute_energy_hiddens(self, h: Tensor) -> Tensor:
         return _compute_energy_hiddens(
-            h=h, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
+            h=h, 
+            vbias=self.vbias, 
+            hbias=self.hbias, 
+            weight_matrix=self.weight_matrix
         )
 
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
         return _compute_energy_visibles(
-            v=v, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
+            v=v, 
+            vbias=self.vbias, 
+            hbias=self.hbias, 
+            weight_matrix=self.weight_matrix,
+            const=self.const,
         )
 
     def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
         _compute_gradient(
             v_data=data["visible"],
-            h_data=data["hidden_mag"],
+            mh_data=data["hidden_mag"],
             w_data=data["weights"],
             v_chain=chains["visible"],
             h_chain=chains["hidden_mag"],
@@ -126,7 +139,7 @@ class IGRBM(RBM):
         return IGRBM(
             weight_matrix=torch.zeros_like(self.weight_matrix),
             vbias=self.vbias,
-            hbias=torch.zeros_like(self.hbias),
+            hbias=self.hbias, #torch.zeros_like(self.hbias),
             device=self.device,
             dtype=self.dtype,
         )
@@ -177,22 +190,24 @@ class IGRBM(RBM):
             "hbias": self.hbias.cpu().numpy(),
         }
 
+    @property
     def num_hiddens(self):
         return self.hbias.shape[0]
 
+    @property
     def num_visibles(self):
         return self.vbias.shape[0]
 
     def parameters(self) -> List[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
+    @property
     def ref_log_z(self):
         K = self.num_hiddens()
-        logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
+        # logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
+        logZ_v = log2cosh(self.vbias).sum()
         quad = 0.5 * torch.dot(self.hbias, self.hbias) / float(self.num_visibles())
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(
-            float(self.num_visibles())
-        )
+        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(self.num_visibles()))
         return (logZ_v + quad + log_norm).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:
