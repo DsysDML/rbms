@@ -203,11 +203,11 @@ class IGRBM(RBM):
 
     @property
     def ref_log_z(self):
-        K = self.num_hiddens()
+        K = self.num_hiddens
         # logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
         logZ_v = log2cosh(self.vbias).sum()
-        quad = 0.5 * torch.dot(self.hbias, self.hbias) / float(self.num_visibles())
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(self.num_visibles()))
+        quad = 0.5 * torch.dot(self.hbias, self.hbias) / float(self.num_visibles)
+        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(self.num_visibles))
         return (logZ_v + quad + log_norm).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:
