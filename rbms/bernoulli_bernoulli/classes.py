@@ -186,7 +186,7 @@ class BBRBM(RBM):
     @property
     def ref_log_z(self):
         return (
-            torch.log1p(torch.exp(self.vbias)).sum() + self.num_hiddens() * np.log(2)
+            torch.log1p(torch.exp(self.vbias)).sum() + self.num_hiddens * np.log(2)
         ).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:

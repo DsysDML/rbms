@@ -21,7 +21,7 @@ from rbms.ising_gaussian.implement import (
 
 
 class IGRBM(RBM):
-    """Ising-Gaussian RBM with fixed hidden variance = 1/Nv, \pm 1 visibles, without any bias"""
+    """Ising-Gaussian RBM with fixed hidden variance = 1/Nv, +- 1 visibles, without any bias"""
 
     visible_type: str = "ising"
 
@@ -49,7 +49,9 @@ class IGRBM(RBM):
             * float(self.weight_matrix.shape[1])
             * (
                 -torch.log(
-                    torch.tensor(float(self.weight_matrix.shape[0]), dtype=dtype, device=device)
+                    torch.tensor(
+                        float(self.weight_matrix.shape[0]), dtype=dtype, device=device
+                    )
                 )
                 + log_two_pi
             )
@@ -95,26 +97,19 @@ class IGRBM(RBM):
 
     def compute_energy(self, v: Tensor, h: Tensor) -> Tensor:
         return _compute_energy(
-            v=v, 
-            h=h, 
-            vbias=self.vbias, 
-            hbias=self.hbias, 
-            weight_matrix=self.weight_matrix
+            v=v, h=h, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
         )
 
     def compute_energy_hiddens(self, h: Tensor) -> Tensor:
         return _compute_energy_hiddens(
-            h=h, 
-            vbias=self.vbias, 
-            hbias=self.hbias, 
-            weight_matrix=self.weight_matrix
+            h=h, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
         )
 
     def compute_energy_visibles(self, v: Tensor) -> Tensor:
         return _compute_energy_visibles(
-            v=v, 
-            vbias=self.vbias, 
-            hbias=self.hbias, 
+            v=v,
+            vbias=self.vbias,
+            hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             const=self.const,
         )
@@ -139,7 +134,7 @@ class IGRBM(RBM):
         return IGRBM(
             weight_matrix=torch.zeros_like(self.weight_matrix),
             vbias=self.vbias,
-            hbias=self.hbias, #torch.zeros_like(self.hbias),
+            hbias=self.hbias,  # torch.zeros_like(self.hbias),
             device=self.device,
             dtype=self.dtype,
         )
@@ -207,7 +202,9 @@ class IGRBM(RBM):
         # logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
         logZ_v = log2cosh(self.vbias).sum()
         quad = 0.5 * torch.dot(self.hbias, self.hbias) / float(self.num_visibles)
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(self.num_visibles))
+        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(
+            float(self.num_visibles)
+        )
         return (logZ_v + quad + log_norm).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:

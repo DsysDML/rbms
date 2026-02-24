@@ -29,14 +29,6 @@ class RDM(Sampler):
         self.sample(num_steps=None)
         return self.chains
 
-    def save(self, filename):
-        if self.chains is not None:
-            with h5py.File(filename, "a") as f:
-                if "parallel_chains" in f.keys():
-                    f["parallel_chains"][...] = self.chains["visible"].cpu().numpy()
-                else:
-                    f["parallel_chains"] = self.chains["visible"].cpu().numpy()
-
     @torch.compiler.disable
     def named_parameters(self):
         params_dict = self.params.named_parameters()

@@ -338,9 +338,6 @@ class Sampler(ABC):
     @abstractmethod
     def sample(self, num_steps: int | None, **kwargs) -> None: ...
 
-    @abstractmethod
-    def save(self, filename): ...
-
     def save_flags(self, flags: list[str]) -> list[str]:
         if len(self.flags) > 0:
             for elt in self.flags:

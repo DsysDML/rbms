@@ -60,8 +60,8 @@ def fit_batch_pcd(
     return parallel_chains
 
 
-@torch.no_grad
-@torch.compile
+# @torch.no_grad
+# @torch.compile
 def train(
     train_dataset: RBMDataset,
     test_dataset: RBMDataset,
@@ -128,6 +128,19 @@ def train(
             flags.append("checkpoint")
 
         if len(flags) > 0:
+            metrics = {}
+            metrics = sampler.get_metrics(metrics)
+            pbar.write(f"=========== Update {idx} ===========")
+            for k, v in metrics.items():
+                pbar.write(f"{k}: {v}")
+            # pbar.write(f"acc rate : {sampler.acc_rates}")
+            # pbar.write(f"train LL: {train_ll:.2f}")
+            # pbar.write(f"test LL : {test_ll:.2f}")
+            # pbar.write("learning rate :")
+            # for i in range(len(optimizer)):
+            #     pbar.write(f"    - {names_params[i]} : {learning_rates[i]:.6f}")
+
+            # pbar.write(metrics)
             curr_time = time.perf_counter() - start
             learning_rate = torch.tensor([opt.param_groups[0]["lr"] for opt in optimizer])
             save_model(
