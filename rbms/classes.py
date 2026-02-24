@@ -130,8 +130,8 @@ class EBM(ABC):
     @abstractmethod
     def to(
         self,
-        device: torch.device | None = None,
-        dtype: torch.dtype | None = None,
+        device: torch.device | str | None = None,
+        dtype: torch.dtype | str | None = None,
     ) -> Self:
         """Move the parameters to the specified device and/or convert them to the specified data type.
 
