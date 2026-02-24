@@ -128,17 +128,21 @@ def train(
             flags.append("checkpoint")
 
         if len(flags) > 0:
+            names_params = (
+                list(params.named_parameters().keys()) if len(optimizer) > 1 else ["all"]
+            )
+            learning_rates = np.asarray([opt.param_groups[0]["lr"] for opt in optimizer])
+
             metrics = {}
-            metrics = sampler.get_metrics(metrics)
+            metrics = sampler.get_metrics(
+                metrics, train_dataset=train_dataset, test_dataset=test_dataset
+            )
             pbar.write(f"=========== Update {idx} ===========")
             for k, v in metrics.items():
                 pbar.write(f"{k}: {v}")
-            # pbar.write(f"acc rate : {sampler.acc_rates}")
-            # pbar.write(f"train LL: {train_ll:.2f}")
-            # pbar.write(f"test LL : {test_ll:.2f}")
-            # pbar.write("learning rate :")
-            # for i in range(len(optimizer)):
-            #     pbar.write(f"    - {names_params[i]} : {learning_rates[i]:.6f}")
+            pbar.write("learning rate :")
+            for i in range(len(optimizer)):
+                pbar.write(f"    - {names_params[i]} : {learning_rates[i]:.6f}")
 
             # pbar.write(metrics)
             curr_time = time.perf_counter() - start

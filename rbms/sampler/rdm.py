@@ -74,7 +74,7 @@ class RDM(Sampler):
     def post_grad_update(self, params: EBM):
         self.params = params
 
-    def get_metrics(self, metrics):
+    def get_metrics(self, metrics, **kwargs):
         return metrics
 
     def pre_grad_update(self):
