@@ -23,7 +23,7 @@ class RBMDataset(Dataset):
         names: np.ndarray,
         dataset_name: str,
         variable_type: str,
-        device: str = "cuda",
+        device: torch.device | str = "cuda",
         dtype: torch.dtype = torch.float32,
     ) -> None:
         # names should stay as a np array as its dtype is object
@@ -143,7 +143,7 @@ class RBMDataset(Dataset):
         rng: np.random.Generator,
         train_size: float,
         test_size: float | None = None,
-    ) -> tuple[RBMDataset, RBMDataset | None]:
+    ) -> tuple[RBMDataset, RBMDataset]:
         num_samples = self.data.shape[0]
         if test_size is None:
             test_size = 1.0 - train_size
@@ -183,6 +183,8 @@ class RBMDataset(Dataset):
                 device=self.device,
                 dtype=self.dtype,
             )
+        else:
+            raise ValueError("Could not split in train test")
         return train_dataset, test_dataset
 
     def batch(self, batch_size: int) -> dict[str, Tensor]:

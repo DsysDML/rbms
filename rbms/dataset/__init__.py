@@ -16,7 +16,7 @@ def load_dataset(
     use_weights: bool = False,
     alphabet="protein",
     remove_duplicates: bool = False,
-    device: str = "cpu",
+    device: torch.device | str = "cpu",
     dtype: torch.dtype = torch.float32,
 ) -> tuple[RBMDataset, RBMDataset | None]:
     return_datasets = []

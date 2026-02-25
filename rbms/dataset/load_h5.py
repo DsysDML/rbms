@@ -2,13 +2,15 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import torch
+
 from rbms.dataset.fasta_utils import compute_weights
 
 
 def load_HDF5(
     filename: str | Path,
     use_weights: bool = False,
-    device: str = "cuda",
+    device: torch.device | str = "cuda",
 ) -> tuple[np.ndarray, np.ndarray | None, str, np.ndarray]:
     """Load a dataset from an HDF5 file.
 
