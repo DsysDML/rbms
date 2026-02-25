@@ -95,8 +95,6 @@ class EBM(ABC):
         data: dict[str, Tensor],
         chains: dict[str, Tensor],
         centered: bool = True,
-        lambda_l1: float = 0.0,
-        lambda_l2: float = 0.0,
     ) -> None:
         """Compute the gradient for each of the parameters and attach it.
 
@@ -133,7 +131,7 @@ class EBM(ABC):
     def to(
         self,
         device: torch.device | str | None = None,
-        dtype: torch.dtype | str | None = None,
+        dtype: torch.dtype | None = None,
     ) -> Self:
         """Move the parameters to the specified device and/or convert them to the specified data type.
 

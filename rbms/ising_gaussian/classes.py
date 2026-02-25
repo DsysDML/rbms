@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List
 
 import numpy as np
 import torch
@@ -81,7 +81,7 @@ class IGRBM(RBM):
     def clone(
         self,
         device: torch.device | str | None = None,
-        dtype: Optional[torch.dtype] = None,
+        dtype: torch.dtype | None = None,
     ):
         if device is None:
             device = self.device
@@ -255,7 +255,9 @@ class IGRBM(RBM):
         return params
 
     def to(
-        self, device: Optional[torch.device] = None, dtype: Optional[torch.dtype] = None
+        self,
+        device: torch.device | str | None = None,
+        dtype: torch.dtype | None = None,
     ) -> "IGRBM":
         if device is not None:
             self.device = device

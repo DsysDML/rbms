@@ -77,8 +77,6 @@ def _compute_gradient(
     hbias: Tensor,
     weight_matrix: Tensor,
     centered: bool,
-    lambda_l1: float = 0.0,
-    lambda_l2: float = 0.0,
 ) -> None:
     w_data = w_data.view(-1, 1)
     w_chain = w_chain.view(-1, 1)
@@ -123,16 +121,6 @@ def _compute_gradient(
             hbias.shape[0], device=hbias.device, dtype=hbias.dtype
         )  # No training on biases
 
-    if lambda_l1 > 0:
-        grad_weight_matrix -= lambda_l1 * torch.sign(weight_matrix)
-        grad_vbias -= lambda_l1 * torch.sign(vbias)
-        grad_hbias -= lambda_l1 * torch.sign(hbias)
-
-    if lambda_l2 > 0:
-        grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
-        grad_vbias -= 2 * lambda_l2 * vbias
-        grad_hbias -= 2 * lambda_l2 * hbias
-
     weight_matrix.grad.set_(grad_weight_matrix)
     vbias.grad.set_(grad_vbias)
     hbias.grad.set_(grad_hbias)
@@ -154,7 +142,12 @@ def _init_chains(
             raise ValueError(f"Got negative num_samples arg: {num_samples}")
 
     if start_v is None:
-        mv = torch.ones(size=(num_samples, weight_matrix.shape[0]), device=device, dtype=dtype) / 2
+        mv = (
+            torch.ones(
+                size=(num_samples, weight_matrix.shape[0]), device=device, dtype=dtype
+            )
+            / 2
+        )
         v = torch.bernoulli(mv) * 2 - 1
     else:
         mv = torch.zeros_like(start_v, device=device, dtype=dtype)

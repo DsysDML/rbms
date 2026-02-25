@@ -2,7 +2,6 @@ import time
 
 import numpy as np
 import torch
-from torch import Tensor
 from torch.optim import Optimizer
 from tqdm.autonotebook import tqdm
 
@@ -11,57 +10,8 @@ from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model, save_sampler
 
 
-def fit_batch_pcd(
-    batch: tuple[Tensor, Tensor],
-    parallel_chains: dict[str, Tensor],
-    params: EBM,
-    gibbs_steps: int,
-    beta: float,
-    centered: bool = True,
-    lambda_l1: float = 0.0,
-    lambda_l2: float = 0.0,
-    normalize_grad: bool = True,
-    max_norm_grad: float = -1,
-) -> dict[str, Tensor]:
-    """Sample the EBM and compute the gradient.
-
-    Args:
-        batch (Tuple[Tensor, Tensor]): Dataset samples and associated weights.
-        parallel_chains (dict[str, Tensor]): Parallel chains used for gradient computation.
-        params (EBM): Parameters of the EBM.
-        gibbs_steps (int): Number of Gibbs steps to perform.
-        beta (float): Inverse temperature.
-
-    Returns:
-        Tuple[dict[str, Tensor], dict]: A tuple containing the updated chains and the logs.
-    """
-    v_data, w_data = batch
-    # Initialize batch
-    curr_batch = params.init_chains(
-        num_samples=v_data.shape[0],
-        weights=w_data,
-        start_v=v_data,
-    )
-    # sample permanent chains
-    parallel_chains = params.sample_state(
-        chains=parallel_chains, n_steps=gibbs_steps, beta=beta
-    )
-    params.compute_gradient(
-        data=curr_batch,
-        chains=parallel_chains,
-        centered=centered,
-        lambda_l1=lambda_l1,
-        lambda_l2=lambda_l2,
-    )
-    if normalize_grad:
-        params.normalize_grad()
-    if max_norm_grad > 0:
-        params.clip_grad(max_norm=max_norm_grad)
-    return parallel_chains
-
-
-# @torch.no_grad
-# @torch.compile
+@torch.compile(dynamic=True, mode="reduce-overhead", disable=True)
+@torch.no_grad
 def train(
     train_dataset: RBMDataset,
     test_dataset: RBMDataset,
