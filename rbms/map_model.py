@@ -5,7 +5,7 @@ from rbms.ising_gaussian.classes import IGRBM
 from rbms.ising_ising.classes import IIRBM
 from rbms.potts_bernoulli.classes import PBRBM
 
-map_model: dict[str, EBM] = {
+map_model: dict[str, type[EBM]] = {
     "BBRBM": BBRBM,
     "PBRBM": PBRBM,
     "BGRBM": BGRBM,
