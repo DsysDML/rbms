@@ -131,8 +131,9 @@ def load_model(
     return (params, perm_chains, start)
 
 
-def save_sampler(filename: str, sampler: Sampler):
+def save_sampler(filename: str, sampler: Sampler, update: int):
     named_params = sampler.named_parameters()
+    metrics = sampler.get_metrics_save()
     name = sampler.name
     with h5py.File(filename, "a") as f:
         if "sampler" not in f.keys():
@@ -145,3 +146,7 @@ def save_sampler(filename: str, sampler: Sampler):
                 f["sampler"][n][...] = p
             else:
                 f["sampler"][n] = p
+
+        if metrics is not None:
+            for n, p in metrics.items():
+                f[f"update_{update}"][n] = p

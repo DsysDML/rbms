@@ -73,8 +73,11 @@ class PCD(Sampler):
     def post_grad_update(self, params: EBM):
         self.params = params
 
-    def get_metrics(self, metrics, **kwargs):
+    def get_metrics_display(self, metrics, **kwargs):
         return metrics
+
+    def get_metrics_save(self):
+        return None
 
     def pre_grad_update(self):
         pass

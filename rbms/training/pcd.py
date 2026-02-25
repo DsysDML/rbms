@@ -134,7 +134,7 @@ def train(
             learning_rates = np.asarray([opt.param_groups[0]["lr"] for opt in optimizer])
 
             metrics = {}
-            metrics = sampler.get_metrics(
+            metrics = sampler.get_metrics_display(
                 metrics, train_dataset=train_dataset, test_dataset=test_dataset
             )
             pbar.write(f"=========== Update {idx} ===========")
@@ -157,5 +157,5 @@ def train(
                 flags=flags,
             )
 
-            save_sampler(filename, sampler)
+            save_sampler(filename, sampler, idx)
         pbar.update(1)
