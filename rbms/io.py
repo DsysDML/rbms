@@ -67,7 +67,7 @@ def save_model(
 def load_params(
     filename: str,
     index: int,
-    device: torch.device,
+    device: torch.device | str,
     dtype: torch.dtype,
     map_model: dict[str, EBM] = map_model,
 ) -> EBM:
