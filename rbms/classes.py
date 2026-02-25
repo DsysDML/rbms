@@ -31,7 +31,9 @@ class EBM(ABC):
         """Multiplies the parameters of the EBM by a float."""
         ...
 
-    def __eq__(self, other: EBM):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, EBM):
+            return False
         other_params = other.named_parameters()
         for k, v in self.named_parameters().items():
             if not np.equal(other_params[k], v):
@@ -237,10 +239,11 @@ class EBM(ABC):
 
     def clip_grad(self, max_norm=5):
         for p in self.parameters():
-            grad_norm = p.grad.norm()
-            if grad_norm > max_norm:
-                p.grad /= grad_norm
-                p.grad *= max_norm
+            if p.grad is not None:
+                grad_norm = p.grad.norm()
+                if grad_norm > max_norm:
+                    p.grad /= grad_norm
+                    p.grad *= max_norm
 
     def save_flags(self, flags: list[str]) -> list[str]:
         if len(self.flags) > 0:
