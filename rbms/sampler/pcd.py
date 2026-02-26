@@ -45,7 +45,7 @@ class PCD(Sampler):
     @staticmethod
     def set_named_parameters(
         named_params: dict[str, np.ndarray],
-        map_model: dict[str, EBM],
+        map_model: dict[str, type[EBM]],
         device: torch.device | str,
         dtype: torch.dtype,
     ) -> PCD:
