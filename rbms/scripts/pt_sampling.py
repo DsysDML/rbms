@@ -2,7 +2,7 @@ import argparse
 
 import h5py
 
-from rbms.classes import RBM
+from rbms.classes import RBM, EBM
 from rbms.io import load_params
 from rbms.map_model import map_model
 from rbms.parser import add_args_pytorch, match_args_dtype
@@ -61,7 +61,7 @@ def run_pt(
     save_index: bool,
     device,
     dtype,
-    map_model: dict[str, RBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ):
     check_file_existence(out_file)
 

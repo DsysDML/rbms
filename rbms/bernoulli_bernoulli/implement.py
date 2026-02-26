@@ -58,7 +58,7 @@ def _compute_energy_hiddens(
     return -field - log_term.sum(1)
 
 
-@torch.jit.script
+# @torch.jit.script
 def _compute_gradient(
     v_data: Tensor,
     mh_data: Tensor,
@@ -108,9 +108,9 @@ def _compute_gradient(
 
     # Attach to the parameters
 
-    weight_matrix.grad.set_(grad_weight_matrix)
-    vbias.grad.set_(grad_vbias)
-    hbias.grad.set_(grad_hbias)
+    weight_matrix.grad = grad_weight_matrix
+    vbias.grad = grad_vbias
+    hbias.grad = grad_hbias
 
 
 @torch.jit.script

@@ -79,12 +79,10 @@ def compute_gradient(
     chains: dict[str, Tensor],
     params: BGRBM,
     centered: bool,
-    lambda_l1: float = 0.0,
-    lambda_l2: float = 0.0,
 ) -> None:
     _compute_gradient(
         v_data=data["visible"],
-        mh_data=data["hidden_mag"],  # use conditional mean for positive phase
+        h_data=data["hidden_mag"],  # use conditional mean for positive phase
         w_data=data["weights"],
         v_chain=chains["visible"],
         h_chain=chains["hidden_mag"],  # negative phase from chain samples
@@ -93,8 +91,6 @@ def compute_gradient(
         hbias=params.hbias,
         weight_matrix=params.weight_matrix,
         centered=centered,
-        lambda_l1=lambda_l1,
-        lambda_l2=lambda_l2,
     )
 
 

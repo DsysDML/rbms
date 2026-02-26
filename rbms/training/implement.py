@@ -41,7 +41,7 @@ def _init_training(
     dtype: torch.dtype,
     device: torch.device | str,
     flags: list[str],
-    map_model: dict[str, EBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ):
     if model_type is None:
         match train_dataset.variable_type:
@@ -72,9 +72,9 @@ def _init_training(
 
     # Save hyperparameters
     if mult_optim:
-        learning_rate = torch.tensor([learning_rate] * len(params.parameters()))
+        lr = torch.tensor([learning_rate] * len(params.parameters()))
     else:
-        learning_rate = torch.tensor([learning_rate])
+        lr = torch.tensor([learning_rate])
 
     with h5py.File(filename, "w") as file_model:
         hyperparameters = file_model.create_group("hyperparameters")
@@ -90,7 +90,7 @@ def _init_training(
         num_updates=1,
         time=0.0,
         flags=flags,
-        learning_rate=learning_rate,
+        learning_rate=lr,
     )
 
     with h5py.File(filename, "a") as f:
@@ -118,7 +118,7 @@ def _init_training(
         train_args = f.create_group("train_args")
         train_args["optim"] = np.asarray(optim, dtype="T")
         train_args["batch_size"] = batch_size
-        train_args["learning_rate"] = learning_rate
+        train_args["learning_rate"] = lr
         train_args["training_type"] = np.asarray(training_type, dtype="T")
         train_args["max_lr"] = max_lr
 
@@ -138,7 +138,7 @@ def _restore_training(
     test_size: float,
     device: str,
     dtype: torch.dtype,
-    map_model: dict[str, EBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ) -> tuple[EBM, dict[str, Tensor], int, float, RBMDataset, RBMDataset]:
     # Retrieve the the number of training updates already performed on the model
     print(f"Restoring training from update {target_update}")

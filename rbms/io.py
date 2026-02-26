@@ -69,7 +69,7 @@ def load_params(
     index: int,
     device: torch.device | str,
     dtype: torch.dtype,
-    map_model: dict[str, EBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ) -> EBM:
     """Load the parameters of the RBM from the specified archive at the given update index.
 
@@ -97,7 +97,7 @@ def load_model(
     device: torch.device | str,
     dtype: torch.dtype,
     restore: bool = False,
-    map_model: dict[str, EBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ) -> tuple[EBM, dict[str, Tensor], float]:
     """Load a RBM from a h5 archive.
 

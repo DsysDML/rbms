@@ -1,4 +1,5 @@
 from __future__ import annotations
+from botocore.vendored.six import u
 
 import numpy as np
 import torch
@@ -40,7 +41,8 @@ class BGRBM(RBM):
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
-        log_two_pi = torch.log(2.0 * torch.pi, dtype=vbias.dtype, device=vbias.device)
+        log_two_pi = torch.log(torch.tensor(2.0 * torch.pi, dtype=dtype, device=device))
+
         self.const = (
             0.5
             * float(weight_matrix.shape[1])
@@ -191,20 +193,21 @@ class BGRBM(RBM):
         }
 
     @property
-    def num_hiddens(self):
+    def num_hiddens(self) -> int:
         return self.hbias.shape[0]
 
     @property
-    def num_visibles(self):
+    def num_visibles(self) -> int:
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
         # keep trainables only
         return [self.weight_matrix, self.vbias, self.hbias]
 
-    def ref_log_z(self):
-        K = self.num_hiddens()
-        Nv = self.num_visibles()
+    @property
+    def ref_log_z(self) -> float:
+        K = self.num_hiddens
+        Nv = self.num_visibles
         logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
         inv_gamma = 1.0 / float(Nv)
         quad = 0.5 * inv_gamma * torch.dot(self.hbias, self.hbias)

@@ -6,16 +6,17 @@ from torch.nn.functional import softmax
 from rbms.custom_fn import log2cosh
 
 
-@torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
     mh = hbias + (v @ weight_matrix)
-    h = torch.randn_like(mh) / torch.sqrt(weight_matrix.shape[0]) + mh
+    h = (
+        torch.randn_like(mh) / torch.sqrt(torch.ones_like(mh) * weight_matrix.shape[0])
+        + mh
+    )
     return h, mh
 
 
-@torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
@@ -25,7 +26,6 @@ def _sample_visibles(
     return v, mv
 
 
-@torch.jit.script
 def _compute_energy(
     v: Tensor,
     h: Tensor,
@@ -43,7 +43,6 @@ def _compute_energy(
     return -fields - interaction + quad
 
 
-@torch.jit.script
 def _compute_energy_visibles(
     v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor, const: Tensor
 ) -> Tensor:
@@ -53,7 +52,6 @@ def _compute_energy_visibles(
     return -field - quad_term + const
 
 
-@torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:
@@ -65,7 +63,6 @@ def _compute_energy_hiddens(
     return -field - log_term.sum(1) + quad
 
 
-@torch.jit.script
 def _compute_gradient(
     v_data: Tensor,
     mh_data: Tensor,
@@ -121,12 +118,11 @@ def _compute_gradient(
             hbias.shape[0], device=hbias.device, dtype=hbias.dtype
         )  # No training on biases
 
-    weight_matrix.grad.set_(grad_weight_matrix)
-    vbias.grad.set_(grad_vbias)
-    hbias.grad.set_(grad_hbias)
+    weight_matrix.grad = grad_weight_matrix
+    vbias.grad = grad_vbias
+    hbias.grad = grad_hbias
 
 
-@torch.jit.script
 def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,

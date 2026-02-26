@@ -8,9 +8,10 @@ from tqdm.autonotebook import tqdm
 from rbms.classes import EBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model, save_sampler
+from rbms.training.utils import EarlyStopper
 
 
-@torch.compile(dynamic=True, mode="reduce-overhead", disable=True)
+@torch.compile(dynamic=True, disable=True)
 @torch.no_grad
 def train(
     train_dataset: RBMDataset,
@@ -18,6 +19,7 @@ def train(
     params: EBM,
     sampler: Sampler,
     optimizer: list[Optimizer],
+    # early_stopper: EarlyStopper | None,
     batch_size: int,
     centered: bool,
     curr_update: int,

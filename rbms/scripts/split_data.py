@@ -57,7 +57,7 @@ def split_data_train_test(
     output_test_file: str | None = None,
     train_size=0.6,
     remove_duplicates: bool = False,
-    seed: int = None,
+    seed: int | None = None,
     alphabet: str = "protein",
 ):
     dset_name = Path(input_file)
