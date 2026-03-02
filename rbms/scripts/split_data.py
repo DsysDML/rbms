@@ -111,12 +111,12 @@ def split_data_train_test(
     if output_train_file is None:
         output_train_file = (
             ".".join(str(dset_name).split(".")[:-1])
-            + f"_train={train_size}.{file_format}"
+            + f"_train={train_size:.1f}.{file_format}"
         )
     if output_test_file is None:
         output_test_file = (
             ".".join(str(dset_name).split(".")[:-1])
-            + f"_test={1 - train_size}.{file_format}"
+            + f"_test={1 - train_size:.1f}.{file_format}"
         )
 
     match file_format:
