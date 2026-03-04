@@ -4,14 +4,14 @@ from typing import Union
 import numpy as np
 import torch
 
-ArrayLike = tuple[np.ndarray, list]
+# ArrayLike = tuple[np.ndarray, list]
 
 TOKENS_PROTEIN = "-ACDEFGHIKLMNPQRSTVWY"
 TOKENS_RNA = "-ACGU"
 TOKENS_DNA = "-ACGT"
 
 
-def get_tokens(alphabet: str):
+def get_tokens(alphabet: str) -> str:
     """Load the vocabulary associated to the alphabet type.
     Args:
         alphabet (str): alphabet type (one of 'protein', 'rna', 'dna').
@@ -44,7 +44,7 @@ def encode_sequence(sequence: str, tokens: str) -> np.ndarray:
     return np.array([letter_map[letter] for letter in sequence])
 
 
-def decode_sequence(sequence: ArrayLike, tokens: str) -> str:
+def decode_sequence(sequence: np.ndarray, tokens: str) -> str:
     """Takes a numeric sequence in input an returns the string encoding.
 
     Args:
@@ -98,8 +98,8 @@ def import_from_fasta(fasta_name: Union[str, Path]) -> tuple[np.ndarray, np.ndar
 
 def write_fasta(
     fname: str,
-    headers: ArrayLike,
-    sequences: ArrayLike,
+    headers: np.ndarray,
+    sequences: np.ndarray,
     numeric_input: bool = False,
     remove_gaps: bool = False,
     alphabet: str = "protein",
@@ -137,7 +137,7 @@ def write_fasta(
 
 
 def compute_weights(
-    data: ArrayLike, th: float = 0.8, device: torch.device = "cpu"
+    data: np.ndarray, th: float = 0.8, device: torch.device | str = "cpu"
 ) -> np.ndarray:
     """Computes the weight to be assigned to each sequence 's' in 'data' as 1 / n_clust, where 'n_clust' is the number of sequences
     that have a sequence identity with 's' >= th.
@@ -151,20 +151,20 @@ def compute_weights(
         np.ndarray: Array with the weights of the sequences.
     """
     device = torch.device(device)
-    data = torch.tensor(data, device=device)
-    assert len(data.shape) == 2, "'data' must be a 2-dimensional array"
-    _, L = data.shape
+    data_tensor = torch.from_numpy(data).to(device=device)
+    assert len(data_tensor) == 2, "'data' must be a 2-dimensional array"
+    _, L = data_tensor.shape
 
     def get_sequence_weight(s: torch.Tensor, data: torch.Tensor, L: int, th: float):
         seq_id = torch.sum(s == data, dim=1) / L
         n_clust = torch.sum(seq_id >= th)
         return 1.0 / n_clust
 
-    weights = torch.vstack([get_sequence_weight(s, data, L, th) for s in data])
+    weights = torch.vstack([get_sequence_weight(s, data_tensor, L, th) for s in data])
     return weights.cpu().numpy()
 
 
-def validate_alphabet(sequences: ArrayLike, tokens: str):
+def validate_alphabet(sequences: np.ndarray, tokens: str):
     all_char = "".join(sequences)
     tokens_data = "".join(sorted(set(all_char)))
     for c in tokens_data:

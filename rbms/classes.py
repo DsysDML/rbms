@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Self
 
+import numpy as np
 import torch
 from torch import Tensor
 
@@ -13,20 +14,31 @@ class EBM(ABC):
     """An abstract class representing the parameters of an Energy-Based Model."""
 
     name: str
-    device: torch.device
+    device: torch.device | str | None
+    visible_type: str
+    flags: list[str]
 
     @abstractmethod
     def __init__(self): ...
 
     @abstractmethod
     def __add__(self, other: EBM) -> EBM:
-        """Add the parameters of two RBMs. Useful for interpolation"""
+        """Add the parameters of two EBMs. Useful for interpolation"""
         ...
 
     @abstractmethod
     def __mul__(self, other: float) -> EBM:
-        """Multiplies the parameters of the RBM by a float."""
+        """Multiplies the parameters of the EBM by a float."""
         ...
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, EBM):
+            return False
+        other_params = other.named_parameters()
+        for k, v in self.named_parameters().items():
+            if not np.equal(other_params[k], v):
+                return False
+        return True
 
     @abstractmethod
     def sample_visibles(
@@ -62,7 +74,7 @@ class EBM(ABC):
         weights: Tensor | None = None,
         start_v: Tensor | None = None,
     ) -> dict[str, Tensor]:
-        """Initialize a Markov chain for the RBM by sampling a uniform distribution on the visible layer
+        """Initialize a Markov chain for the EBM by sampling a uniform distribution on the visible layer
         and sampling the hidden layer according to the visible one.
 
         Args:
@@ -83,8 +95,6 @@ class EBM(ABC):
         data: dict[str, Tensor],
         chains: dict[str, Tensor],
         centered: bool = True,
-        lambda_l1: float = 0.0,
-        lambda_l2: float = 0.0,
     ) -> None:
         """Compute the gradient for each of the parameters and attach it.
 
@@ -107,16 +117,20 @@ class EBM(ABC):
         ...
 
     @abstractmethod
-    def named_parameters(self) -> dict[str, Tensor]: ...
+    def named_parameters(self) -> dict[str, np.ndarray]: ...
 
     @staticmethod
     @abstractmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> EBM: ...
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> EBM: ...
 
     @abstractmethod
     def to(
         self,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ) -> Self:
         """Move the parameters to the specified device and/or convert them to the specified data type.
@@ -154,7 +168,7 @@ class EBM(ABC):
     def init_parameters(
         num_hiddens: int,
         dataset: RBMDataset,
-        device: torch.device,
+        device: torch.device | str,
         dtype: torch.dtype,
         var_init: float = 1e-4,
     ) -> EBM:
@@ -175,11 +189,13 @@ class EBM(ABC):
         """
         ...
 
+    @property
     @abstractmethod
     def num_visibles(self) -> int:
         """Number of visible units"""
         ...
 
+    @property
     @abstractmethod
     def ref_log_z(self) -> float:
         """Reference log partition function with weights set to 0 (except for the visible bias)."""
@@ -209,12 +225,43 @@ class EBM(ABC):
         for p in self.parameters():
             p.grad = torch.zeros_like(p)
 
+    @torch.compile
     def normalize_grad(self) -> None:
         norm_grad = torch.sqrt(
             torch.sum(torch.tensor([p.grad.square().sum() for p in self.parameters()]))
         )
         for p in self.parameters():
             p.grad /= norm_grad
+        # for p in self.parameters():
+        #     p.grad /= p.grad.norm()
+
+    def clip_grad(self, max_norm=5):
+        for p in self.parameters():
+            if p.grad is not None:
+                grad_norm = p.grad.norm()
+                if grad_norm > max_norm:
+                    p.grad /= grad_norm
+                    p.grad *= max_norm
+
+    def save_flags(self, flags: list[str]) -> list[str]:
+        if len(self.flags) > 0:
+            for elt in self.flags:
+                flags.append(elt)
+        self.flags = []
+        return flags
+
+    @abstractmethod
+    def get_metrics(self, metrics: dict[str, float]) -> dict[str, float]: ...
+
+    @abstractmethod
+    def pre_grad_update(self) -> None: ...
+
+    @abstractmethod
+    def post_grad_update(self) -> None: ...
+
+    @property
+    @abstractmethod
+    def effective_number_variables(self) -> float: ...
 
 
 class RBM(EBM):
@@ -257,6 +304,7 @@ class RBM(EBM):
         """
         ...
 
+    @property
     @abstractmethod
     def num_hiddens(self) -> int:
         """Number of hidden units"""
@@ -272,3 +320,54 @@ class RBM(EBM):
             new_chains = self.sample_visibles(chains=new_chains, beta=beta)
         new_chains = self.sample_hiddens(chains=new_chains, beta=beta)
         return new_chains
+
+    @property
+    def effective_number_variables(self) -> float:
+        return np.sqrt(self.num_visibles * self.num_hiddens)
+
+
+class Sampler(ABC):
+    name: str
+    flags: list[str]
+
+    @abstractmethod
+    def __init__(self): ...
+
+    @abstractmethod
+    def get_conf_grad(self, batch: Tensor) -> dict[str, Tensor]: ...
+
+    @abstractmethod
+    def sample(self, num_steps: int | None, **kwargs) -> None: ...
+
+    def save_flags(self, flags: list[str]) -> list[str]:
+        if len(self.flags) > 0:
+            for elt in self.flags:
+                flags.append(elt)
+        self.flags = []
+        return flags
+
+    @abstractmethod
+    def named_parameters(self) -> dict[str, np.ndarray]: ...
+
+    @staticmethod
+    @abstractmethod
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        map_model: dict[str, type[EBM]],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> Sampler: ...
+
+    @abstractmethod
+    def pre_grad_update(self) -> None: ...
+
+    @abstractmethod
+    def post_grad_update(self, params: EBM) -> None: ...
+
+    @abstractmethod
+    def get_metrics_display(
+        self, metrics: dict[str, float], **kwargs
+    ) -> dict[str, float]: ...
+
+    @abstractmethod
+    def get_metrics_save(self) -> dict[str, np.ndarray] | None: ...

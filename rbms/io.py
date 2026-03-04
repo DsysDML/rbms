@@ -3,17 +3,19 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import EBM
+from rbms.classes import EBM, Sampler
 from rbms.map_model import map_model
 from rbms.utils import restore_rng_state
 
 
+@torch.compiler.disable
 def save_model(
     filename: str,
     params: EBM,
     chains: dict[str, Tensor],
     num_updates: int,
     time: float,
+    learning_rate: Tensor,
     flags: list[str] = [],
 ) -> None:
     """Save the current state of the model.
@@ -35,7 +37,7 @@ def save_model(
         # Save the parameters of the model
         params_ckpt = checkpoint.create_group("params")
         for n, p in named_params.items():
-            params_ckpt[n] = p.detach().cpu().numpy()
+            params_ckpt[n] = p
             # This is for retrocompatibility purpose
             checkpoint[n] = params_ckpt[n]
         # Save current random state
@@ -46,7 +48,7 @@ def save_model(
         checkpoint["numpy_rng_arg3"] = np.random.get_state()[3]
         checkpoint["numpy_rng_arg4"] = np.random.get_state()[4]
         checkpoint["time"] = time
-
+        checkpoint["learning_rate"] = learning_rate.cpu().numpy()
         # Update the parallel chains to resume training
         if "parallel_chains" in f.keys():
             f["parallel_chains"][...] = chains["visible"].cpu().numpy()
@@ -65,9 +67,9 @@ def save_model(
 def load_params(
     filename: str,
     index: int,
-    device: torch.device,
+    device: torch.device | str,
     dtype: torch.dtype,
-    map_model: dict[str, EBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ) -> EBM:
     """Load the parameters of the RBM from the specified archive at the given update index.
 
@@ -84,21 +86,19 @@ def load_params(
     params = {}
     with h5py.File(filename, "r") as f:
         for k in f[last_file_key]["params"].keys():
-            params[k] = torch.from_numpy(f[last_file_key]["params"][k][()]).to(
-                device=device, dtype=dtype
-            )
+            params[k] = f[last_file_key]["params"][k][()]
             model_type = f["model_type"][()].decode()
-    return map_model[model_type].set_named_parameters(params)
+    return map_model[model_type].set_named_parameters(params, device=device, dtype=dtype)
 
 
 def load_model(
     filename: str,
     index: int,
-    device: torch.device,
+    device: torch.device | str,
     dtype: torch.dtype,
     restore: bool = False,
-    map_model: dict[str, EBM] = map_model,
-) -> tuple[EBM, dict[str, Tensor], float, dict]:
+    map_model: dict[str, type[EBM]] = map_model,
+) -> tuple[EBM, dict[str, Tensor], float]:
     """Load a RBM from a h5 archive.
 
     Args:
@@ -111,10 +111,9 @@ def load_model(
 
     Returns:
         Tuple[EBM, dict[str, Tensor], float, dict]: A tuple containing the loaded RBM parameters,
-        the parallel chains, the time taken, and the model's hyperparameters.
+        the parallel chains and the time taken
     """
     last_file_key = f"update_{index}"
-    hyperparameters = dict()
     with h5py.File(filename, "r") as f:
         visible = torch.from_numpy(f["parallel_chains"][()]).to(
             device=device, dtype=dtype
@@ -122,21 +121,6 @@ def load_model(
         # Elapsed time
         start = np.array(f[last_file_key]["time"]).item()
 
-        # Hyperparameters
-        if "hyperparameters" in f.keys():
-            hyperparameters["batch_size"] = int(f["hyperparameters"]["batch_size"][()])
-            hyperparameters["gibbs_steps"] = int(f["hyperparameters"]["gibbs_steps"][()])
-            hyperparameters["learning_rate"] = float(
-                f["hyperparameters"]["learning_rate"][()]
-            )
-            hyperparameters["L1"] = float(f["hyperparameters"]["L1"][()])
-            hyperparameters["L2"] = float(f["hyperparameters"]["L2"][()])
-            if "seed" in f["hyperparameters"].keys():
-                hyperparameters["seed"] = int(f["hyperparameters"]["seed"][()])
-            if "train_size" in f["hyperparameters"].keys():
-                hyperparameters["train_size"] = float(
-                    f["hyperparameters"]["train_size"][()]
-                )
     params = load_params(
         filename=filename, index=index, device=device, dtype=dtype, map_model=map_model
     )
@@ -144,4 +128,25 @@ def load_model(
 
     if restore:
         restore_rng_state(filename=filename, index=index)
-    return (params, perm_chains, start, hyperparameters)
+    return (params, perm_chains, start)
+
+
+def save_sampler(filename: str, sampler: Sampler, update: int):
+    named_params = sampler.named_parameters()
+    metrics = sampler.get_metrics_save()
+    name = sampler.name
+    with h5py.File(filename, "a") as f:
+        if "sampler" not in f.keys():
+            f.create_group("sampler")
+            f["sampler"]["name"] = name
+
+        # Save the parameters of the model
+        for n, p in named_params.items():
+            if n in f["sampler"].keys():
+                f["sampler"][n][...] = p
+            else:
+                f["sampler"][n] = p
+
+        if metrics is not None:
+            for n, p in metrics.items():
+                f[f"update_{update}"][n] = p

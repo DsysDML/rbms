@@ -1,12 +1,15 @@
+from __future__ import annotations
 import gzip
 import textwrap
-from typing import Self, Union
-from rbms.dataset.utils import convert_data
+from typing import Union
 
 import numpy as np
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
+
+from rbms.dataset.utils import convert_data
 
 
 class RBMDataset(Dataset):
@@ -20,7 +23,7 @@ class RBMDataset(Dataset):
         names: np.ndarray,
         dataset_name: str,
         variable_type: str,
-        device: str = "cuda",
+        device: torch.device | str = "cuda",
         dtype: torch.dtype = torch.float32,
     ) -> None:
         # names should stay as a np array as its dtype is object
@@ -117,22 +120,30 @@ class RBMDataset(Dataset):
         for i in pbar:
             en[i] = len(
                 gzip.compress(
-                    (self.data[torch.randperm(self.data.shape[0])[:num_samples]]).astype(
-                        int
-                    )
+                    (self.data[torch.randperm(self.data.shape[0])[:num_samples]])
+                    .cpu()
+                    .numpy()
+                    .astype(int)
                 )
             )
         return np.mean(en)
 
     def match_model_variable_type(self, visible_type: str):
         self.data = convert_data[self.variable_type][visible_type](self.data)
+        if self.variable_type != visible_type:
+            print(f"Converting from '{self.variable_type}' to '{visible_type}'")
+            print(self.data)
+        self.variable_type = visible_type
+
+    def astype(self, target_variable_type: str):
+        return convert_data[self.variable_type][target_variable_type](self.data)
 
     def split_train_test(
         self,
         rng: np.random.Generator,
         train_size: float,
         test_size: float | None = None,
-    ) -> tuple[Self, Self | None]:
+    ) -> tuple[RBMDataset, RBMDataset]:
         num_samples = self.data.shape[0]
         if test_size is None:
             test_size = 1.0 - train_size
@@ -172,4 +183,21 @@ class RBMDataset(Dataset):
                 device=self.device,
                 dtype=self.dtype,
             )
+        else:
+            raise ValueError("Could not split in train test")
         return train_dataset, test_dataset
+
+    def batch(self, batch_size: int) -> dict[str, Tensor]:
+        rand_idx = torch.randperm(len(self))[:batch_size]
+        sampled_batch: dict[str, Tensor] = {
+            "data": self.data[rand_idx],
+            "weights": self.weights[rand_idx],
+            "labels": self.labels[rand_idx],
+        }
+        # sampled_batch = self[rand_idx[:batch_size]]
+        match self.variable_type:
+            case "bernoulli":
+                sampled_batch["data"] = torch.bernoulli(sampled_batch["data"])
+            case _:
+                pass
+        return sampled_batch

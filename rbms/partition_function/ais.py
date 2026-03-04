@@ -59,7 +59,7 @@ def compute_partition_function_ais(num_chains: int, num_beta: int, params: EBM) 
     # Compute the reference log partition function
     ## Here the case where all the weights are 0
 
-    log_z_init = params.ref_log_z()
+    log_z_init = params.ref_log_z
     params_ref = params.independent_model()
 
     chains = params_ref.init_chains(num_samples=num_chains)

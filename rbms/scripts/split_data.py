@@ -42,6 +42,12 @@ def create_parser():
         default="protein",
         help="(Defaults to protein). Type of encoding for the sequences. Choose among ['protein', 'rna', 'dna'] or a user-defined string of tokens.",
     )
+    parser.add_argument(
+        "--remove_duplicates",
+        action="store_true",
+        default=False,
+        help="Remove duplicates from the dataset before splitting.",
+    )
     return parser
 
 
@@ -50,7 +56,8 @@ def split_data_train_test(
     output_train_file: str | None = None,
     output_test_file: str | None = None,
     train_size=0.6,
-    seed: int = None,
+    remove_duplicates: bool = False,
+    seed: int | None = None,
     alphabet: str = "protein",
 ):
     dset_name = Path(input_file)
@@ -58,12 +65,17 @@ def split_data_train_test(
 
     dataset, _ = load_dataset(input_file, None, alphabet=alphabet)
 
-    print("Removing duplicates...")
     prev_size = dataset.data.shape[0]
-    unique_ind = get_unique_indices(dataset.data)
-    data = dataset.data[unique_ind]
-    names = dataset.names[unique_ind]
-    labels = dataset.labels[unique_ind]
+    if remove_duplicates:
+        print("Removing duplicates...")
+        unique_ind = get_unique_indices(dataset.data)
+        data = dataset.data[unique_ind]
+        names = dataset.names[unique_ind]
+        labels = dataset.labels[unique_ind]
+    else:
+        data = dataset.data
+        names = dataset.names
+        labels = dataset.labels
 
     curr_size = data.shape[0]
     print(f"    Dataset size: {prev_size} -> {curr_size} samples")
@@ -99,12 +111,12 @@ def split_data_train_test(
     if output_train_file is None:
         output_train_file = (
             ".".join(str(dset_name).split(".")[:-1])
-            + f"_train={train_size}.{file_format}"
+            + f"_train={train_size:.1f}.{file_format}"
         )
     if output_test_file is None:
         output_test_file = (
             ".".join(str(dset_name).split(".")[:-1])
-            + f"_test={1 - train_size}.{file_format}"
+            + f"_test={1 - train_size:.1f}.{file_format}"
         )
 
     match file_format:
@@ -141,6 +153,7 @@ def main():
         output_train_file=args["out_train"],
         output_test_file=args["out_test"],
         train_size=args["train_size"],
+        remove_duplicates=args["remove_duplicates"],
         seed=args["seed"],
         alphabet=args["alphabet"],
     )

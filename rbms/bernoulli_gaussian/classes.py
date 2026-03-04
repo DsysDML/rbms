@@ -1,3 +1,6 @@
+from __future__ import annotations
+from botocore.vendored.six import u
+
 import numpy as np
 import torch
 from torch import Tensor
@@ -19,12 +22,14 @@ from rbms.classes import RBM
 class BGRBM(RBM):
     """Bernoulli-Gaussian RBM with fixed hidden variance = 1/Nv, 0-1 visibles, hidden and visible biases"""
 
+    visible_type: str = "bernoulli"
+
     def __init__(
         self,
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
         if device is None:
@@ -36,7 +41,8 @@ class BGRBM(RBM):
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
-        log_two_pi = torch.log(2.0 * torch.pi, dtype=vbias.dtype, device=vbias.device)
+        log_two_pi = torch.log(torch.tensor(2.0 * torch.pi, dtype=dtype, device=device))
+
         self.const = (
             0.5
             * float(weight_matrix.shape[1])
@@ -53,6 +59,7 @@ class BGRBM(RBM):
         )
 
         self.name = "BGRBM"
+        self.flags = []
 
     def __add__(self, other):
         # keep fixed variance policy; recompute eta from resulting vbias size
@@ -76,7 +83,9 @@ class BGRBM(RBM):
         )
         return out
 
-    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def clone(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is None:
             device = self.device
         if dtype is None:
@@ -113,7 +122,7 @@ class BGRBM(RBM):
             const=self.const,
         )
 
-    def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
+    def compute_gradient(self, data, chains, centered=True):
         # backend should ignore grads on eta or treat it as const; we pass it for conditionals
         _compute_gradient(
             v_data=data["visible"],
@@ -126,8 +135,6 @@ class BGRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
-            lambda_l1=lambda_l1,
-            lambda_l2=lambda_l2,
         )
 
     def independent_model(self):
@@ -180,24 +187,27 @@ class BGRBM(RBM):
 
     def named_parameters(self):
         return {
-            "weight_matrix": self.weight_matrix,
-            "vbias": self.vbias,
-            "hbias": self.hbias,
+            "weight_matrix": self.weight_matrix.cpu().numpy(),
+            "vbias": self.vbias.cpu().numpy(),
+            "hbias": self.hbias.cpu().numpy(),
         }
 
-    def num_hiddens(self):
+    @property
+    def num_hiddens(self) -> int:
         return self.hbias.shape[0]
 
-    def num_visibles(self):
+    @property
+    def num_visibles(self) -> int:
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
         # keep trainables only
         return [self.weight_matrix, self.vbias, self.hbias]
 
-    def ref_log_z(self):
-        K = self.num_hiddens()
-        Nv = self.num_visibles()
+    @property
+    def ref_log_z(self) -> float:
+        K = self.num_hiddens
+        Nv = self.num_visibles
         logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
         inv_gamma = 1.0 / float(Nv)
         quad = 0.5 * inv_gamma * torch.dot(self.hbias, self.hbias)
@@ -223,7 +233,11 @@ class BGRBM(RBM):
         return chains
 
     @staticmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> "BGRBM":
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> BGRBM:
         names = ["vbias", "hbias", "weight_matrix"]
         for k in names:
             if k not in named_params:
@@ -231,9 +245,15 @@ class BGRBM(RBM):
                     f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
                 )
         params = BGRBM(
-            weight_matrix=named_params.pop("weight_matrix"),
-            vbias=named_params.pop("vbias"),
-            hbias=named_params.pop("hbias"),
+            weight_matrix=torch.from_numpy(named_params.pop("weight_matrix")).to(
+                device=device, dtype=dtype
+            ),
+            vbias=torch.from_numpy(named_params.pop("vbias")).to(
+                device=device, dtype=dtype
+            ),
+            hbias=torch.from_numpy(named_params.pop("hbias")).to(
+                device=device, dtype=dtype
+            ),
         )
         if len(named_params) > 0:
             raise ValueError(
@@ -242,7 +262,7 @@ class BGRBM(RBM):
         return params
 
     def to(
-        self, device: torch.device | None = None, dtype: torch.dtype | None = None
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
     ) -> "BGRBM":
         if device is not None:
             self.device = device
@@ -252,3 +272,12 @@ class BGRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    def get_metrics(self, metrics):
+        return metrics
+
+    def post_grad_update(self):
+        pass
+
+    def pre_grad_update(self):
+        pass

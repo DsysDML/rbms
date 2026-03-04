@@ -1,4 +1,4 @@
-from typing import Self
+from __future__ import annotations
 
 import numpy as np
 import torch
@@ -15,17 +15,20 @@ from rbms.bernoulli_bernoulli.implement import (
     _sample_visibles,
 )
 from rbms.classes import RBM
+from rbms.custom_fn import check_keys_dict
 
 
 class BBRBM(RBM):
     """Parameters of the Bernoulli-Bernoulli RBM"""
+
+    visible_type: str = "bernoulli"
 
     def __init__(
         self,
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        device: torch.device | None = None,
+        device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
         """Initialize the parameters of the Bernoulli-Bernoulli RBM.
@@ -49,6 +52,7 @@ class BBRBM(RBM):
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "BBRBM"
+        self.flags = []
 
     def __add__(self, other):
         return BBRBM(
@@ -64,7 +68,9 @@ class BBRBM(RBM):
             hbias=self.hbias * other,
         )
 
-    def clone(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def clone(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is None:
             device = self.device
         if dtype is None:
@@ -102,7 +108,7 @@ class BBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_gradient(self, data, chains, centered=True, lambda_l1=0.0, lambda_l2=0.0):
+    def compute_gradient(self, data, chains, centered=True):
         _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
@@ -114,8 +120,6 @@ class BBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
-            lambda_l1=lambda_l1,
-            lambda_l2=lambda_l2,
         )
 
     def independent_model(self):
@@ -159,25 +163,28 @@ class BBRBM(RBM):
         )
         return BBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
 
-    def named_parameters(self):
+    def named_parameters(self) -> dict[str, np.ndarray]:
         return {
-            "weight_matrix": self.weight_matrix,
-            "vbias": self.vbias,
-            "hbias": self.hbias,
+            "weight_matrix": self.weight_matrix.cpu().numpy(),
+            "vbias": self.vbias.cpu().numpy(),
+            "hbias": self.hbias.cpu().numpy(),
         }
 
+    @property
     def num_hiddens(self):
         return self.hbias.shape[0]
 
+    @property
     def num_visibles(self):
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
         return [self.weight_matrix, self.vbias, self.hbias]
 
+    @property
     def ref_log_z(self):
         return (
-            torch.log1p(torch.exp(self.vbias)).sum() + self.num_hiddens() * np.log(2)
+            torch.log1p(torch.exp(self.vbias)).sum() + self.num_hiddens * np.log(2)
         ).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:
@@ -199,17 +206,23 @@ class BBRBM(RBM):
         return chains
 
     @staticmethod
-    def set_named_parameters(named_params: dict[str, Tensor]) -> Self:
+    def set_named_parameters(
+        named_params: dict[str, np.ndarray],
+        device: torch.device | str,
+        dtype: torch.dtype,
+    ) -> BBRBM:
         names = ["vbias", "hbias", "weight_matrix"]
-        for k in names:
-            if k not in named_params.keys():
-                raise ValueError(
-                    f"""Dictionary params missing key '{k}'\n Provided keys : {named_params.keys()}\n Expected keys: {names}"""
-                )
+        check_keys_dict(d=named_params, names=names)
         params = BBRBM(
-            weight_matrix=named_params.pop("weight_matrix"),
-            vbias=named_params.pop("vbias"),
-            hbias=named_params.pop("hbias"),
+            weight_matrix=torch.from_numpy(named_params.pop("weight_matrix")).to(
+                device=device, dtype=dtype
+            ),
+            vbias=torch.from_numpy(named_params.pop("vbias")).to(
+                device=device, dtype=dtype
+            ),
+            hbias=torch.from_numpy(named_params.pop("hbias")).to(
+                device=device, dtype=dtype
+            ),
         )
         if len(named_params.keys()) > 0:
             raise ValueError(
@@ -217,7 +230,9 @@ class BBRBM(RBM):
             )
         return params
 
-    def to(self, device: torch.device | None = None, dtype: torch.dtype | None = None):
+    def to(
+        self, device: torch.device | str | None = None, dtype: torch.dtype | None = None
+    ):
         if device is not None:
             self.device = device
         if dtype is not None:
@@ -226,3 +241,12 @@ class BBRBM(RBM):
         self.vbias = self.vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = self.hbias.to(device=self.device, dtype=self.dtype)
         return self
+
+    def get_metrics(self, metrics):
+        return metrics
+
+    def post_grad_update(self):
+        pass
+
+    def pre_grad_update(self):
+        pass

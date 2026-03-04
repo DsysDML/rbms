@@ -15,7 +15,7 @@ def compute_partition_function_rbm(params: RBM, all_config: Tensor) -> float:
         float: Exact log partition function.
     """
     n_dim_config = all_config.shape[1]
-    n_visible, n_hidden = params.num_visibles(), params.num_hiddens()
+    n_visible, n_hidden = params.num_visibles, params.num_hiddens
     if n_dim_config == n_hidden:
         energy = params.compute_energy_hiddens(h=all_config)
     elif n_dim_config == n_visible:
@@ -30,7 +30,7 @@ def compute_partition_function_rbm(params: RBM, all_config: Tensor) -> float:
 def compute_partition_function(params: EBM, all_config: Tensor) -> float:
     if isinstance(params, RBM):
         return compute_partition_function_rbm(params=params, all_config=all_config)
-    n_visible = params.num_visibles()
+    n_visible = params.num_visibles
     n_dim_config = all_config.shape[1]
     if n_dim_config == n_visible:
         energy = params.compute_energy_visibles(v=all_config)

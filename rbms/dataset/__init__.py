@@ -15,7 +15,8 @@ def load_dataset(
     subset_labels: list[int] | None = None,
     use_weights: bool = False,
     alphabet="protein",
-    device: str = "cpu",
+    remove_duplicates: bool = False,
+    device: torch.device | str = "cpu",
     dtype: torch.dtype = torch.float32,
 ) -> tuple[RBMDataset, RBMDataset | None]:
     return_datasets = []
@@ -45,7 +46,7 @@ def load_dataset(
                     variable_type = "categorical"
             # Select subset of dataset w.r.t. labels
             if subset_labels is not None and labels is not None:
-                data, labels = get_subset_labels(data, labels, subset_labels)
+                data, labels = get_subset_labels(data, labels, np.asarray(subset_labels))
 
             if weights is None:
                 weights = np.ones(data.shape[0])
@@ -54,10 +55,15 @@ def load_dataset(
             if labels is None:
                 labels = -np.ones(data.shape[0])
 
-            # Remove duplicates and internally shuffle the dataset
-            unique_ind = get_unique_indices(torch.from_numpy(data)).cpu().numpy()
+            if remove_duplicates:
+                # Remove duplicates and internally shuffle the dataset
+                unique_ind = get_unique_indices(torch.from_numpy(data)).cpu().numpy()
+            else:
+                unique_ind = np.arange(data.shape[0])
 
             idx = torch.randperm(unique_ind.shape[0])
+            if unique_ind.shape[0] < data.shape[0]:
+                print(f"N_samples: {data.shape[0]} -> {unique_ind.shape[0]}")
             data = data[unique_ind[idx]]
             labels = labels[unique_ind[idx]]
             weights = weights[unique_ind[idx]]

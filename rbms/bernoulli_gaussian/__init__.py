@@ -1,6 +1,6 @@
 # ruff: noqa
-from rbms.ising_ising.classes import IIRBM
-from rbms.ising_ising.functional import (
+from rbms.bernoulli_gaussian.classes import BGRBM
+from rbms.bernoulli_gaussian.functional import (
     compute_energy,
     compute_energy_hiddens,
     compute_energy_visibles,

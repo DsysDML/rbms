@@ -52,6 +52,12 @@ def add_args_dataset(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help="(Defaults to protein). Type of encoding for the sequences. Choose among ['protein', 'rna', 'dna'] or a user-defined string of tokens.",
     )
     dataset_args.add_argument(
+        "--remove_duplicates",
+        default=False,
+        action="store_true",
+        help="Remove duplicates from the dataset before splitting.",
+    )
+    dataset_args.add_argument(
         "--seed",
         default=None,
         type=int,

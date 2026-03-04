@@ -5,7 +5,6 @@ from torch.nn.functional import softmax
 from rbms.custom_fn import one_hot
 
 
-@torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
@@ -20,7 +19,6 @@ def _sample_hiddens(
     return h, mh
 
 
-@torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
@@ -37,7 +35,6 @@ def _sample_visibles(
     return v, mv
 
 
-@torch.jit.script
 def _compute_energy(
     v: Tensor, h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ):
@@ -53,7 +50,6 @@ def _compute_energy(
     return -fields - interaction
 
 
-@torch.jit.script
 def _compute_energy_visibles(
     v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ):
@@ -71,7 +67,6 @@ def _compute_energy_visibles(
     return -field - log_term.sum(1)
 
 
-@torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ):
@@ -81,7 +76,6 @@ def _compute_energy_hiddens(
     return -field - lse
 
 
-@torch.jit.script
 def _compute_gradient(
     v_data: Tensor,
     mh_data: Tensor,
@@ -93,8 +87,6 @@ def _compute_gradient(
     hbias: Tensor,
     weight_matrix: Tensor,
     centered: bool = True,
-    lambda_l1: float = 0.0,
-    lambda_l2: float = 0.0,
 ):
     w_data = w_data.view(-1, 1, 1)
     w_chain = w_chain.view(-1, 1, 1)
@@ -150,22 +142,17 @@ def _compute_gradient(
             - torch.tensordot(v_data_mean, grad_weight_matrix, dims=[[0, 1], [0, 1]])
         )
     else:
-        v_data_centered = v_data_one_hot
-        h_data_centered = mh_data
-        v_gen_centered = v_gen_one_hot
-        h_gen_centered = h_chain
-
         # Gradient
         grad_weight_matrix = (
             torch.tensordot(
-                v_data_centered,
-                h_data_centered,
+                v_data_one_hot,
+                mh_data,
                 dims=[[0], [0]],
             )
             / v_data.shape[0]
             - torch.tensordot(
-                v_gen_centered,
-                h_gen_centered,
+                v_gen_one_hot,
+                h_chain,
                 dims=[[0], [0]],
             )
             / v_chain.shape[0]
@@ -174,18 +161,9 @@ def _compute_gradient(
         grad_vbias = v_data_mean - v_gen_mean
         grad_hbias = h_data_mean - h_gen_mean
 
-    if lambda_l1 > 0:
-        grad_weight_matrix -= lambda_l1 * torch.sign(weight_matrix)
-        grad_vbias -= lambda_l1 * torch.sign(vbias)
-        grad_hbias -= lambda_l1 * torch.sign(hbias)
-
-    if lambda_l2 > 0:
-        grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
-        grad_vbias -= 2 * lambda_l2 * vbias
-        grad_hbias -= 2 * lambda_l2 * hbias
-    weight_matrix.grad.set_(grad_weight_matrix)
-    vbias.grad.set_(grad_vbias)
-    hbias.grad.set_(grad_hbias)
+    weight_matrix.grad = grad_weight_matrix
+    vbias.grad = grad_vbias
+    hbias.grad = grad_hbias
 
 
 def _init_chains(
@@ -240,5 +218,12 @@ def _init_parameters(
         )
         * var_init
     )
-    # print(torch.svd(weight_matrix.reshape(-1, weight_matrix.shape[-1])).S)
+    return vbias, hbias, weight_matrix
+
+
+def _zero_sum_gauge(vbias: Tensor, hbias: Tensor, weight_matrix: Tensor):
+    mean_W = weight_matrix.mean(1, keepdim=True)
+    weight_matrix -= mean_W
+    hbias += mean_W.squeeze().sum(0)
+    vbias -= vbias.mean(1, keepdim=True)
     return vbias, hbias, weight_matrix

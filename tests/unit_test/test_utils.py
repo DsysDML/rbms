@@ -229,7 +229,15 @@ def test_save_model(tmp_path, sample_params_class_bbrbm, sample_chains_bbrbm):
     num_updates = 1
     time = 0.0
 
-    save_model(str(filename), params, chains, num_updates, time, ["flag_1", "flag_2"])
+    save_model(
+        str(filename),
+        params,
+        chains,
+        num_updates,
+        time,
+        torch.tensor([0.01, 0.01, 0.01]),
+        ["flag_1", "flag_2"],
+    )
 
     with h5py.File(filename, "r") as f:
         assert "update_1" in f.keys()

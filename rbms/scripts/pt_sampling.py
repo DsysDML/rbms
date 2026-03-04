@@ -2,7 +2,7 @@ import argparse
 
 import h5py
 
-from rbms.classes import RBM
+from rbms.classes import RBM, EBM
 from rbms.io import load_params
 from rbms.map_model import map_model
 from rbms.parser import add_args_pytorch, match_args_dtype
@@ -11,9 +11,7 @@ from rbms.utils import check_file_existence, get_saved_updates
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(
-        "Parallel Tempering sampling on the provided model"
-    )
+    parser = argparse.ArgumentParser("Parallel Tempering sampling on the provided model")
     parser.add_argument("-i", "--filename", type=str, help="Model to use for sampling")
     parser.add_argument(
         "-o", "--out_file", type=str, help="Path to save the samples after generation"
@@ -63,7 +61,7 @@ def run_pt(
     save_index: bool,
     device,
     dtype,
-    map_model: dict[str, RBM] = map_model,
+    map_model: dict[str, type[EBM]] = map_model,
 ):
     check_file_existence(out_file)
 

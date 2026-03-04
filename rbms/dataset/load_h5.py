@@ -2,14 +2,16 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+import torch
+
 from rbms.dataset.fasta_utils import compute_weights
 
 
 def load_HDF5(
     filename: str | Path,
     use_weights: bool = False,
-    device: str = "cuda",
-) -> tuple[np.ndarray, np.ndarray | None, str]:
+    device: torch.device | str = "cuda",
+) -> tuple[np.ndarray, np.ndarray | None, str, np.ndarray]:
     """Load a dataset from an HDF5 file.
 
     Args:
@@ -19,7 +21,7 @@ def load_HDF5(
         Tuple[np.ndarray, np.ndarray]: The dataset and labels.
     """
     labels = None
-    variable_type = "binary"
+    variable_type = "bernoulli"
     with h5py.File(filename, "r") as f:
         if "samples" not in f.keys():
             raise ValueError(
@@ -28,10 +30,10 @@ def load_HDF5(
         dataset = np.array(f["samples"][()])
         if "variable_type" not in f.keys():
             print(
-                f"No variable_type found in the hdf5 file keys: {f.keys()}. Assuming 'binary'."
+                f"No variable_type found in the hdf5 file keys: {f.keys()}. Assuming 'bernoulli'."
             )
             print(
-                "Set a 'variable_type' with value 'binary', 'categorical' or 'continuous' in the hdf5 archive to remove this message"
+                "Set a 'variable_type' with value 'bernoulli', 'ising', 'categorical' or 'continuous' in the hdf5 archive to remove this message"
             )
         else:
             variable_type = f["variable_type"][()].decode()

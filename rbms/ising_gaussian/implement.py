@@ -3,18 +3,20 @@ from typing import Optional, Tuple
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
+from rbms.custom_fn import log2cosh
 
 
-@torch.jit.script
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
     mh = hbias + (v @ weight_matrix)
-    h = torch.randn_like(mh) + mh
+    h = (
+        torch.randn_like(mh) / torch.sqrt(torch.ones_like(mh) * weight_matrix.shape[0])
+        + mh
+    )
     return h, mh
 
 
-@torch.jit.script
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
@@ -24,7 +26,6 @@ def _sample_visibles(
     return v, mv
 
 
-@torch.jit.script
 def _compute_energy(
     v: Tensor,
     h: Tensor,
@@ -42,7 +43,6 @@ def _compute_energy(
     return -fields - interaction + quad
 
 
-@torch.jit.script
 def _compute_energy_visibles(
     v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor, const: Tensor
 ) -> Tensor:
@@ -52,21 +52,20 @@ def _compute_energy_visibles(
     return -field - quad_term + const
 
 
-@torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
-    log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
+    # log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
+    log_term = log2cosh(exponent)
     quad = 0.5 * float(weight_matrix.shape[0]) * (h * h).sum(1)
     return -field - log_term.sum(1) + quad
 
 
-@torch.jit.script
 def _compute_gradient(
     v_data: Tensor,
-    h_data: Tensor,
+    mh_data: Tensor,
     w_data: Tensor,
     v_chain: Tensor,
     h_chain: Tensor,
@@ -75,8 +74,6 @@ def _compute_gradient(
     hbias: Tensor,
     weight_matrix: Tensor,
     centered: bool,
-    lambda_l1: float = 0.0,
-    lambda_l2: float = 0.0,
 ) -> None:
     w_data = w_data.view(-1, 1)
     w_chain = w_chain.view(-1, 1)
@@ -85,13 +82,13 @@ def _compute_gradient(
 
     v_data_mean = (v_data * w_data).sum(0) / w_data_norm
     torch.clamp_(v_data_mean, min=1e-4, max=(1.0 - 1e-4))
-    h_data_mean = (h_data * w_data).sum(0) / w_data_norm
+    h_data_mean = (mh_data * w_data).sum(0) / w_data_norm
     v_gen_mean = v_chain.mean(0)
     torch.clamp_(v_gen_mean, min=1e-4, max=(1.0 - 1e-4))
 
     if centered:
         v_data_centered = v_data - v_data_mean
-        h_data_centered = h_data - h_data_mean
+        h_data_centered = mh_data - h_data_mean
         v_gen_centered = v_chain - v_data_mean
         h_gen_centered = h_chain - h_data_mean
 
@@ -106,11 +103,11 @@ def _compute_gradient(
         )  # No training on biases
     else:
         v_data_centered = v_data
-        h_data_centered = h_data
+        h_data_centered = mh_data
         v_gen_centered = v_chain
         h_gen_centered = h_chain
 
-        grad_weight_matrix = ((v_data * w_data).T @ h_data) / w_data_norm - (
+        grad_weight_matrix = ((v_data * w_data).T @ mh_data) / w_data_norm - (
             (v_chain * chain_weights).T @ h_chain
         )
 
@@ -121,22 +118,11 @@ def _compute_gradient(
             hbias.shape[0], device=hbias.device, dtype=hbias.dtype
         )  # No training on biases
 
-    if lambda_l1 > 0:
-        grad_weight_matrix -= lambda_l1 * torch.sign(weight_matrix)
-        grad_vbias -= lambda_l1 * torch.sign(vbias)
-        grad_hbias -= lambda_l1 * torch.sign(hbias)
-
-    if lambda_l2 > 0:
-        grad_weight_matrix -= 2 * lambda_l2 * weight_matrix
-        grad_vbias -= 2 * lambda_l2 * vbias
-        grad_hbias -= 2 * lambda_l2 * hbias
-
-    weight_matrix.grad.set_(grad_weight_matrix)
-    vbias.grad.set_(grad_vbias)
-    hbias.grad.set_(grad_hbias)
+    weight_matrix.grad = grad_weight_matrix
+    vbias.grad = grad_vbias
+    hbias.grad = grad_hbias
 
 
-@torch.jit.script
 def _init_chains(
     num_samples: int,
     weight_matrix: Tensor,
@@ -152,7 +138,12 @@ def _init_chains(
             raise ValueError(f"Got negative num_samples arg: {num_samples}")
 
     if start_v is None:
-        mv = torch.ones(size=(num_samples, weight_matrix.shape[0]), device=device, dtype=dtype) / 2
+        mv = (
+            torch.ones(
+                size=(num_samples, weight_matrix.shape[0]), device=device, dtype=dtype
+            )
+            / 2
+        )
         v = torch.bernoulli(mv) * 2 - 1
     else:
         mv = torch.zeros_like(start_v, device=device, dtype=dtype)

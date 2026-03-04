@@ -13,7 +13,7 @@ from rbms.const import LOG_FILE_HEADER
 from rbms.ising_ising.classes import IIRBM
 
 
-def get_eigenvalues_history(filename: str):
+def get_eigenvalues_history(filename: str, backend="cpu"):
     """
     Extracts the history of eigenvalues of the RBM's weight matrix.
 
@@ -25,23 +25,36 @@ def get_eigenvalues_history(filename: str):
             - gradient_updates (np.ndarray): Array of gradient update steps.
             - eigenvalues (np.ndarray): Eigenvalues along training.
     """
-    with h5py.File(filename, "r") as f:
-        gradient_updates = []
-        eigenvalues = []
-        for key in f.keys():
-            if "update_" in key:
-                weight_matrix = f[key]["params"]["weight_matrix"][()]
-                weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
+    saved_updates = get_saved_updates(filename)
+    eigenvalues = []
+    for upd in saved_updates:
+        compute = False
+        with h5py.File(filename, "a") as f:
+            if "singular_values" not in f[f"update_{upd}"]:
+                compute = True
+                weight_matrix = f[f"update_{upd}"]["params"]["weight_matrix"][()]
+
+        if compute:
+            weight_matrix = weight_matrix.reshape(-1, weight_matrix.shape[-1])
+            if backend == "gpu":
+                eig = (
+                    torch.svd(
+                        torch.from_numpy(weight_matrix).to(device="cuda"),
+                        compute_uv=False,
+                    )
+                    .S.cpu()
+                    .numpy()
+                )
+            else:
                 eig = np.linalg.svd(weight_matrix, compute_uv=False)
-                eigenvalues.append(eig.reshape(*eig.shape, 1))
-                gradient_updates.append(int(key.split("_")[1]))
+            with h5py.File(filename, "a") as f:
+                f[f"update_{upd}"]["singular_values"] = eig
 
-        # Sort the results
-        sorting = np.argsort(gradient_updates)
-        gradient_updates = np.array(gradient_updates)[sorting]
-        eigenvalues = np.array(np.hstack(eigenvalues).T)[sorting]
-
-    return gradient_updates, eigenvalues
+        with h5py.File(filename, "a") as f:
+            eig = f[f"update_{upd}"]["singular_values"][()]
+            eigenvalues.append(eig.reshape(*eig.shape, 1))
+    eigenvalues = np.array(np.hstack(eigenvalues).T)
+    return saved_updates, eigenvalues
 
 
 def get_saved_updates(filename: str) -> np.ndarray:
@@ -297,19 +310,19 @@ def get_flagged_updates(filename: str, flag: str) -> np.ndarray:
                 if flag in f[key]["flags"]:
                     if f[key]["flags"][flag][()]:
                         flagged_updates.append(update)
-    flagged_updates = np.sort(np.array(flagged_updates))
+    flagged_updates = np.sort(np.array(flagged_updates, dtype=int))
     return flagged_updates
 
 
 def bernoulli_to_ising(params: BBRBM) -> IIRBM:
     weight_matrix = 0.25 * params.weight_matrix
-    vbias = 0.5 * params.vbias + weight_matrix.sum(axis=1)
-    hbias = 0.5 * params.hbias + weight_matrix.sum(axis=0)
+    vbias = 0.5 * params.vbias + weight_matrix.sum(dim=1)
+    hbias = 0.5 * params.hbias + weight_matrix.sum(dim=0)
     return IIRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
 
 
 def ising_to_bernoulli(params: IIRBM) -> BBRBM:
     weight_matrix = 4.0 * params.weight_matrix
-    vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(axis=1)
-    hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(axis=0)
+    vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(dim=1)
+    hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(dim=0)
     return BBRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 import numpy as np
-# import torch
+import torch
 
 # from rbms.custom_fn import one_hot
 from rbms.dataset.fasta_utils import (
@@ -17,7 +17,7 @@ def load_FASTA(
     filename: str | Path,
     use_weights: bool = False,
     alphabet: str = "protein",
-    device="cuda",
+    device: torch.device | str = "cuda",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Load a dataset from a FASTA file.
 
