@@ -179,7 +179,7 @@ def load_args_from_filename(args: dict):
         if args["batch_size"] is None:
             args["batch_size"] = f["train_args"]["batch_size"][()].item()
         if args["training_type"] is None:
-            args["training_type"] = str(f["train_args"]["training_type"][()])
+            args["training_type"] = str(f["train_args"]["training_type"][()].decode())
         args["no_center"] = f["grad_args"]["no_center"][()].item()
         args["seed"] = f["dataset_args"]["seed"][()].item()
         args["train_size"] = f["dataset_args"]["train_size"][()].item()
