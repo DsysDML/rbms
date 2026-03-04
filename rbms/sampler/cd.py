@@ -32,13 +32,20 @@ class CD(Sampler):
         params_dict["sampler_type"] = np.asarray(self.name, dtype="T")
         params_dict["beta"] = np.asarray(self.beta)
         params_dict["num_steps"] = np.asarray(self.num_steps)
-        params_dict["parallel_chains"] = self.chains["visible"].cpu().numpy()
+        match self.params.visible_type:
+            case "bernoulli":
+                chains_save = self.chains["visible"].bool().cpu().numpy()
+            case "ising" | "categorical":
+                chains_save = self.chains["visible"].to(torch.int16).cpu().numpy()
+            case _:
+                chains_save = self.chains["visible"].cpu().numpy()
+        params_dict["parallel_chains"] = chains_save
         return params_dict
 
     @staticmethod
     def set_named_parameters(
         named_params: dict[str, np.ndarray],
-        map_model: dict[str, EBM],
+        map_model: dict[str, type[EBM]],
         device: torch.device | str,
         dtype: torch.dtype,
     ):

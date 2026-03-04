@@ -1,3 +1,4 @@
+from collections.abc import Callable
 import numpy as np
 import torch
 from torch import Tensor
@@ -53,7 +54,7 @@ def categorical_to_bernoulli(x):
     return one_hot(x.long()).reshape(x.shape[0], -1)
 
 
-convert_data = {
+convert_data: dict[str, dict[str, Callable[[Tensor], Tensor]]] = {
     "bernoulli": {
         "bernoulli": (lambda x: x),
         "ising": (lambda x: bernoulli_to_ising(x)),

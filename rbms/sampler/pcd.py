@@ -37,7 +37,14 @@ class PCD(Sampler):
         params_dict = self.params.named_parameters()
         params_dict["model_type"] = np.asarray(self.params.name, dtype="T")
         params_dict["sampler_type"] = np.asarray(self.name, dtype="T")
-        params_dict["parallel_chains"] = self.chains["visible"].cpu().numpy()
+        match self.params.visible_type:
+            case "bernoulli":
+                chains_save = self.chains["visible"].bool().cpu().numpy()
+            case "ising" | "categorical":
+                chains_save = self.chains["visible"].to(torch.int16).cpu().numpy()
+            case _:
+                chains_save = self.chains["visible"].cpu().numpy()
+        params_dict["parallel_chains"] = chains_save
         params_dict["beta"] = np.asarray(self.beta)
         params_dict["num_steps"] = np.asarray(self.num_steps)
         return params_dict
