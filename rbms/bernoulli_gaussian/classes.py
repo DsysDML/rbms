@@ -1,5 +1,4 @@
 from __future__ import annotations
-from botocore.vendored.six import u
 
 import numpy as np
 import torch
