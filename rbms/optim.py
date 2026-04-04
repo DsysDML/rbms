@@ -3,7 +3,7 @@ import torch
 
 # from ptt.optim.cossim import SGD_cossim
 from torch import Tensor
-from torch.optim import SGD, Optimizer
+from torch.optim import SGD, Adam, Optimizer
 
 from rbms.classes import EBM
 
@@ -60,6 +60,8 @@ def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
             optim_class = SGD
         case "cossim":
             optim_class = SGD_cossim
+        case "adam":
+            optim_class = Adam
         case _:
             print(f"Unrecognized optimizer {args['optim']}, falling back to SGD.")
             optim_class = SGD
