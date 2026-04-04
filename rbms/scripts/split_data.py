@@ -90,13 +90,25 @@ def split_data_train_test(
     permutation_index = rng.permutation(num_samples)
     n_sample_train = int(train_size * num_samples)
 
-    data_train = data[permutation_index[:n_sample_train]].int().cpu().numpy()
+    data_train = data[permutation_index[:n_sample_train]].cpu().numpy()
     names_train = names[permutation_index[:n_sample_train]]
     labels_train = labels[permutation_index[:n_sample_train]].int().cpu().numpy()
 
-    data_test = data[permutation_index[n_sample_train:]].int().cpu().numpy()
+    data_test = data[permutation_index[n_sample_train:]].cpu().numpy()
     names_test = names[permutation_index[n_sample_train:]]
     labels_test = labels[permutation_index[n_sample_train:]].int().cpu().numpy()
+
+    match dataset.variable_type:
+        case "bernoulli":
+            print("Casting data to bool")
+            data_train = data_train.astype(bool)
+            data_test = data_test.astype(bool)
+        case "categorical" | "ising":
+            print("Casting data to int")
+            data_train = data_train.astype(int)
+            data_test = data_test.astype(int)
+        case _:
+            print("Not casting data")
 
     print(
         f"    train_size = {data_train.shape[0]} ({100 * data_train.shape[0] / data.shape[0]}%)"
