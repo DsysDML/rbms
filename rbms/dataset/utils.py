@@ -1,4 +1,5 @@
 from collections.abc import Callable
+
 import numpy as np
 import torch
 from torch import Tensor
@@ -97,10 +98,11 @@ def get_covariance_matrix(
     """
     num_data = len(data)
     num_classes = int(data.max().item() + 1)
+    dtype = data.dtype
 
     if weights is None:
         weights = torch.ones(num_data)
-    weights = weights.to(device=device, dtype=torch.float32)
+    weights = weights.to(device=device, dtype=dtype)
 
     if num_extract is not None:
         idxs = np.random.choice(a=np.arange(num_data), size=(num_extract,), replace=False)
@@ -112,7 +114,7 @@ def get_covariance_matrix(
         data = data.to(device=device, dtype=torch.int32)
         data_oh = one_hot(data, num_classes=num_classes).reshape(num_data, -1)
     else:
-        data_oh = data.to(device=device, dtype=torch.float32)
+        data_oh = data.to(device=device, dtype=dtype)
 
     norm_weights = weights.reshape(-1, 1) / weights.sum()
     data_mean = (data_oh * norm_weights).sum(0, keepdim=True)
