@@ -36,7 +36,9 @@ def plot_scatter_labels(ax, data_proj, gen_data_proj, proj1, proj2, labels):
     )
 
 
-def plot_hist(ax, data_proj, gen_data_proj, color, proj, labels, orientation="vertical"):
+def plot_hist(
+    ax, data_proj, gen_data_proj, color, proj, labels, orientation="vertical", log=False
+):
     """Args:
     ax
     data_proj
@@ -56,6 +58,7 @@ def plot_hist(ax, data_proj, gen_data_proj, color, proj, labels, orientation="ve
         density=True,
         orientation=orientation,
         lw=1,
+        log=log,
     )
     ax.hist(
         gen_data_proj[:, proj],
@@ -67,11 +70,12 @@ def plot_hist(ax, data_proj, gen_data_proj, color, proj, labels, orientation="ve
         density=True,
         orientation=orientation,
         lw=1.5,
+        log=log,
     )
     ax.axis("off")
 
 
-def plot_PCA(data1, data2, labels, dir1=0, dir2=1):
+def plot_PCA(data1, data2, labels, dir1=0, dir2=1, log=False):
     """Args:
     data1
     data2
@@ -87,9 +91,16 @@ def plot_PCA(data1, data2, labels, dir1=0, dir2=1):
     ax_hist_y = fig.add_subplot(gs[1:4, 3])
 
     plot_scatter_labels(ax_scatter, data1, data2, dir1, dir2, labels=labels)
-    plot_hist(ax_hist_x, data1, data2, "red", dir1, labels=labels)
+    plot_hist(ax_hist_x, data1, data2, "red", dir1, labels=labels, log=log)
     plot_hist(
-        ax_hist_y, data1, data2, "red", dir2, orientation="horizontal", labels=labels
+        ax_hist_y,
+        data1,
+        data2,
+        "red",
+        dir2,
+        orientation="horizontal",
+        labels=labels,
+        log=log,
     )
 
     ax_hist_x.legend(fontsize=12, bbox_to_anchor=(1, 1))
