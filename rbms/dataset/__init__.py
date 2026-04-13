@@ -75,7 +75,7 @@ def load_dataset(
                     labels=labels,
                     weights=weights,
                     names=names,
-                    dataset_name=dataset_name,
+                    dataset_name=str(dset_name),
                     variable_type=variable_type,
                     device=device,
                     dtype=dtype,

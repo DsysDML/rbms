@@ -36,7 +36,7 @@ class EBM(ABC):
             return False
         other_params = other.named_parameters()
         for k, v in self.named_parameters().items():
-            if not np.equal(other_params[k], v):
+            if not np.equal(other_params[k], v).all():
                 return False
         return True
 
