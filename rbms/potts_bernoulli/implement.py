@@ -11,8 +11,10 @@ def _sample_hiddens(
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
-    v_oh = one_hot(v.to(torch.int32), num_classes=num_states, dtype=dtype).view(
-        -1, num_visibles * num_states
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=dtype)
+        .view(-1, num_visibles * num_states)
     )
     mh = torch.sigmoid(beta * (hbias + v_oh @ weight_matrix_oh))
     h = torch.bernoulli(mh).to(weight_matrix.dtype)
@@ -40,8 +42,10 @@ def _compute_energy(
 ):
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
-    v_oh = one_hot(v.to(torch.int32), num_classes=num_states, dtype=dtype).view(
-        -1, num_visibles * num_states
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=dtype)
+        .view(-1, num_visibles * num_states)
     )
     vbias_oh = vbias.flatten()
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
@@ -55,8 +59,10 @@ def _compute_energy_visibles(
 ):
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
-    v_oh = one_hot(v.to(torch.int32), num_classes=num_states, dtype=dtype).view(
-        -1, num_visibles * num_states
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=dtype)
+        .view(-1, num_visibles * num_states)
     )
 
     vbias_oh = vbias.flatten()
@@ -95,8 +101,8 @@ def _compute_gradient(
     num_states = weight_matrix.shape[1]
 
     # One-hot representation of the data
-    v_data_one_hot = one_hot(v_data.to(int_dtype), num_classes=num_states, dtype=dtype)
-    v_gen_one_hot = one_hot(v_chain.to(int_dtype), num_classes=num_states, dtype=dtype)
+    v_data_one_hot = one_hot(v_data.long(), num_classes=num_states).to(dtype)
+    v_gen_one_hot = one_hot(v_chain.long(), num_classes=num_states).to(dtype=dtype)
 
     # Turn the weights of the chains into normalized weights
     chain_weights = softmax(-w_chain, dim=0)
@@ -184,9 +190,11 @@ def _init_chains(
     else:
         v = start_v.to(weight_matrix.dtype)
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
-    v_oh = one_hot(
-        v.to(torch.int32), num_classes=num_states, dtype=weight_matrix_oh.dtype
-    ).view(-1, num_visibles * num_states)
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=weight_matrix_oh.dtype)
+        .view(-1, num_visibles * num_states)
+    )
     mv = torch.zeros(v.shape[0], v.shape[1], num_states)
     mh = torch.sigmoid(hbias + v_oh @ weight_matrix_oh)
     h = torch.bernoulli(mh)
