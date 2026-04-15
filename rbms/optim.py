@@ -55,7 +55,7 @@ class SGD_cossim(SGD):
 
 
 def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
-    match args["optim"]:
+    match optim:
         case "sgd":
             optim_class = SGD
         case "cossim":
