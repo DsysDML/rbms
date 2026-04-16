@@ -2,7 +2,9 @@ import torch
 from torch import Tensor
 from torch.nn.functional import softmax
 
+from rbms.bm.utils import get_freq_single_point
 from rbms.custom_fn import one_hot
+from rbms.dataset.utils import convert_data
 
 
 def _sample_hiddens(
@@ -205,6 +207,7 @@ def _init_chains(
 def _init_parameters(
     num_hiddens: int,
     data: Tensor,
+    weights: Tensor,
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
@@ -214,6 +217,14 @@ def _init_parameters(
     num_states = int(torch.max(data) + 1)
     all_states = torch.arange(num_states).reshape(-1, 1, 1).to(data.device)
     frequencies = (data == all_states).type(torch.float32).mean(1).to(device)
+    frequencies = get_freq_single_point(
+        convert_data["categorical"]["bernoulli"](data).view(
+            data.shape[0], data.shape[1], num_states
+        ),
+        weights / weights.sum(),
+        1e-4,
+    )
+
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
     vbias = (
         (torch.log(frequencies) - 1.0 / num_states * torch.sum(torch.log(frequencies), 0))
