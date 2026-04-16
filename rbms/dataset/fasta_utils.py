@@ -160,7 +160,9 @@ def compute_weights(
         n_clust = torch.sum(seq_id >= th)
         return 1.0 / n_clust
 
-    weights = torch.vstack([get_sequence_weight(s, data_tensor, L, th) for s in data])
+    weights = torch.vstack(
+        [get_sequence_weight(s, data_tensor, L, th) for s in data_tensor]
+    )
     return weights.cpu().numpy()
 
 
