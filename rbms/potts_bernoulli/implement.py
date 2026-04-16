@@ -96,7 +96,6 @@ def _compute_gradient(
 ):
     w_data = w_data.view(-1, 1, 1)
     w_chain = w_chain.view(-1, 1, 1)
-    int_dtype = torch.int32
     dtype = weight_matrix.dtype
     num_states = weight_matrix.shape[1]
 
@@ -107,6 +106,8 @@ def _compute_gradient(
     # Turn the weights of the chains into normalized weights
     chain_weights = softmax(-w_chain, dim=0)
     w_chain_norm = chain_weights.sum()
+    # The weights should be normalized on the batch by dividing with the sum
+    # of the weights of the batch
     w_data_norm = w_data.sum()
     # Averages over data and generated samples
     v_data_mean = (v_data_one_hot * w_data).sum(0) / w_data_norm
