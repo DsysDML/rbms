@@ -223,7 +223,7 @@ def _init_parameters(
         ),
         weights / weights.sum(),
         1e-4,
-    )
+    ).T
 
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
     vbias = (
