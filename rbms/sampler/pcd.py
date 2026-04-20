@@ -22,14 +22,23 @@ class PCD(Sampler):
         self.beta = beta
         self.num_steps = num_steps
         self.flags = []
+        self.kernel = kwargs.get("kernel", None)
+        self.kernel_params = kwargs.get("kernel_params", {})
 
-    def get_conf_grad(self, batch: Tensor):
-        self.sample(num_steps=None)
+    def get_conf_grad(self, batch: Tensor, **kwargs):
+        self.sample(num_steps=self.num_steps, **kwargs)
         return self.chains
 
     def sample(self, num_steps: int | None, **kwargs):
+        kernel = kwargs.pop("kernel", self.kernel)
+        kernel_params = kwargs.pop("kernel_params", {})
+        kernel_params = {**self.kernel_params, **kernel_params, **kwargs}
         self.chains = self.params.sample_state(
-            chains=self.chains, n_steps=self.num_steps, beta=self.beta
+            chains=self.chains,
+            n_steps=num_steps,
+            beta=self.beta,
+            kernel=kernel,
+            kernel_params=kernel_params,
         )
 
     @torch.compiler.disable

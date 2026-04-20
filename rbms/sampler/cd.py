@@ -13,16 +13,25 @@ class CD(Sampler):
         self.num_steps = num_steps
         self.chains = self.params.init_chains(2)
         self.flags = []
+        self.kernel = kwargs.get("kernel", None)
+        self.kernel_params = kwargs.get("kernel_params", {})
 
-    def get_conf_grad(self, batch: Tensor) -> dict[str, Tensor]:
-        self.sample(num_steps=None, batch=batch)
+    def get_conf_grad(self, batch: Tensor, **kwargs) -> dict[str, Tensor]:
+        self.sample(num_steps=self.num_steps, batch=batch, **kwargs)
         return self.chains
 
     def sample(self, num_steps: int | None, **kwargs) -> None:
-        batch = kwargs["batch"]
+        batch = kwargs.pop("batch")
+        kernel = kwargs.pop("kernel", self.kernel)
+        kernel_params = kwargs.pop("kernel_params", {})
+        kernel_params = {**self.kernel_params, **kernel_params, **kwargs}
         self.chains = self.params.init_chains(num_samples=batch.shape[0], start_v=batch)
         self.chains = self.params.sample_state(
-            chains=self.chains, n_steps=self.num_steps, beta=self.beta
+            chains=self.chains,
+            n_steps=num_steps,
+            beta=self.beta,
+            kernel=kernel,
+            kernel_params=kernel_params,
         )
 
     @torch.compiler.disable
