@@ -16,6 +16,7 @@ from rbms.bernoulli_bernoulli.implement import (
 )
 from rbms.classes import RBM
 from rbms.custom_fn import check_keys_dict
+from rbms.dataset.utils import get_covariance_matrix
 
 
 class BBRBM(RBM):
@@ -120,6 +121,20 @@ class BBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
+        )
+        # self.vbias.grad = torch.zeros_like(self.vbias)
+        tmp = torch.mean(data["visible"], 0) @ self.weight_matrix
+        self.hbias.grad = (
+            torch.inverse(
+                (self.weight_matrix.T @ self.weight_matrix)
+                - tmp.unsqueeze(1) @ tmp.unsqueeze(0)
+            )
+            @ self.hbias.grad
+        )
+
+        self.weight_matrix.grad = (
+            get_covariance_matrix(data["visible"], data["weights"]).cuda()
+            @ torch.pinverse(self.weight_matrix).cuda().T
         )
 
     def independent_model(self):

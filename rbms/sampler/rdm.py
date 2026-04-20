@@ -28,6 +28,9 @@ class RDM(Sampler):
         self.sample(num_steps=None)
         return self.chains
 
+    def get_curr_conf(self):
+        return self.chains
+
     @torch.compiler.disable
     def named_parameters(self):
         params_dict = self.params.named_parameters()

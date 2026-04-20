@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from torch.optim import SGD, Adam, Optimizer
 
-from rbms.classes import EBM
+from rbms.classes import EBM, Sampler
 
 
 class SGD_cossim(SGD):
@@ -59,12 +59,16 @@ class SR_CG(Optimizer):
         self,
         params,
         lr=0.001,
+        maximize=True,
         cg_steps=10,
         reg=1e-4,
         update_freq=1,
         warm_start=True,
-        maximize=True,
     ):
+
+        self._model = None
+        self._sampler = None
+        # super().__init__(params, defaults)
         defaults = dict(
             lr=lr,
             cg_steps=cg_steps,
@@ -74,25 +78,20 @@ class SR_CG(Optimizer):
             maximize=maximize,
             step=0,
         )
-        self._model = params
         super().__init__(params, defaults)
-
         # Initialize state memory for warm starts
         for group in self.param_groups:
             for p in group["params"]:
                 self.state[p]["last_dt"] = torch.zeros_like(p.data)
 
+    def set_sampler(self, sampler: Sampler):
+        self._sampler = sampler
+
+    def set_model(self, model: EBM):
+        self._model = model
+
     @torch.no_grad()
     def _fvp(self, p_list, v_chain, tanh_term, model, reg, params):
-        # p_dict = {}
-        # for p_tensor, param_ref in zip(p_list, params):
-        #     if param_ref is model.weight_matrix:
-        #         p_dict["w"] = p_tensor
-        #     elif param_ref is model.vbias:
-        #         p_dict["v"] = p_tensor
-        #     elif param_ref is model.hbias:
-        #         p_dict["h"] = p_tensor
-
         O_dot_p = (
             ((v_chain @ model.weight_matrix) * tanh_term).sum(dim=1)
             + (v_chain @ model.vbias)
@@ -119,7 +118,10 @@ class SR_CG(Optimizer):
         return Sx_list
 
     @torch.no_grad()
-    def step(self, v_chain, closure=None):
+    def step(self, closure=None):
+        assert self._sampler is not None
+        assert self._model is not None
+        v_chain = self._sampler.get_curr_conf()["visible"]
         for group in self.param_groups:
             group["step"] += 1
             params = group["params"]
@@ -188,7 +190,7 @@ class SR_CG(Optimizer):
                 p_tensor.add_(dt, alpha=direction * lr)
 
 
-def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
+def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[Optimizer]:
     match args["optim"]:
         case "sgd":
             optim_class = SGD
@@ -245,5 +247,9 @@ def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
             )
             for opt in optimizer
         ]
-
+    if args["optim"] == "sr":
+        for opt in optimizer:
+            assert isinstance(opt, SR_CG)
+            opt.set_sampler(sampler)
+            opt.set_model(params)
     return optimizer

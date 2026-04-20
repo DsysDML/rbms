@@ -18,6 +18,9 @@ class CD(Sampler):
         self.sample(num_steps=None, batch=batch)
         return self.chains
 
+    def get_curr_conf(self):
+        return self.chains
+
     def sample(self, num_steps: int | None, **kwargs) -> None:
         batch = kwargs["batch"]
         self.chains = self.params.init_chains(num_samples=batch.shape[0], start_v=batch)

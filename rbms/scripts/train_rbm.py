@@ -2,6 +2,7 @@ import argparse
 
 import h5py
 import torch
+from torch.optim.optimizer import Optimizer
 
 from rbms import get_saved_updates
 from rbms.dataset import load_dataset
@@ -119,17 +120,6 @@ def main(args, map_model=map_model):
         map_model=map_model,
     )
 
-    optimizer = setup_optim(args["optim"], args, params)
-    from rbms.pre_grad import build_pre_grad_update
-
-    pre_grad_update = build_pre_grad_update(
-        optimizer=optimizer,
-        lambda_l1=args["L1"],
-        lambda_l2=args["L2"],
-        normalize_grad=args["normalize_grad"],
-        max_grad_norm=args["max_norm_grad"],
-    )
-
     match args["training_type"]:
         case "pcd":
             sampler = PCD(
@@ -151,6 +141,16 @@ def main(args, map_model=map_model):
         case _:
             raise ValueError(f"No training type {args['training_type']} supported.")
 
+    optimizer: list[Optimizer] = setup_optim(args["optim"], args, params, sampler)
+    from rbms.pre_grad import build_pre_grad_update
+
+    pre_grad_update = build_pre_grad_update(
+        optimizer=optimizer,
+        lambda_l1=args["L1"],
+        lambda_l2=args["L2"],
+        normalize_grad=args["normalize_grad"],
+        max_grad_norm=args["max_norm_grad"],
+    )
     train(
         train_dataset=train_dataset,
         test_dataset=test_dataset,

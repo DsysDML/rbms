@@ -371,3 +371,6 @@ class Sampler(ABC):
 
     @abstractmethod
     def get_metrics_save(self) -> dict[str, np.ndarray] | None: ...
+
+    @abstractmethod
+    def get_curr_conf(self) -> dict[str, Tensor]: ...
