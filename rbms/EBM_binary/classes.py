@@ -176,35 +176,18 @@ class BEBM(EBM):
         named_params: dict[str, np.ndarray],
         device: torch.device | str,
         dtype: torch.dtype,
-    ) -> EBM: 
-        from rbms.EBM_binary.energies import MLPEnergy
+    ) -> EBM:
+        from rbms.EBM_binary.energies import restore_energy
 
-        weight_keys = sorted(
-            [name for name in named_params if name.endswith(".weight")],
-            key=lambda name: int(name.split(".")[1]),
+        energy = restore_energy(
+            named_params=named_params,
+            device=device,
+            dtype=dtype,
         )
-        if len(weight_keys) == 0:
-            raise ValueError("Cannot restore BEBM without energy weight tensors.")
-
-        first_weight = named_params[weight_keys[0]]
-        num_visibles = first_weight.shape[1]
-        num_layers = len(weight_keys) - 1
-        hidden_dim = first_weight.shape[0]
-
-        energy = MLPEnergy(
-            num_visibles=num_visibles,
-            hidden_dim=hidden_dim,
-            num_layers=num_layers,
-        )
-        state_dict = {
-            name: torch.as_tensor(array, device=device, dtype=dtype)
-            for name, array in named_params.items()
-        }
-        energy.load_state_dict(state_dict)
 
         return BEBM(
             energy=energy,
-            num_visibles=num_visibles,
+            num_visibles=energy.num_visibles,
             device=device,
             dtype=dtype,
         )
