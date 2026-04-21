@@ -2,7 +2,7 @@ import h5py
 import numpy as np
 import torch
 
-from rbms.EBM_binary import BEBM, build_energy
+from rbms.EBM_binary import BEBM, build_energy, get_visible_field_from_data
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
@@ -61,12 +61,17 @@ def _init_training(
 
     # Setup model
     if model_type == "BEBM":
+        visible_field = get_visible_field_from_data(
+            data=train_dataset.data,
+            weights=train_dataset.weights,
+        )
         energy = build_energy(
             energy_type="mlp",
             num_visibles=num_visibles,
             device=device,
             dtype=dtype,
             hidden_dim=num_hiddens,
+            visible_field=visible_field,
         )
         params = BEBM(
             energy=energy,

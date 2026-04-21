@@ -9,7 +9,11 @@ class MLPEnergy(torch.nn.Module):
     """Binary visible-state energy represented by an MLP.
 
     The module maps a batch of visible configurations v in {0, 1}^N to one
-    scalar energy per sample.
+    scalar energy per sample. A fixed visible field h can be added as
+
+        E(v) = E_MLP(v) - v^T h,
+
+    which is the Bernoulli analogue of the external field in an Ising model.
     """
 
     def __init__(
@@ -17,11 +21,16 @@ class MLPEnergy(torch.nn.Module):
         num_visibles: int,
         hidden_dim: int = 256,
         num_layers: int = 2,
+        visible_field: Tensor | None = None,
     ):
         super().__init__()
         self.num_visibles = num_visibles
         self.hidden_dim = hidden_dim
         self.num_layers = num_layers
+
+        if visible_field is None:
+            visible_field = torch.zeros(num_visibles)
+        self.register_buffer("visible_field", visible_field.clone())
 
         layers = []
         in_dim = num_visibles
@@ -34,7 +43,24 @@ class MLPEnergy(torch.nn.Module):
         self.net = torch.nn.Sequential(*layers)
 
     def forward(self, v: Tensor) -> Tensor:
-        return self.net(v).view(-1)
+        return self.net(v).view(-1) - v @ self.visible_field
+
+
+def get_visible_field_from_data(
+    data: Tensor,
+    weights: Tensor | None = None,
+    eps: float = 1e-4,
+) -> Tensor:
+    """Return h_i = log(p_i / (1 - p_i)) for binary variables v_i in {0, 1}."""
+
+    if weights is None:
+        p = data.mean(dim=0)
+    else:
+        weights = weights.to(device=data.device, dtype=data.dtype).view(-1)
+        p = (data * weights[:, None]).sum(dim=0) / weights.sum()
+
+    p = p.clamp(min=eps, max=1.0 - eps)
+    return torch.log(p) - torch.log1p(-p)
 
 
 class RBMEnergy(torch.nn.Module):
@@ -138,6 +164,13 @@ def restore_energy(
         name: torch.as_tensor(array, device=device, dtype=dtype)
         for name, array in named_params.items()
     }
+    if "visible_field" in energy.state_dict() and "visible_field" not in state_dict:
+        state_dict["visible_field"] = torch.zeros(
+            energy.num_visibles,
+            device=device,
+            dtype=dtype,
+        )
+
     energy.load_state_dict(state_dict)
     return energy.to(device=device, dtype=dtype)
 
