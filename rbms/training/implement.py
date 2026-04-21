@@ -2,6 +2,7 @@ import h5py
 import numpy as np
 import torch
 
+from rbms.EBM_binary import BEBM, build_energy
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
@@ -58,13 +59,28 @@ def _init_training(
     # Setup dataset
     num_visibles = train_dataset.get_num_visibles()
 
-    # Setup RBM
-    params = map_model[model_type].init_parameters(
-        num_hiddens=num_hiddens,
-        dataset=train_dataset,
-        device=device,
-        dtype=dtype,
-    )
+    # Setup model
+    if model_type == "BEBM":
+        energy = build_energy(
+            energy_type="mlp",
+            num_visibles=num_visibles,
+            device=device,
+            dtype=dtype,
+            hidden_dim=num_hiddens,
+        )
+        params = BEBM(
+            energy=energy,
+            num_visibles=num_visibles,
+            device=device,
+            dtype=dtype,
+        )
+    else:
+        params = map_model[model_type].init_parameters(
+            num_hiddens=num_hiddens,
+            dataset=train_dataset,
+            device=device,
+            dtype=dtype,
+        )
 
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
