@@ -268,11 +268,22 @@ class BEBM(EBM):
     @property
     def ref_log_z(self) -> float:
         """Reference log partition function with weights set to 0 (except for the visible bias)."""
-        raise NotImplementedError("Reference log partition function is not implemented yet.")
+        return torch.nn.functional.softplus(self.energy.visible_field).sum().item()
     
     def independent_model(self) -> EBM:
         """Independent model where only local fields are preserved."""
-        raise NotImplementedError("Independent model is not implemented yet.")
+        from rbms.EBM_binary.energies import IndependentBernoulliEnergy
+
+        energy = IndependentBernoulliEnergy(
+            visible_field=self.energy.visible_field.detach().clone()
+        )
+
+        return BEBM(
+            energy=energy,
+            num_visibles=self.num_visibles,
+            device=self.device,
+            dtype=self.dtype,
+        )
 
     def sample_state(
         self, 

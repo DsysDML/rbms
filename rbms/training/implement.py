@@ -19,6 +19,7 @@ def _init_training(
     num_hiddens: int,
     num_chains: int,
     model_type: str,
+    energy_type: str,
     filename: str,
     n_save: int,
     spacing: str,
@@ -65,20 +66,38 @@ def _init_training(
             data=train_dataset.data,
             weights=train_dataset.weights,
         )
-        energy = build_energy(
-            energy_type="mlp",
-            num_visibles=num_visibles,
-            device=device,
-            dtype=dtype,
-            hidden_dim=num_hiddens,
-            visible_field=visible_field,
-        )
+
+        match energy_type:
+            case "mlp":
+                energy = build_energy(
+                    energy_type="mlp",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    hidden_dim=num_hiddens,
+                    visible_field=visible_field,
+                )
+
+            case "rbm":
+                energy = build_energy(
+                    energy_type="rbm",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    hidden_dim=num_hiddens,
+                    visible_bias=visible_field,
+                )
+
+            case _:
+                raise ValueError(f"Unknown BEBM energy type: {energy_type}")
+
         params = BEBM(
             energy=energy,
             num_visibles=num_visibles,
             device=device,
             dtype=dtype,
         )
+
     else:
         params = map_model[model_type].init_parameters(
             num_hiddens=num_hiddens,
@@ -103,6 +122,7 @@ def _init_training(
         hyperparameters["num_hiddens"] = num_hiddens
         hyperparameters["num_chains"] = num_chains
         hyperparameters["filename"] = str(filename)
+        hyperparameters["energy_type"] = np.asarray(energy_type, dtype="T")
 
     save_model(
         filename=filename,

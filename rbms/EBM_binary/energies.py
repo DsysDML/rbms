@@ -20,7 +20,7 @@ class MLPEnergy(torch.nn.Module):
         self,
         num_visibles: int,
         hidden_dim: int = 256,
-        num_layers: int = 2,
+        num_layers: int = 1,
         visible_field: Tensor | None = None,
     ):
         super().__init__()
@@ -230,3 +230,47 @@ def restore_mlp_energy(
         hidden_dim=hidden_dim,
         num_layers=num_layers,
     )
+
+
+class IndependentBernoulliEnergy(torch.nn.Module):
+    """Independent Bernoulli visible energy.
+
+    E(v) = -v^T h
+
+    with h_i = log(p_i / (1 - p_i)).
+    """
+
+    def __init__(self, visible_field: Tensor):
+        super().__init__()
+        self.num_visibles = visible_field.shape[0]
+        self.register_buffer("visible_field", visible_field.clone())
+
+    def forward(self, v: Tensor) -> Tensor:
+        return -v @ self.visible_field
+
+
+
+class InterpolatedEnergy(torch.nn.Module):
+    """Energy-space interpolation between two binary visible energies.
+
+    For AIS with a generic EBM, the correct bridge is
+
+        E_beta(v) = (1 - beta) E_0(v) + beta E_1(v),
+
+    not an interpolation of neural-network parameters.
+    """
+
+    def __init__(
+        self,
+        energy_0: torch.nn.Module,
+        energy_1: torch.nn.Module,
+        beta: float,
+    ):
+        super().__init__()
+        self.energy_0 = energy_0
+        self.energy_1 = energy_1
+        self.beta = beta
+        self.num_visibles = energy_1.num_visibles
+
+    def forward(self, v: Tensor) -> Tensor:
+        return (1.0 - self.beta) * self.energy_0(v) + self.beta * self.energy_1(v)

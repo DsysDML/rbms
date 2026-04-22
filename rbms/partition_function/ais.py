@@ -81,3 +81,129 @@ def compute_partition_function_ais(num_chains: int, num_beta: int, params: EBM) 
         )
     log_z = torch.logsumexp(log_weights, 0) - np.log(num_chains) + log_z_init
     return log_z.item()
+
+
+
+def _make_energy_interpolated_model(
+    params_ref: EBM,
+    params: EBM,
+    beta: float,
+) -> EBM:
+    """Build an EBM whose energy is (1 - beta) E_ref + beta E_model.
+
+    This is the mathematically correct AIS bridge for neural-network EBMs,
+    where parameter interpolation is not equivalent to energy interpolation.
+    """
+
+    from rbms.EBM_binary.classes import BEBM
+    from rbms.EBM_binary.energies import InterpolatedEnergy
+
+    if not hasattr(params_ref, "energy") or not hasattr(params, "energy"):
+        raise TypeError("Energy interpolation AIS requires EBM objects exposing `.energy`.")
+
+    energy = InterpolatedEnergy(
+        energy_0=params_ref.energy,
+        energy_1=params.energy,
+        beta=beta,
+    )
+
+    return BEBM(
+        energy=energy,
+        num_visibles=params.num_visibles,
+        device=params.device,
+        dtype=params.dtype,
+    )
+
+
+def _init_reference_chains(
+    params_ref: EBM,
+    num_chains: int,
+) -> dict[str, Tensor]:
+    """Initialize AIS chains from the independent reference when available."""
+
+    visible_field = getattr(params_ref.energy, "visible_field", None)
+
+    if visible_field is None:
+        return params_ref.init_chains(num_samples=num_chains)
+
+    probabilities = torch.sigmoid(visible_field)
+    visible = torch.bernoulli(probabilities.expand(num_chains, -1))
+
+    return params_ref.init_chains(
+        num_samples=num_chains,
+        start_v=visible,
+    )
+
+
+def compute_partition_function_ais_ebm(
+    num_chains: int,
+    num_beta: int,
+    params: EBM,
+    n_steps: int = 1,
+    kernel: str | None = None,
+    kernel_params: dict | None = None,
+) -> float:
+    """Compute log Z for an energy-wrapped EBM using energy-space AIS.
+
+    Unlike `compute_partition_function_ais`, this function does not rely on
+    `params_ref * (1 - beta) + params * beta`. That parameter-space
+    interpolation is correct for RBMs, whose energies are linear in the
+    parameters, but it is not correct for generic neural-network EBMs.
+
+    The annealing path is instead
+
+        E_beta(v) = (1 - beta) E_ref(v) + beta E_model(v).
+    """
+
+    if kernel_params is None:
+        kernel_params = {}
+
+    device = params.device
+    dtype = getattr(params, "dtype", torch.get_default_dtype())
+
+    all_betas = torch.linspace(
+        start=0.0,
+        end=1.0,
+        steps=num_beta,
+        device=device,
+        dtype=dtype,
+    )
+
+    log_z_init = params.ref_log_z
+    params_ref = params.independent_model()
+    chains = _init_reference_chains(params_ref=params_ref, num_chains=num_chains)
+    log_weights = torch.zeros(num_chains, device=device, dtype=dtype)
+
+    sample_kwargs = dict(kernel_params=kernel_params)
+    if kernel is not None:
+        sample_kwargs["kernel"] = kernel
+
+    beta_prev = float(all_betas[0].item())
+    curr_params = _make_energy_interpolated_model(
+        params_ref=params_ref,
+        params=params,
+        beta=beta_prev,
+    )
+
+    for beta_next_tensor in all_betas[1:]:
+        beta_next = float(beta_next_tensor.item())
+        next_params = _make_energy_interpolated_model(
+            params_ref=params_ref,
+            params=params,
+            beta=beta_next,
+        )
+
+        chains = curr_params.sample_state(
+            chains=chains,
+            n_steps=n_steps,
+            **sample_kwargs,
+        )
+
+        energy_prev = curr_params.compute_energy_visibles(v=chains["visible"])
+        energy_next = next_params.compute_energy_visibles(v=chains["visible"])
+        log_weights += -energy_next.detach() + energy_prev.detach()
+
+        curr_params = next_params
+
+    log_z = torch.logsumexp(log_weights, 0) - np.log(num_chains) + log_z_init
+    return log_z.item()
