@@ -150,8 +150,9 @@ def _init_parameters(
     data: Tensor,
     device: torch.device,
     dtype: torch.dtype,
-    var_init: float = 1e-4,
+    var_init: float = 1e-2,
 ) -> tuple[Tensor, Tensor, Tensor]:
+    var_init: float = 1e-2
     _, num_visibles = data.shape
     eps = 1e-4
     weight_matrix = (
