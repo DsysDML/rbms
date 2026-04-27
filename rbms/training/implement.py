@@ -3,6 +3,11 @@ import numpy as np
 import torch
 
 from rbms.EBM_binary import BEBM, build_energy, get_visible_field_from_data
+from rbms.EBM_continuous import (
+    CEBM,
+    build_energy as build_continuous_energy,
+    get_gaussian_base_from_data,
+)
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
@@ -92,6 +97,44 @@ def _init_training(
                 raise ValueError(f"Unknown BEBM energy type: {energy_type}")
 
         params = BEBM(
+            energy=energy,
+            num_visibles=num_visibles,
+            device=device,
+            dtype=dtype,
+        )
+
+    elif model_type == "CEBM":
+        data_mean, data_std = get_gaussian_base_from_data(
+            data=train_dataset.data,
+            weights=train_dataset.weights,
+        )
+
+        match energy_type:
+            case None | "mlp":
+                energy = build_continuous_energy(
+                    energy_type="mlp",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    hidden_dim=num_hiddens,
+                    data_mean=data_mean,
+                    data_std=data_std,
+                )
+
+            case "gaussian":
+                energy = build_continuous_energy(
+                    energy_type="gaussian",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    data_mean=data_mean,
+                    data_std=data_std,
+                )
+
+            case _:
+                raise ValueError(f"Unknown CEBM energy type: {energy_type}")
+
+        params = CEBM(
             energy=energy,
             num_visibles=num_visibles,
             device=device,
