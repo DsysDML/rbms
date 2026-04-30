@@ -30,7 +30,7 @@ class MLPEnergy(torch.nn.Module):
 
         if visible_field is None:
             visible_field = torch.zeros(num_visibles)
-        self.register_buffer("visible_field", visible_field.clone())
+        self.visible_field = torch.nn.Parameter(visible_field.clone())
 
         layers = []
         in_dim = num_visibles
