@@ -76,7 +76,7 @@ class MLPNoW2Energy(torch.nn.Module):
         in_dim = num_visibles
         for _ in range(num_layers):
             layers.append(torch.nn.Linear(in_dim, hidden_dim))
-            layers.append(torch.nn.SiLU())
+            layers.append(torch.nn.Sigmoid())
             in_dim = hidden_dim
 
         self.net = torch.nn.Sequential(*layers)
