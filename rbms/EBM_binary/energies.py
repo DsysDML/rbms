@@ -22,6 +22,7 @@ class MLPEnergy(torch.nn.Module):
         hidden_dim: int = 256,
         num_layers: int = 1,
         visible_field: Tensor | None = None,
+        weight_scale: float = 1e-2,
     ):
         super().__init__()
         self.num_visibles = num_visibles
@@ -42,8 +43,51 @@ class MLPEnergy(torch.nn.Module):
 
         self.net = torch.nn.Sequential(*layers)
 
+        for module in self.net:
+            if isinstance(module, torch.nn.Linear):
+                torch.nn.init.normal_(module.weight, mean=0.0, std=weight_scale)
+                torch.nn.init.zeros_(module.bias)
+
     def forward(self, v: Tensor) -> Tensor:
         return self.net(v).view(-1) - v @ self.visible_field
+
+
+class MLPNoW2Energy(torch.nn.Module):
+    def __init__(
+        self,
+        num_visibles: int,
+        hidden_dim: int = 256,
+        num_layers: int = 1,
+        visible_field: Tensor | None = None,
+        weight_scale: float = 1e-2,
+        output_scale: float | None = None,
+    ):
+        super().__init__()
+        self.num_visibles = num_visibles
+        self.hidden_dim = hidden_dim
+        self.num_layers = num_layers
+        self.output_scale = hidden_dim**-0.5 if output_scale is None else output_scale
+
+        if visible_field is None:
+            visible_field = torch.zeros(num_visibles)
+        self.visible_field = torch.nn.Parameter(visible_field.clone())
+
+        layers = []
+        in_dim = num_visibles
+        for _ in range(num_layers):
+            layers.append(torch.nn.Linear(in_dim, hidden_dim))
+            layers.append(torch.nn.SiLU())
+            in_dim = hidden_dim
+
+        self.net = torch.nn.Sequential(*layers)
+
+        for module in self.net:
+            if isinstance(module, torch.nn.Linear):
+                torch.nn.init.normal_(module.weight, mean=0.0, std=weight_scale)
+                torch.nn.init.zeros_(module.bias)
+
+    def forward(self, v: Tensor) -> Tensor:
+        return self.output_scale * self.net(v).sum(dim=1) - v @ self.visible_field
 
 
 def get_visible_field_from_data(
@@ -109,6 +153,7 @@ class RBMEnergy(torch.nn.Module):
 
 ENERGY_MAP: dict[str, type[torch.nn.Module]] = {
     "mlp": MLPEnergy,
+    "mlp_no_w2": MLPNoW2Energy,
     "rbm": RBMEnergy,
 }
 
@@ -154,6 +199,9 @@ def restore_energy(
         case "mlp":
             energy = restore_mlp_energy(named_params)
 
+        case "mlp_no_w2":
+            energy = restore_mlp_no_w2_energy(named_params)
+
         case _:
             raise ValueError(
                 f"Cannot restore unknown energy type '{energy_type}'. "
@@ -185,7 +233,13 @@ def identify_energy_type(named_params: dict[str, np.ndarray]) -> str:
             return "rbm"
 
         case keys if any(name.startswith("net.") for name in keys):
-            return "mlp"
+            weight_keys = sorted(
+                [name for name in keys if name.endswith(".weight")],
+                key=lambda name: int(name.split(".")[1]),
+            )
+            if named_params[weight_keys[-1]].shape[0] == 1:
+                return "mlp"
+            return "mlp_no_w2"
 
         case _:
             raise ValueError(
@@ -226,6 +280,29 @@ def restore_mlp_energy(
     num_layers = len(weight_keys) - 1
 
     return MLPEnergy(
+        num_visibles=num_visibles,
+        hidden_dim=hidden_dim,
+        num_layers=num_layers,
+    )
+
+
+def restore_mlp_no_w2_energy(
+    named_params: dict[str, np.ndarray],
+) -> MLPNoW2Energy:
+    weight_keys = sorted(
+        [name for name in named_params if name.endswith(".weight")],
+        key=lambda name: int(name.split(".")[1]),
+    )
+
+    if len(weight_keys) == 0:
+        raise ValueError("Cannot restore MLPNoW2Energy without weight tensors.")
+
+    first_weight = named_params[weight_keys[0]]
+    num_visibles = first_weight.shape[1]
+    hidden_dim = first_weight.shape[0]
+    num_layers = len(weight_keys)
+
+    return MLPNoW2Energy(
         num_visibles=num_visibles,
         hidden_dim=hidden_dim,
         num_layers=num_layers,
