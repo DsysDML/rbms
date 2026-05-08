@@ -22,7 +22,7 @@ class MLPEnergy(torch.nn.Module):
         hidden_dim: int = 256,
         num_layers: int = 1,
         visible_field: Tensor | None = None,
-        weight_scale: float = 5e-4,
+        weight_scale: float = 2e-3,
     ):
         super().__init__()
         self.num_visibles = num_visibles
@@ -59,7 +59,7 @@ class MLPNoW2Energy(torch.nn.Module):
         hidden_dim: int = 256,
         num_layers: int = 1,
         visible_field: Tensor | None = None,
-        weight_scale: float = 5e-4,
+        weight_scale: float = 2e-3,
         output_scale: float | None = None,
         activation: type[torch.nn.Module] = torch.nn.SiLU,
         activation_id: int = 1,
