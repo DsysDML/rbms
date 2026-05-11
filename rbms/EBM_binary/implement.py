@@ -78,7 +78,7 @@ def _sample_state_dmala(
     chains: dict[str, Tensor],
     n_steps: int,
     beta: float = 1.0,
-    alpha: float = 0.3,
+    alpha: float = 0.25,
 ) -> dict[str, Tensor]:
     
     visible = chains["visible"].clone()
