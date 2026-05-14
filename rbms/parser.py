@@ -92,7 +92,14 @@ def add_args_init_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParse
     "--energy_type",
     type=str,
     default=None,
-    choices=["mlp", "rbm", "gaussian"],
+    choices=[
+        "mlp",
+        "mlp_no_w2",
+        "mlp_silu_no_w2",
+        "mlp_sigmoid_no_w2",
+        "rbm",
+        "gaussian",
+    ],
     help="Energy type to use when model_type is BEBM or CEBM.",
     )
     return parser

@@ -1,0 +1,47 @@
+{
+  "notebooks": {
+    "rbms/BEBM_MLP.ipynb": "rbms/nb/BEBM_MLP/BEBM_MLP.ipynb",
+    "rbms/BEBM_MLP_MixingTimeVsAlpha.ipynb": "rbms/nb/BEBM_MLP_MixingTimeVsAlpha/BEBM_MLP_MixingTimeVsAlpha.ipynb",
+    "rbms/BEBM_MLP_ReLU_vs_SiLU.ipynb": "rbms/nb/BEBM_MLP_ReLU_vs_SiLU/BEBM_MLP_ReLU_vs_SiLU.ipynb",
+    "rbms/BEBM_MLP_SiLU_vs_Sigmoid.ipynb": "rbms/nb/BEBM_MLP_SiLU_vs_Sigmoid/BEBM_MLP_SiLU_vs_Sigmoid.ipynb",
+    "rbms/BEBM_MLP_formulaH_vs_gradH.ipynb": "rbms/nb/BEBM_MLP_formulaH_vs_gradH/BEBM_MLP_formulaH_vs_gradH.ipynb",
+    "rbms/BEBM_NoW2_SiLU_vs_Sigmoid.ipynb": "rbms/nb/BEBM_NoW2_SiLU_vs_Sigmoid/BEBM_NoW2_SiLU_vs_Sigmoid.ipynb",
+    "rbms/BEBM_PTT_SiLU_NoW2_vs_W2.ipynb": "rbms/nb/BEBM_PTT_SiLU_NoW2_vs_W2/BEBM_PTT_SiLU_NoW2_vs_W2.ipynb",
+    "rbms/BEBM_PTT_Training_Analysis.ipynb": "rbms/nb/BEBM_PTT_Training_Analysis/BEBM_PTT_Training_Analysis.ipynb",
+    "rbms/BEBM_SiLU_W2.ipynb": "rbms/nb/BEBM_SiLU_W2/BEBM_SiLU_W2.ipynb",
+    "rbms/Inspect_Training_Filters_Eigenvectors.ipynb": "rbms/nb/Inspect_Training_Filters_Eigenvectors/Inspect_Training_Filters_Eigenvectors.ipynb",
+    "rbms/RBM_vs_BEBM_RBMEnergy_LL_AIS.ipynb": "rbms/nb/RBM_vs_BEBM_RBMEnergy_LL_AIS/RBM_vs_BEBM_RBMEnergy_LL_AIS.ipynb",
+    "rbms/RBM_vs_BEBM_RBMEnergy_compare.ipynb": "rbms/nb/RBM_vs_BEBM_RBMEnergy_compare/RBM_vs_BEBM_RBMEnergy_compare.ipynb"
+  },
+  "h5_files": {
+    "rbms/pcd_trains/BBRBM_MNIST_PCD10_h500_ch1024_lr1e-2_100k.h5": "rbms/nb/shared_h5/BBRBM_MNIST_PCD10_h500_ch1024_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_MLP_MNIST_h500_DMALA100_lr1e-2_100k.h5": "rbms/nb/shared_h5/BEBM_MLP_MNIST_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_MLP_ReLU_h500_DMALA100_lr1e-2_100k.h5": "rbms/nb/BEBM_MLP_ReLU_vs_SiLU/BEBM_MLP_ReLU_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_MLP_SiLU_formulaH_h500_DMALA100_lr1e-2_100k.h5": "rbms/nb/BEBM_MLP_formulaH_vs_gradH/BEBM_MLP_SiLU_formulaH_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_MLP_SiLU_gradH_h500_DMALA100_lr1e-2_100k.h5": "rbms/nb/shared_h5/BEBM_MLP_SiLU_gradH_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_MLP_SiLU_h500_DMALA100_lr1e-2_100k.h5": "rbms/nb/shared_h5/BEBM_MLP_SiLU_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_RBMEnergy_MNIST_DMALA100_h500_ch1024_lr1e-2_100k.h5": "rbms/nb/shared_h5/BEBM_RBMEnergy_MNIST_DMALA100_h500_ch1024_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_SiLUNoW2_MNIST_DMALA1000_h500_init2e-3_lr1_1M.h5": "rbms/nb/BEBM_MLP_SiLU_vs_Sigmoid/BEBM_SiLUNoW2_MNIST_DMALA1000_h500_init2e-3_lr1_1M.h5",
+    "rbms/pcd_trains/BEBM_SiLUNoW2_MNIST_DMALA100_h500_init2e-3_lr1e-2_100k.h5": "rbms/nb/BEBM_NoW2_SiLU_vs_Sigmoid/BEBM_SiLUNoW2_MNIST_DMALA100_h500_init2e-3_lr1e-2_100k.h5",
+    "rbms/pcd_trains/BEBM_SiLUW2_MNIST_DMALA1000_h500_init2e-3_lr1e-1_1M.h5": "rbms/nb/shared_h5/BEBM_SiLUW2_MNIST_DMALA1000_h500_init2e-3_lr1e-1_1M.h5",
+    "rbms/pcd_trains/BEBM_SigmoidNoW2_MNIST_DMALA1000_h500_init2e-3_lr1_1M.h5": "rbms/nb/BEBM_MLP_SiLU_vs_Sigmoid/BEBM_SigmoidNoW2_MNIST_DMALA1000_h500_init2e-3_lr1_1M.h5",
+    "rbms/pcd_trains/BEBM_SigmoidNoW2_MNIST_DMALA100_h500_init2e-3_lr1e-2_100k.h5": "rbms/nb/BEBM_NoW2_SiLU_vs_Sigmoid/BEBM_SigmoidNoW2_MNIST_DMALA100_h500_init2e-3_lr1e-2_100k.h5",
+    "rbms/ptt_trains/BEBM_MLP_MNIST_PTT_h1000_ch2048_DMALA300_lr1e-3_100k.h5": "rbms/nb/Inspect_Training_Filters_Eigenvectors/BEBM_MLP_MNIST_PTT_h1000_ch2048_DMALA300_lr1e-3_100k.h5",
+    "rbms/ptt_trains/BEBM_SiLUNoW2_MNIST_PTT_DMALA1000_h500_init2e-3_lr1_500k.h5": "rbms/nb/shared_h5/BEBM_SiLUNoW2_MNIST_PTT_DMALA1000_h500_init2e-3_lr1_500k.h5",
+    "rbms/ptt_trains/BEBM_SiLUW2_MNIST_PTT_DMALA1000_h500_init2e-3_lr1e-1_500k.h5": "rbms/nb/shared_h5/BEBM_SiLUW2_MNIST_PTT_DMALA1000_h500_init2e-3_lr1e-1_500k.h5"
+  },
+  "shared_h5": [
+    "rbms/nb/shared_h5/BBRBM_MNIST_PCD10_h500_ch1024_lr1e-2_100k.h5",
+    "rbms/nb/shared_h5/BEBM_MLP_MNIST_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/nb/shared_h5/BEBM_MLP_SiLU_gradH_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/nb/shared_h5/BEBM_MLP_SiLU_h500_DMALA100_lr1e-2_100k.h5",
+    "rbms/nb/shared_h5/BEBM_RBMEnergy_MNIST_DMALA100_h500_ch1024_lr1e-2_100k.h5",
+    "rbms/nb/shared_h5/BEBM_SiLUW2_MNIST_DMALA1000_h500_init2e-3_lr1e-1_1M.h5",
+    "rbms/nb/shared_h5/BEBM_SiLUNoW2_MNIST_PTT_DMALA1000_h500_init2e-3_lr1_500k.h5",
+    "rbms/nb/shared_h5/BEBM_SiLUW2_MNIST_PTT_DMALA1000_h500_init2e-3_lr1e-1_500k.h5"
+  ],
+  "kept_in_train_dirs": [
+    "BEBM_SiLUNoW2_MNIST_DMALA100_h500_init2e-3_lr1e-2_100k.h5",
+    "BEBM_SigmoidNoW2_MNIST_DMALA100_h500_init2e-3_lr1e-2_100k.h5"
+  ]
+}

@@ -73,9 +73,9 @@ def _init_training(
         )
 
         match energy_type:
-            case "mlp":
+            case "mlp" | "mlp_no_w2" | "mlp_silu_no_w2" | "mlp_sigmoid_no_w2":
                 energy = build_energy(
-                    energy_type="mlp",
+                    energy_type=energy_type,
                     num_visibles=num_visibles,
                     device=device,
                     dtype=dtype,
