@@ -160,8 +160,12 @@ def _init_parameters(
     )
     frequencies = data.mean(0)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
-    vbias = (torch.log(frequencies) - torch.log(1.0 - frequencies)).to(
+    
+    #BEA: para prueba sin inicializar en frecuencias (quitar después)
+    '''vbias = (torch.log(frequencies) - torch.log(1.0 - frequencies)).to(
         device=device, dtype=dtype
-    )
+    
+    )'''
+    vbias = torch.zeros(num_visibles, device=device, dtype=dtype)
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
     return vbias, hbias, weight_matrix

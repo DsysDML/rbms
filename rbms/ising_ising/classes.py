@@ -122,13 +122,13 @@ class IIRBM(RBM):
             weight_matrix=self.weight_matrix,
             centered=centered,
         )
-        self.vbias.grad = torch.zeros_like(self.vbias)
-        self.hbias.grad = torch.zeros_like(self.hbias)
+        # self.vbias.grad = torch.zeros_like(self.vbias)
+        # self.hbias.grad = torch.zeros_like(self.hbias)
 
-        self.weight_matrix.grad = (
-            get_covariance_matrix(data["visible"], data["weights"]).cuda()
-            @ torch.pinverse(self.weight_matrix).cuda().T
-        )
+        # self.weight_matrix.grad = (
+        #     get_covariance_matrix(data["visible"], data["weights"]).cuda()
+        #     @ torch.pinverse(self.weight_matrix).cuda().T
+        # )
 
     def independent_model(self):
         return IIRBM(
