@@ -16,16 +16,24 @@ class RDM(Sampler):
         self.num_steps = num_steps
         self.chains = self.params.init_chains(num_chains)
         self.flags = []
+        self.kernel = kwargs.get("kernel", None)
+        self.kernel_params = kwargs.get("kernel_params", {})
 
     def sample(self, num_steps: int | None, **kwargs):
-        chains = self.params.init_chains(num_samples=self.num_chains)
-        chains = self.params.sample_state(
-            chains=chains, n_steps=self.num_steps, beta=self.beta
+        kernel = kwargs.pop("kernel", self.kernel)
+        kernel_params = kwargs.pop("kernel_params", {})
+        kernel_params = {**self.kernel_params, **kernel_params, **kwargs}
+        self.chains = self.params.init_chains(num_samples=self.num_chains)
+        self.chains = self.params.sample_state(
+            chains=self.chains,
+            n_steps=num_steps,
+            beta=self.beta,
+            kernel=kernel,
+            kernel_params=kernel_params,
         )
-        return chains
 
-    def get_conf_grad(self, batch: Tensor):
-        self.sample(num_steps=None)
+    def get_conf_grad(self, batch: Tensor, **kwargs):
+        self.sample(num_steps=self.num_steps, **kwargs)
         return self.chains
 
     @torch.compiler.disable
@@ -46,6 +54,7 @@ class RDM(Sampler):
         params_dict["parallel_chains"] = chains_save
         return params_dict
 
+    # Ajouter kernels dedans ???
     @staticmethod
     def set_named_parameters(
         named_params: dict[str, np.ndarray],

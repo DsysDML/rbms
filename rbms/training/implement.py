@@ -2,6 +2,12 @@ import h5py
 import numpy as np
 import torch
 
+from rbms.EBM_binary import BEBM, build_energy, get_visible_field_from_data
+from rbms.EBM_continuous import (
+    CEBM,
+    build_energy as build_continuous_energy,
+    get_gaussian_base_from_data,
+)
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
@@ -18,6 +24,7 @@ def _init_training(
     num_hiddens: int,
     num_chains: int,
     model_type: str,
+    energy_type: str,
     filename: str,
     n_save: int,
     spacing: str,
@@ -58,13 +65,89 @@ def _init_training(
     # Setup dataset
     num_visibles = train_dataset.get_num_visibles()
 
-    # Setup RBM
-    params = map_model[model_type].init_parameters(
-        num_hiddens=num_hiddens,
-        dataset=train_dataset,
-        device=device,
-        dtype=dtype,
-    )
+    # Setup model
+    if model_type == "BEBM":
+        visible_field = get_visible_field_from_data(
+            data=train_dataset.data,
+            weights=train_dataset.weights,
+        )
+
+        match energy_type:
+            case "mlp" | "mlp_no_w2" | "mlp_silu_no_w2" | "mlp_sigmoid_no_w2":
+                energy = build_energy(
+                    energy_type=energy_type,
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    hidden_dim=num_hiddens,
+                    visible_field=visible_field,
+                )
+
+            case "rbm":
+                energy = build_energy(
+                    energy_type="rbm",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    hidden_dim=num_hiddens,
+                    visible_bias=visible_field,
+                )
+
+            case _:
+                raise ValueError(f"Unknown BEBM energy type: {energy_type}")
+
+        params = BEBM(
+            energy=energy,
+            num_visibles=num_visibles,
+            device=device,
+            dtype=dtype,
+        )
+
+    elif model_type == "CEBM":
+        data_mean, data_std = get_gaussian_base_from_data(
+            data=train_dataset.data,
+            weights=train_dataset.weights,
+        )
+
+        match energy_type:
+            case None | "mlp":
+                energy = build_continuous_energy(
+                    energy_type="mlp",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    hidden_dim=num_hiddens,
+                    data_mean=data_mean,
+                    data_std=data_std,
+                )
+
+            case "gaussian":
+                energy = build_continuous_energy(
+                    energy_type="gaussian",
+                    num_visibles=num_visibles,
+                    device=device,
+                    dtype=dtype,
+                    data_mean=data_mean,
+                    data_std=data_std,
+                )
+
+            case _:
+                raise ValueError(f"Unknown CEBM energy type: {energy_type}")
+
+        params = CEBM(
+            energy=energy,
+            num_visibles=num_visibles,
+            device=device,
+            dtype=dtype,
+        )
+
+    else:
+        params = map_model[model_type].init_parameters(
+            num_hiddens=num_hiddens,
+            dataset=train_dataset,
+            device=device,
+            dtype=dtype,
+        )
 
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
@@ -82,6 +165,7 @@ def _init_training(
         hyperparameters["num_hiddens"] = num_hiddens
         hyperparameters["num_chains"] = num_chains
         hyperparameters["filename"] = str(filename)
+        hyperparameters["energy_type"] = np.asarray(energy_type, dtype="T")
 
     save_model(
         filename=filename,

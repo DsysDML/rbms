@@ -88,6 +88,20 @@ def add_args_init_rbm(parser: argparse.ArgumentParser) -> argparse.ArgumentParse
         default=None,
         help="(Defaults to None). Model to use. If None is provided, will be a RBM with the same visible type as the dataset and binary hiddens. If restore, this argument is ignored.",
     )
+    rbm_args.add_argument(
+    "--energy_type",
+    type=str,
+    default=None,
+    choices=[
+        "mlp",
+        "mlp_no_w2",
+        "mlp_silu_no_w2",
+        "mlp_sigmoid_no_w2",
+        "rbm",
+        "gaussian",
+    ],
+    help="Energy type to use when model_type is BEBM or CEBM.",
+    )
     return parser
 
 
@@ -278,6 +292,7 @@ default_args: dict[str, Any] = {
     "optim": "sgd",
     "max_lr": 10,
     "training_type": "pcd",
+    "energy_type": "mlp",
 }
 
 

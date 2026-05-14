@@ -90,6 +90,7 @@ def main(args, map_model=map_model):
             device=args["device"],
             flags=flags,
             map_model=map_model,
+            energy_type=args["energy_type"],
         )
         args["update"] = 1
 
