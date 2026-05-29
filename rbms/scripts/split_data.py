@@ -137,11 +137,13 @@ def split_data_train_test(
             with h5py.File(output_train_file, "w") as f:
                 f["samples"] = data_train
                 f["labels"] = labels_train
+                f["variable_type"] = dataset.variable_type
             print("    Done")
             print(f"Writing test dataset to '{output_test_file}'...")
             with h5py.File(output_test_file, "w") as f:
                 f["samples"] = data_test
                 f["labels"] = labels_test
+                f["variable_type"] = dataset.variable_type
             print("    Done")
 
         case "fasta":
