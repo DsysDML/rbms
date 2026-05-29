@@ -6,11 +6,11 @@ from torch import Tensor
 
 from rbms.classes import RBM
 from rbms.custom_fn import check_keys_dict, log2cosh
-from rbms.dataset.utils import get_covariance_matrix
 from rbms.ising_ising.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
+    _compute_energy_visibles_gradient,
     _compute_gradient,
     _init_chains,
     _init_parameters,
@@ -122,12 +122,13 @@ class IIRBM(RBM):
             weight_matrix=self.weight_matrix,
             centered=centered,
         )
-        self.vbias.grad = torch.zeros_like(self.vbias)
-        self.hbias.grad = torch.zeros_like(self.hbias)
 
-        self.weight_matrix.grad = (
-            get_covariance_matrix(data["visible"], data["weights"]).cuda()
-            @ torch.pinverse(self.weight_matrix).cuda().T
+    def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        return _compute_energy_visibles_gradient(
+            v=v,
+            vbias=self.vbias,
+            hbias=self.hbias,
+            weight_matrix=self.weight_matrix,
         )
 
     def independent_model(self):
@@ -157,7 +158,7 @@ class IIRBM(RBM):
         )
 
     @staticmethod
-    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.0001):
+    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.001):
         data = dataset.data
         # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):
