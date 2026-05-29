@@ -21,6 +21,7 @@ from rbms.parser import (
     remove_argument,
     set_args_default,
 )
+from rbms.pre_grad import build_pre_grad_update
 from rbms.sampler import CD, PCD, RDM
 from rbms.training.implement import _init_training, _restore_training
 from rbms.training.pcd import train
@@ -142,7 +143,6 @@ def main(args, map_model=map_model):
             raise ValueError(f"No training type {args['training_type']} supported.")
 
     optimizer: list[Optimizer] = setup_optim(args["optim"], args, params, sampler)
-    from rbms.pre_grad import build_pre_grad_update
 
     pre_grad_update = build_pre_grad_update(
         optimizer=optimizer,
