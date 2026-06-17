@@ -152,7 +152,7 @@ def compute_weights(
     """
     device = torch.device(device)
     data_tensor = torch.from_numpy(data).to(device=device)
-    assert len(data_tensor) == 2, "'data' must be a 2-dimensional array"
+    assert len(data_tensor.shape) == 2, "'data' must be a 2-dimensional array"
     _, L = data_tensor.shape
 
     def get_sequence_weight(s: torch.Tensor, data: torch.Tensor, L: int, th: float):
@@ -160,7 +160,9 @@ def compute_weights(
         n_clust = torch.sum(seq_id >= th)
         return 1.0 / n_clust
 
-    weights = torch.vstack([get_sequence_weight(s, data_tensor, L, th) for s in data])
+    weights = torch.vstack(
+        [get_sequence_weight(s, data_tensor, L, th) for s in data_tensor]
+    )
     return weights.cpu().numpy()
 
 
