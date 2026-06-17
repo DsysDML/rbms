@@ -111,8 +111,11 @@ def get_covariance_matrix(
         num_data = num_extract
 
     if num_classes != 2:
-        data = data.to(device=device, dtype=torch.int32)
-        data_oh = one_hot(data, num_classes=num_classes).reshape(num_data, -1)
+        data_oh = (
+            one_hot(data.long().to(device), num_classes=num_classes)
+            .reshape(num_data, -1)
+            .to(dtype)
+        )
     else:
         data_oh = data.to(device=device, dtype=dtype)
 

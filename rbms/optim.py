@@ -54,8 +54,8 @@ class SGD_cossim(SGD):
         return super().step(closure)
 
 
-def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[Optimizer]:
-    match args["optim"]:
+def setup_optim(optim: str, args: dict, params: EBM) -> list[Optimizer]:
+    match optim:
         case "sgd":
             optim_class = SGD
         case "cossim":

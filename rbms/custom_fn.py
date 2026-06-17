@@ -2,9 +2,10 @@ import h5py
 import numpy as np
 import torch
 from torch import Tensor
+from torch.nn.functional import one_hot as one_hot
 
 
-def one_hot(
+def one_hot_old(
     x: Tensor, num_classes: int = -1, dtype: torch.dtype = torch.float32
 ) -> Tensor:
     """A one-hot encoding function faster than the PyTorch one working with torch.int32 and returning a float Tensor
