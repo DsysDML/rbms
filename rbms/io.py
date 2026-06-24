@@ -16,6 +16,7 @@ def save_model(
     num_updates: int,
     time: float,
     learning_rate: Tensor,
+    effective_time: np.ndarray,
     flags: list[str] = [],
 ) -> None:
     """Save the current state of the model.
@@ -48,6 +49,7 @@ def save_model(
         checkpoint["numpy_rng_arg3"] = np.random.get_state()[3]
         checkpoint["numpy_rng_arg4"] = np.random.get_state()[4]
         checkpoint["time"] = time
+        checkpoint["effective_time"] = effective_time
         checkpoint["learning_rate"] = learning_rate.cpu().numpy()
         # Update the parallel chains to resume training
         if "parallel_chains" in f.keys():
