@@ -104,6 +104,7 @@ def train(
                 num_updates=idx,
                 time=curr_time + elapsed_time,
                 learning_rate=learning_rate,
+                effective_time=effective_time,
                 flags=flags,
             )
 
