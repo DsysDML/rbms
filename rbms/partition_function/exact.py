@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 
-from rbms.classes import RBM, EBM
+from rbms.classes import EBM, RBM
 
 
 def compute_partition_function_rbm(params: RBM, all_config: Tensor) -> float:
@@ -19,7 +19,7 @@ def compute_partition_function_rbm(params: RBM, all_config: Tensor) -> float:
     if n_dim_config == n_hidden:
         energy = params.compute_energy_hiddens(h=all_config)
     elif n_dim_config == n_visible:
-        energy = params.compute_energy_visibles(v=all_config)
+        energy = params.compute_energy_visibles({"visible": all_config})
     else:
         raise ValueError(
             f"The number of dimension for the configurations '{n_dim_config}' does not match the number of visible '{n_visible}' or the number of hidden '{n_hidden}'"
@@ -33,7 +33,7 @@ def compute_partition_function(params: EBM, all_config: Tensor) -> float:
     n_visible = params.num_visibles
     n_dim_config = all_config.shape[1]
     if n_dim_config == n_visible:
-        energy = params.compute_energy_visibles(v=all_config)
+        energy = params.compute_energy_visibles({"visible": all_config})
     else:
         raise ValueError(
             f"The number of dimension for the configurations '{n_dim_config}' does not match the number of visible '{n_visible}'."
