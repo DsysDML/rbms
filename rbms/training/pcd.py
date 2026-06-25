@@ -37,7 +37,7 @@ def train(
     pbar.set_description(f"Training {params.name}")
 
     start = time.perf_counter()
-
+    effective_time = np.zeros(len(optimizer))
     for idx in range(curr_update + 1, num_updates + 1):
         batch = train_dataset.batch(batch_size)
         data, weights = batch["data"], batch["weights"]
@@ -69,7 +69,8 @@ def train(
 
         params.post_grad_update()
         sampler.post_grad_update(params=params)
-
+        learning_rates = np.asarray([opt.param_groups[0]["lr"] for opt in optimizer])
+        effective_time += learning_rates
         # Get flags for save
         flags = []
         flags = params.save_flags(flags)
@@ -81,7 +82,6 @@ def train(
             names_params = (
                 list(params.named_parameters().keys()) if len(optimizer) > 1 else ["all"]
             )
-            learning_rates = np.asarray([opt.param_groups[0]["lr"] for opt in optimizer])
 
             metrics = {}
             metrics = sampler.get_metrics_display(
@@ -104,6 +104,7 @@ def train(
                 num_updates=idx,
                 time=curr_time + elapsed_time,
                 learning_rate=learning_rate,
+                effective_time=effective_time,
                 flags=flags,
             )
 

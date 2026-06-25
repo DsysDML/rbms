@@ -1,13 +1,13 @@
 import h5py
 import numpy as np
 import torch
+from torch import Tensor
 
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
 from rbms.utils import get_saved_updates
-from torch import Tensor
 
 
 def _init_training(
@@ -82,7 +82,7 @@ def _init_training(
         hyperparameters["num_hiddens"] = num_hiddens
         hyperparameters["num_chains"] = num_chains
         hyperparameters["filename"] = str(filename)
-
+    effective_time = torch.zeros_like(lr).cpu().numpy()
     save_model(
         filename=filename,
         params=params,
@@ -90,6 +90,7 @@ def _init_training(
         num_updates=1,
         time=0.0,
         flags=flags,
+        effective_time=effective_time,
         learning_rate=lr,
     )
 

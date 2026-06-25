@@ -16,6 +16,7 @@ def load_dataset(
     use_weights: bool = False,
     alphabet="protein",
     remove_duplicates: bool = False,
+    shuffle: bool = False,
     device: torch.device | str = "cpu",
     dtype: torch.dtype = torch.float32,
     verbose: bool = True,
@@ -63,13 +64,14 @@ def load_dataset(
             else:
                 unique_ind = np.arange(data.shape[0])
 
-            idx = torch.randperm(unique_ind.shape[0])
             if unique_ind.shape[0] < data.shape[0]:
                 print(f"N_samples: {data.shape[0]} -> {unique_ind.shape[0]}")
-            data = data[unique_ind[idx]]
-            labels = labels[unique_ind[idx]]
-            weights = weights[unique_ind[idx]]
-            names = names[unique_ind[idx]]
+            if shuffle:
+                unique_ind = unique_ind[torch.randperm(unique_ind.shape[0])]
+            data = data[unique_ind]
+            labels = labels[unique_ind]
+            weights = weights[unique_ind]
+            names = names[unique_ind]
 
             return_datasets.append(
                 RBMDataset(

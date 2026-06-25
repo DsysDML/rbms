@@ -45,17 +45,18 @@ class SGD_cossim(SGD):
             learning_rate = group["lr"]
             curr_grad = torch.concatenate([p.grad.flatten() for p in params]).flatten()
             cosine_similarity = curr_grad @ self.prev_grad
-            if cosine_similarity > 1e-6:
-                learning_rate *= 1.002
-            elif cosine_similarity < -1e-6:
-                learning_rate *= 0.998
+            # if cosine_similarity > 1e-6:
+            #     learning_rate *= 1.002
+            # elif cosine_similarity < -1e-6:
+            #     learning_rate *= 0.998
+            learning_rate *= 1 + cosine_similarity.item() * 0.001
             group["lr"] = min(self.max_lr, learning_rate)
             self.prev_grad = curr_grad.clone()
         return super().step(closure)
 
 
 def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[Optimizer]:
-    match args["optim"]:
+    match optim:
         case "sgd":
             optim_class = SGD
         case "cossim":
@@ -286,7 +287,7 @@ class NGD(Optimizer):
                     )
                     p_Sp = sum(torch.sum(pv * spv) for pv, spv in zip(p_vec, S_p))
 
-                    if p_Sp.item() <= 1e-20:
+                    if p_Sp.item() <= 1e-9:
                         print("CG broke due to non-positive curvature.")
                         break
 

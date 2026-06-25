@@ -2,7 +2,9 @@ import torch
 from torch import Tensor
 from torch.nn.functional import softmax
 
+from rbms.bm.utils import get_freq_single_point
 from rbms.custom_fn import one_hot
+from rbms.dataset.utils import convert_data
 
 
 def _sample_hiddens(
@@ -11,8 +13,10 @@ def _sample_hiddens(
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
-    v_oh = one_hot(v.to(torch.int32), num_classes=num_states, dtype=dtype).view(
-        -1, num_visibles * num_states
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=dtype)
+        .view(-1, num_visibles * num_states)
     )
     mh = torch.sigmoid(beta * (hbias + v_oh @ weight_matrix_oh))
     h = torch.bernoulli(mh).to(weight_matrix.dtype)
@@ -40,8 +44,10 @@ def _compute_energy(
 ):
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
-    v_oh = one_hot(v.to(torch.int32), num_classes=num_states, dtype=dtype).view(
-        -1, num_visibles * num_states
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=dtype)
+        .view(-1, num_visibles * num_states)
     )
     vbias_oh = vbias.flatten()
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
@@ -55,8 +61,10 @@ def _compute_energy_visibles(
 ):
     dtype = weight_matrix.dtype
     num_visibles, num_states, num_hiddens = weight_matrix.shape
-    v_oh = one_hot(v.to(torch.int32), num_classes=num_states, dtype=dtype).view(
-        -1, num_visibles * num_states
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=dtype)
+        .view(-1, num_visibles * num_states)
     )
 
     vbias_oh = vbias.flatten()
@@ -90,17 +98,18 @@ def _compute_gradient(
 ):
     w_data = w_data.view(-1, 1, 1)
     w_chain = w_chain.view(-1, 1, 1)
-    int_dtype = torch.int32
     dtype = weight_matrix.dtype
     num_states = weight_matrix.shape[1]
 
     # One-hot representation of the data
-    v_data_one_hot = one_hot(v_data.to(int_dtype), num_classes=num_states, dtype=dtype)
-    v_gen_one_hot = one_hot(v_chain.to(int_dtype), num_classes=num_states, dtype=dtype)
+    v_data_one_hot = one_hot(v_data.long(), num_classes=num_states).to(dtype)
+    v_gen_one_hot = one_hot(v_chain.long(), num_classes=num_states).to(dtype=dtype)
 
     # Turn the weights of the chains into normalized weights
     chain_weights = softmax(-w_chain, dim=0)
     w_chain_norm = chain_weights.sum()
+    # The weights should be normalized on the batch by dividing with the sum
+    # of the weights of the batch
     w_data_norm = w_data.sum()
     # Averages over data and generated samples
     v_data_mean = (v_data_one_hot * w_data).sum(0) / w_data_norm
@@ -184,9 +193,11 @@ def _init_chains(
     else:
         v = start_v.to(weight_matrix.dtype)
     weight_matrix_oh = weight_matrix.view(num_visibles * num_states, num_hiddens)
-    v_oh = one_hot(
-        v.to(torch.int32), num_classes=num_states, dtype=weight_matrix_oh.dtype
-    ).view(-1, num_visibles * num_states)
+    v_oh = (
+        one_hot(v.long(), num_classes=num_states)
+        .to(dtype=weight_matrix_oh.dtype)
+        .view(-1, num_visibles * num_states)
+    )
     mv = torch.zeros(v.shape[0], v.shape[1], num_states)
     mh = torch.sigmoid(hbias + v_oh @ weight_matrix_oh)
     h = torch.bernoulli(mh)
@@ -196,6 +207,7 @@ def _init_chains(
 def _init_parameters(
     num_hiddens: int,
     data: Tensor,
+    weights: Tensor,
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
@@ -205,6 +217,14 @@ def _init_parameters(
     num_states = int(torch.max(data) + 1)
     all_states = torch.arange(num_states).reshape(-1, 1, 1).to(data.device)
     frequencies = (data == all_states).type(torch.float32).mean(1).to(device)
+    frequencies = get_freq_single_point(
+        convert_data["categorical"]["bernoulli"](data).view(
+            data.shape[0], data.shape[1], num_states
+        ),
+        weights / weights.sum(),
+        1e-4,
+    ).T
+
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
     vbias = (
         (torch.log(frequencies) - 1.0 / num_states * torch.sum(torch.log(frequencies), 0))

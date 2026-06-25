@@ -39,10 +39,13 @@ def load_HDF5(
             variable_type = f["variable_type"][()].decode()
         weights = np.ones(dataset.shape[0])
         if use_weights:
-            if variable_type != "categorical":
-                print("Ignoring compute weights since data is not categorical")
+            if "weights" in f.keys():
+                weights = f["weights"][()]
             else:
-                weights = compute_weights(data=dataset, device=device)
+                if variable_type != "categorical":
+                    print("Ignoring compute weights since data is not categorical")
+                else:
+                    weights = compute_weights(data=dataset, device=device)
 
         if "labels" in f.keys():
             labels = np.array(f["labels"][()])

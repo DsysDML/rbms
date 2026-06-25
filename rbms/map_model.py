@@ -1,5 +1,6 @@
 from rbms.bernoulli_bernoulli.classes import BBRBM
 from rbms.bernoulli_gaussian.classes import BGRBM
+from rbms.bm.potts import PBM
 from rbms.classes import EBM
 from rbms.ising_gaussian.classes import IGRBM
 from rbms.ising_ising.classes import IIRBM
@@ -11,4 +12,5 @@ map_model: dict[str, type[EBM]] = {
     "BGRBM": BGRBM,
     "IGRBM": IGRBM,
     "IIRBM": IIRBM,
+    "PBM": PBM,
 }
