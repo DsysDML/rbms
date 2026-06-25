@@ -30,8 +30,8 @@ def swap_configurations(
     n_chains, L = chains[0]["visible"].shape
     acc_rate = torch.zeros(inverse_temperatures.shape[0] - 1)
     for idx in range(inverse_temperatures.shape[0] - 1):
-        energy_0 = params.compute_energy_visibles(v=chains[idx]["visible"])
-        energy_1 = params.compute_energy_visibles(v=chains[idx + 1]["visible"])
+        energy_0 = params.compute_energy_visibles(chains[idx])
+        energy_1 = params.compute_energy_visibles(chains[idx + 1])
 
         delta_energy = (
             -energy_1 * inverse_temperatures[idx]

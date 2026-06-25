@@ -104,9 +104,9 @@ class PBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_energy_visibles(self, v):
+    def compute_energy_visibles(self, chains):
         return _compute_energy_visibles(
-            v=v,
+            v=chains["visible"],
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
