@@ -45,11 +45,11 @@ class SGD_cossim(SGD):
             learning_rate = group["lr"]
             curr_grad = torch.concatenate([p.grad.flatten() for p in params]).flatten()
             cosine_similarity = curr_grad @ self.prev_grad
-            # if cosine_similarity > 1e-6:
-            #     learning_rate *= 1.002
-            # elif cosine_similarity < -1e-6:
-            #     learning_rate *= 0.998
-            learning_rate *= 1 + cosine_similarity.item() * 0.001
+            if cosine_similarity > 1e-6:
+                learning_rate *= 1.002
+            elif cosine_similarity < -1e-6:
+                learning_rate *= 0.998
+            # learning_rate *= 1 + cosine_similarity.item() * 0.001
             group["lr"] = min(self.max_lr, learning_rate)
             self.prev_grad = curr_grad.clone()
         return super().step(closure)
