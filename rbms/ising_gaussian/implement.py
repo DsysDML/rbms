@@ -9,8 +9,8 @@ from rbms.custom_fn import log2cosh
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
-    mh = hbias + (v @ weight_matrix)
-    h = (
+    mh = beta*(hbias + (v @ weight_matrix)) / weight_matrix.shape[0]
+    h = ( 
         torch.randn_like(mh) / torch.sqrt(torch.ones_like(mh) * weight_matrix.shape[0])
         + mh
     )
@@ -49,7 +49,7 @@ def _compute_energy_visibles(
     field = v @ vbias
     t = hbias + (v @ weight_matrix)
     quad_term = 0.5 * (t * t).sum(1) / float(weight_matrix.shape[0])
-    return -field - quad_term + const
+    return -field - quad_term - const
 
 
 def _compute_energy_hiddens(
