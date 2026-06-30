@@ -56,7 +56,7 @@ class EBM(ABC):
         ...
 
     @abstractmethod
-    def compute_energy_visibles(self, v: Tensor) -> Tensor:
+    def compute_energy_visibles(self, chains: dict[str, Tensor]) -> Tensor:
         """Returns the marginalized energy of the model computed on the visible configurations
 
         Args:
@@ -371,3 +371,6 @@ class Sampler(ABC):
 
     @abstractmethod
     def get_metrics_save(self) -> dict[str, np.ndarray] | None: ...
+
+    @abstractmethod
+    def get_curr_conf(self) -> dict[str, Tensor]: ...

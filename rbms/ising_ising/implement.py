@@ -159,3 +159,16 @@ def _init_parameters(
     vbias = torch.atanh(frequencies).to(device=device, dtype=dtype)
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
     return vbias, hbias, weight_matrix
+
+
+def _compute_energy_visibles_gradient(
+    v: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
+) -> tuple[Tensor, Tensor, Tensor]:
+    local_field = hbias + (v @ weight_matrix)
+    tanh_term = torch.tanh(local_field)
+
+    grad_vbias = -v
+    grad_hbias = -tanh_term
+    grad_weight_matrix = -v.T @ tanh_term
+    # grad_weight_matrix = None
+    return grad_vbias, grad_hbias, grad_weight_matrix

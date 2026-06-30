@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import gzip
 import textwrap
 from typing import Union
@@ -128,9 +129,9 @@ class RBMDataset(Dataset):
             )
         return np.mean(en)
 
-    def match_model_variable_type(self, visible_type: str):
+    def match_model_variable_type(self, visible_type: str, verbose: bool = True):
         self.data = convert_data[self.variable_type][visible_type](self.data)
-        if self.variable_type != visible_type:
+        if self.variable_type != visible_type and verbose:
             print(f"Converting from '{self.variable_type}' to '{visible_type}'")
             print(self.data)
         self.variable_type = visible_type

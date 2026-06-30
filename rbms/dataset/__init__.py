@@ -19,6 +19,7 @@ def load_dataset(
     shuffle: bool = False,
     device: torch.device | str = "cpu",
     dtype: torch.dtype = torch.float32,
+    verbose: bool = True,
 ) -> tuple[RBMDataset, RBMDataset | None]:
     return_datasets = []
     for dset_name in [dataset_name, test_dataset_name]:
@@ -29,7 +30,8 @@ def load_dataset(
 
         if dset_name is not None:
             dset_name = Path(dset_name)
-            print(f"Reading dataset from {str(dset_name)}...")
+            if verbose:
+                print(f"Reading dataset from {str(dset_name)}...")
             match dset_name.suffix:
                 case ".h5":
                     data, labels, variable_type, weights = load_HDF5(

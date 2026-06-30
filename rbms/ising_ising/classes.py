@@ -10,6 +10,7 @@ from rbms.ising_ising.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
+    _compute_energy_visibles_gradient,
     _compute_gradient,
     _init_chains,
     _init_parameters,
@@ -100,9 +101,9 @@ class IIRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
-    def compute_energy_visibles(self, v: Tensor) -> Tensor:
+    def compute_energy_visibles(self, chains: dict[str, Tensor]) -> Tensor:
         return _compute_energy_visibles(
-            v=v,
+            v=chains["visible"],
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
@@ -120,6 +121,14 @@ class IIRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
+        )
+
+    def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        return _compute_energy_visibles_gradient(
+            v=v,
+            vbias=self.vbias,
+            hbias=self.hbias,
+            weight_matrix=self.weight_matrix,
         )
 
     def independent_model(self):
@@ -149,7 +158,7 @@ class IIRBM(RBM):
         )
 
     @staticmethod
-    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.0001):
+    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.001):
         data = dataset.data
         # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):

@@ -110,7 +110,13 @@ def plot_PCA(data1, data2, labels, dir1=0, dir2=1, log=False):
 
 
 def plot_image(
-    sample, shape=(28, 28), grid_size=(10, 10), show_grid=False, randomize=True
+    sample,
+    shape=(28, 28),
+    grid_size=(10, 10),
+    show_grid=False,
+    randomize=True,
+    cmap="gray",
+    figsize=(5, 5),
 ):
     """Args:
     sample
@@ -142,8 +148,8 @@ def plot_image(
         ] = sample[id_s].reshape(shape)  # Directly reshape to `shape`
 
     # Plot the display image
-    fig, ax = plt.subplots(1, 1)
-    ax.imshow(display, cmap="gray")
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    ax.imshow(display, cmap=cmap)
     ax.axis("off")  # Hide axes
 
     if show_grid:

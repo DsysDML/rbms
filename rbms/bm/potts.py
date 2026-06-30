@@ -74,7 +74,7 @@ class PBM(EBM):
         chains["visible"] = one_hot_gen.argmax(-1).to(self.dtype)
         return chains
 
-    def compute_energy_visibles(self, v: Tensor) -> Tensor:
+    def compute_energy_visibles(self, chains: dict[str, Tensor]) -> Tensor:
         """Returns the marginalized energy of the model computed on the visible configurations
 
         Args:
@@ -83,6 +83,7 @@ class PBM(EBM):
         Returns:
             Tensor: The computed energy.
         """
+        v = chains["visible"]
         L, q = self.bias.shape
         batch_size = v.shape[0]
         x_flat = (

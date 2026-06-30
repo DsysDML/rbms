@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 
 from rbms.classes import RBM
-from rbms.custom_fn import check_keys_dict, log2cosh
+from rbms.custom_fn import log2cosh
 from rbms.ising_gaussian.implement import (
     _compute_energy,
     _compute_energy_hiddens,
@@ -105,9 +105,9 @@ class IGRBM(RBM):
             h=h, vbias=self.vbias, hbias=self.hbias, weight_matrix=self.weight_matrix
         )
 
-    def compute_energy_visibles(self, v: Tensor) -> Tensor:
+    def compute_energy_visibles(self, chains: dict[str, Tensor]) -> Tensor:
         return _compute_energy_visibles(
-            v=v,
+            v=chains["visible"],
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,

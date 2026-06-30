@@ -27,6 +27,9 @@ class PCD(Sampler):
         self.sample(num_steps=None)
         return self.chains
 
+    def get_curr_conf(self):
+        return self.chains
+
     def sample(self, num_steps: int | None, **kwargs):
         self.chains = self.params.sample_state(
             chains=self.chains, n_steps=self.num_steps, beta=self.beta

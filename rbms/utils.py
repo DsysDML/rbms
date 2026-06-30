@@ -230,7 +230,10 @@ def compute_log_likelihood(
         float: Log Likelihood.
     """
     w_normalized = w_data / w_data.sum()
-    return -(params.compute_energy_visibles(v=v_data) @ w_normalized).item() - log_z
+    return (
+        -(params.compute_energy_visibles({"visible": v_data}) @ w_normalized).item()
+        - log_z
+    )
 
 
 @torch.jit.script
