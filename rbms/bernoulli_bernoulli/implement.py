@@ -69,6 +69,7 @@ def _compute_gradient(
     vbias: Tensor,
     hbias: Tensor,
     weight_matrix: Tensor,
+    weight_matrix_mask: Tensor,
     centered: bool = True,
 ) -> None:
     w_data = w_data.view(-1, 1)
@@ -108,7 +109,7 @@ def _compute_gradient(
 
     # Attach to the parameters
 
-    weight_matrix.grad = grad_weight_matrix
+    weight_matrix.grad = grad_weight_matrix * weight_matrix_mask
     vbias.grad = grad_vbias
     hbias.grad = grad_hbias
 
@@ -151,6 +152,7 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
+    sparsity: float = 0.7 # OREL: number of non-zero component
 ) -> tuple[Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     eps = 1e-4
@@ -158,10 +160,16 @@ def _init_parameters(
         torch.randn(size=(num_visibles, num_hiddens), device=device, dtype=dtype)
         * var_init
     )
+
+    # OREL: adding a mask for the weights
+    sp_mat = torch.ones(weight_matrix.shape,dtype=dtype)*sparsity
+    weight_matrix_mask = torch.bernoulli(sp_mat).to(device)
+    print(weight_matrix_mask)
+
     frequencies = data.mean(0)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
     vbias = (torch.log(frequencies) - torch.log(1.0 - frequencies)).to(
         device=device, dtype=dtype
     )
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
-    return vbias, hbias, weight_matrix
+    return vbias, hbias, weight_matrix, weight_matrix_mask

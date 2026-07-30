@@ -28,6 +28,7 @@ class BBRBM(RBM):
         weight_matrix: Tensor,
         vbias: Tensor,
         hbias: Tensor,
+        weight_matrix_mask: Tensor, # | None = None,
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -49,6 +50,10 @@ class BBRBM(RBM):
         self.device = device
         self.dtype = dtype
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
+        self.weight_matrix_mask = weight_matrix_mask
+        if weight_matrix_mask is None:
+            self.weight_matrix_mask = torch.ones(weight_matrix.shape).to(device=self.device, dtype=self.dtype)
+        self.weight_matrix_mask = weight_matrix_mask
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
         self.name = "BBRBM"
@@ -58,6 +63,7 @@ class BBRBM(RBM):
     def __add__(self, other):
         return BBRBM(
             weight_matrix=self.weight_matrix + other.weight_matrix,
+            weight_matrix_mask=self.weight_matrix_mask,
             vbias=self.vbias + other.vbias,
             hbias=self.hbias + other.hbias,
         )
@@ -65,6 +71,7 @@ class BBRBM(RBM):
     def __mul__(self, other):
         return BBRBM(
             weight_matrix=self.weight_matrix * other,
+            weight_matrix_mask=self.weight_matrix_mask * 1,
             vbias=self.vbias * other,
             hbias=self.hbias * other,
         )
@@ -78,6 +85,7 @@ class BBRBM(RBM):
             dtype = self.dtype
         return BBRBM(
             weight_matrix=self.weight_matrix.clone(),
+            weight_matrix_mask=self.weight_matrix_mask.clone(),
             vbias=self.vbias.clone(),
             hbias=self.hbias.clone(),
             device=device,
@@ -120,12 +128,14 @@ class BBRBM(RBM):
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
+            weight_matrix_mask=self.weight_matrix_mask,
             centered=centered,
         )
 
     def independent_model(self):
         return BBRBM(
             weight_matrix=torch.zeros_like(self.weight_matrix),
+            weight_matrix_mask=torch.zeros_like(self.weight_matrix_mask),
             vbias=self.vbias,
             hbias=torch.zeros_like(self.hbias),
         )
@@ -155,18 +165,21 @@ class BBRBM(RBM):
         # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):
             data = torch.from_numpy(dataset.data).to(device=device, dtype=dtype)
-        vbias, hbias, weight_matrix = _init_parameters(
+        vbias, hbias, weight_matrix, weight_matrix_mask = _init_parameters(
             num_hiddens=num_hiddens,
             data=data,
             device=device,
             dtype=dtype,
             var_init=var_init,
+            sparsity=0.7
         )
-        return BBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias)
+
+        return BBRBM(weight_matrix=weight_matrix, vbias=vbias, hbias=hbias, weight_matrix_mask=weight_matrix_mask)
 
     def named_parameters(self) -> dict[str, np.ndarray]:
         return {
             "weight_matrix": self.weight_matrix.cpu().numpy(),
+            "weight_matrix_mask": self.weight_matrix_mask.cpu().numpy(),
             "vbias": self.vbias.cpu().numpy(),
             "hbias": self.hbias.cpu().numpy(),
         }
@@ -222,6 +235,9 @@ class BBRBM(RBM):
                 device=device, dtype=dtype
             ),
             hbias=torch.from_numpy(named_params.pop("hbias")).to(
+                device=device, dtype=dtype
+            ),
+            weight_matrix_mask=torch.from_numpy(named_params.pop("weight_matrix_mask")).to(
                 device=device, dtype=dtype
             ),
         )
