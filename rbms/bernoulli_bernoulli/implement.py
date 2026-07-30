@@ -165,6 +165,7 @@ def _init_parameters(
     sp_mat = torch.ones(weight_matrix.shape,dtype=dtype)*sparsity
     weight_matrix_mask = torch.bernoulli(sp_mat).to(device)
     print(weight_matrix_mask)
+    weight_matrix = weight_matrix * weight_matrix_mask
 
     frequencies = data.mean(0)
     frequencies = torch.clamp(frequencies, min=eps, max=(1.0 - eps))
