@@ -225,7 +225,7 @@ class BBRBM(RBM):
         device: torch.device | str,
         dtype: torch.dtype,
     ) -> BBRBM:
-        names = ["vbias", "hbias", "weight_matrix"]
+        names = ["vbias", "hbias", "weight_matrix", "weight_matrix_mask"]
         check_keys_dict(d=named_params, names=names)
         params = BBRBM(
             weight_matrix=torch.from_numpy(named_params.pop("weight_matrix")).to(
