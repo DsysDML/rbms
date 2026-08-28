@@ -2,12 +2,11 @@ import time
 
 import numpy as np
 import torch
-from torch.optim import Optimizer
-from tqdm.autonotebook import tqdm
-
 from rbms.classes import EBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model, save_sampler
+from torch.optim import Optimizer
+from tqdm.autonotebook import tqdm
 
 
 # @torch.no_grad
@@ -105,6 +104,7 @@ def train(
                 time=curr_time + elapsed_time,
                 learning_rate=learning_rate,
                 flags=flags,
+                effective_time=effective_time,
             )
 
             save_sampler(filename, sampler, idx)
