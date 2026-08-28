@@ -60,3 +60,35 @@ def load_string(f: h5py.Dataset, k: str | bytes) -> str:
     if val.dtype.kind in ["S", "V", "O"]:  # Bytes, Void, or Object (StringDType)
         val = val.astype(str)
     return str(val)
+
+
+def clone_dict(d: dict[str, Tensor]) -> dict[str, Tensor]:
+    res = {}
+    for k in d.keys():
+        res[k] = d[k].clone()
+    return res
+
+
+# @torch.compile(fullgraph=True)
+def swap_tensor(
+    v1: Tensor, v2: Tensor, swap_mask: Tensor, swap_only_v1: bool = False
+) -> tuple[Tensor, Tensor]:
+    """
+    Swap configurations between v_1 and v_2 on the first axis according to the boolean mask swap_mask
+
+    Args:
+        v1 (Tensor): shape (n, d)
+        v2 (Tensor): shape (n, d)
+        swap_mask (Tensor): shape (n, )
+
+    Returns:
+        tuple[Tensor, Tensor] v1, v2
+    """
+    swap_mask = swap_mask.view(-1, 1).repeat(1, v1.shape[1])
+    if not (swap_only_v1):
+        v_save = v1.clone()
+        v1 = torch.where(swap_mask, v2, v_save)
+        v2 = torch.where(swap_mask, v_save, v2)
+    else:
+        v1 = torch.where(swap_mask, v2, v1)
+    return v1, v2

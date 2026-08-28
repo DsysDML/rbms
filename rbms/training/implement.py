@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 import torch
-
 from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
@@ -82,7 +81,7 @@ def _init_training(
         hyperparameters["num_hiddens"] = num_hiddens
         hyperparameters["num_chains"] = num_chains
         hyperparameters["filename"] = str(filename)
-
+    effective_time = torch.zeros_like(lr).cpu().numpy()
     save_model(
         filename=filename,
         params=params,
@@ -91,6 +90,7 @@ def _init_training(
         time=0.0,
         flags=flags,
         learning_rate=lr,
+        effective_time=effective_time,
     )
 
     with h5py.File(filename, "a") as f:
