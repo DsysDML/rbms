@@ -162,8 +162,43 @@ def _init_parameters(
     )
 
     # OREL: adding a mask for the weights
+    # VERSION RANDOM
     sp_mat = torch.ones(weight_matrix.shape,dtype=dtype)*sparsity
     weight_matrix_mask = torch.bernoulli(sp_mat).to(device)
+
+    # VERSION LOCAL
+    L=28
+    N=L*L
+    radius=8 # this selects a (radius+1)*(radius+1) square around each pixel
+
+    def neighborhood_mask(i, j, radius=1, H=L, W=L):
+        """
+        Boolean mask over the flattened image indicating which sites
+        belong to the neighborhood centered at (i, j).
+        """
+        mask = torch.zeros(H * W, dtype=bool)
+
+        i0 = max(0, i - radius)
+        i1 = min(H, i + radius + 1)
+        j0 = max(0, j - radius)
+        j1 = min(W, j + radius + 1)
+
+        for ii in range(i0, i1):
+            for jj in range(j0, j1):
+                mask[ii * W + jj] = True
+
+        return mask
+
+    total_mask=torch.zeros(N,N) # we consider one hidden node for every pixel
+    # this is now for a W in Nh times Nv dimensions, we may need to transpose
+    for i in range(N):
+        total_mask[i]=neighborhood_mask(i//L, i-(i//L)*L, radius=radius)
+
+    print("Mean sparsity:",torch.mean(total_mask,0).mean())
+    print("ShapeMask:",total_mask.shape)
+
+    weight_matrix_mask = total_mask.T.to(device)
+
     print(weight_matrix_mask)
     weight_matrix = weight_matrix * weight_matrix_mask
 
