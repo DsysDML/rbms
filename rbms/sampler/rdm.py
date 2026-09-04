@@ -20,7 +20,7 @@ class RDM(Sampler):
     def sample(self, num_steps: int | None, **kwargs):
         self.chains = self.params.init_chains(num_samples=self.num_chains)
         self.chains = self.params.sample_state(
-            self.chains=chains, n_steps=self.num_steps, beta=self.beta
+            chains=self.chains, n_steps=self.num_steps, beta=self.beta
         )
         return self.chains
 
