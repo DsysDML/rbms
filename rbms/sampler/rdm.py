@@ -18,11 +18,11 @@ class RDM(Sampler):
         self.flags = []
 
     def sample(self, num_steps: int | None, **kwargs):
-        chains = self.params.init_chains(num_samples=self.num_chains)
-        chains = self.params.sample_state(
+        self.chains = self.params.init_chains(num_samples=self.num_chains)
+        self.chains = self.params.sample_state(
             chains=chains, n_steps=self.num_steps, beta=self.beta
         )
-        return chains
+        return self.chains
 
     def get_conf_grad(self, batch: Tensor):
         self.sample(num_steps=None)
