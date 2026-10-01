@@ -138,16 +138,16 @@ def save_sampler(filename: str, sampler: Sampler, update: int):
     metrics = sampler.get_metrics_save()
     name = sampler.name
     with h5py.File(filename, "a") as f:
-        if "sampler" not in f.keys():
-            f.create_group("sampler")
-            f["sampler"]["name"] = name
+        # Recreate the group so that no stale keys remain (e.g. when the number of models decreases)
+        if "sampler" in f.keys():
+            del f["sampler"]
+        f.create_group("sampler")
+        f["sampler"]["name"] = name
+        f["sampler"]["update"] = update
 
         # Save the parameters of the model
         for n, p in named_params.items():
-            if n in f["sampler"].keys():
-                f["sampler"][n][...] = p
-            else:
-                f["sampler"][n] = p
+            f["sampler"][n] = p
 
         if metrics is not None:
             for n, p in metrics.items():
