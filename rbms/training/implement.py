@@ -51,6 +51,8 @@ def _init_training(
                 model_type = "PBRBM"
             case "ising":
                 model_type = "IIRBM"
+            case "continuous":
+                model_type = "GBRBM"
             case _:
                 raise NotImplementedError()
 
