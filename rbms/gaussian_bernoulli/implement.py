@@ -167,3 +167,18 @@ def _init_parameters(
     vbias = data.mean(0) / sigma.square()
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
     return vbias, hbias, weight_matrix, sigma
+
+
+def _drop_identity_normalization(named_params: dict[str, np.ndarray]) -> None:
+    """Remove (in-place) the keys `v_mean` and `v_std` of archives saved while the
+    Gaussian RBMs standardized the visibles internally (feature removed). Only an
+    identity transformation (data already standardized) can be loaded without it."""
+    if "v_mean" not in named_params and "v_std" not in named_params:
+        return
+    v_mean = named_params.pop("v_mean")
+    v_std = named_params.pop("v_std")
+    if not (np.allclose(v_mean, 0, atol=1e-3) and np.allclose(v_std, 1, atol=1e-3)):
+        raise ValueError(
+            "This model was trained with the visibles standardized internally "
+            "(v_mean, v_std), which is no longer supported: train it again."
+        )

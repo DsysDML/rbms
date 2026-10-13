@@ -11,6 +11,7 @@ from rbms.gaussian_bernoulli.implement import (
     _compute_energy_hiddens,
     _compute_energy_visibles,
     _compute_gradient,
+    _drop_identity_normalization,
     _init_chains,
     _init_parameters,
     _sample_hiddens,
@@ -239,6 +240,7 @@ class GBRBM(RBM):
         dtype: torch.dtype,
     ) -> GBRBM:
         names = list(cls._trained_names + cls._fixed_names)
+        _drop_identity_normalization(named_params)
         check_keys_dict(d=named_params, names=names)
         params = cls(
             **{

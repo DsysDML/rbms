@@ -94,7 +94,8 @@ def test_gradient_matches_autograd_of_free_energy():
     params.compute_gradient(data, chains, centered=False)
 
     leaves = [p.clone().requires_grad_() for p in params.parameters()]
-    p = GBRBM_VAR(*leaves)
+    W, W2, b, c, log_precision = leaves
+    p = GBRBM_VAR(W, W2, b, c, log_precision=log_precision, min_precision=params.min_precision)
     objective = -(
         p.compute_energy_visibles(data).mean() - p.compute_energy_visibles(chains).mean()
     )
@@ -105,12 +106,25 @@ def test_gradient_matches_autograd_of_free_energy():
 
 def test_positive_precision():
     params = make_params()
-    params.weight_matrix_2 += 5.0
+    params.weight_matrix_2[0] += 5.0
+    params.log_precision[1] = -20.0
     params.post_grad_update()
+    # The hiddens can only increase the precision
+    assert (params.weight_matrix_2 <= 0).all()
     prec = conditional_precision(params, all_hiddens())
     assert (prec >= params.min_precision - 1e-12).all()
-    # Equality is reached for the worst hidden configuration
-    torch.testing.assert_close(prec.min(0).values, params.min_precision)
+    # The smallest precision is reached at h = 0, raised to the floor when needed
+    torch.testing.assert_close(prec.min(0).values, params.precision)
+    torch.testing.assert_close(params.precision[1], params.min_precision[1])
+
+
+def test_max_precision():
+    params = make_params()
+    params.max_precision = torch.full_like(params.precision, 2.0)
+    params.log_precision[2] = 10.0
+    params.post_grad_update()
+    assert (params.precision <= 2.0 + 1e-12).all()
+    torch.testing.assert_close(params.precision[2], torch.tensor(2.0, dtype=DTYPE))
 
 
 def test_named_parameters_round_trip():
@@ -119,3 +133,101 @@ def test_named_parameters_round_trip():
         params.named_parameters(), device="cpu", dtype=DTYPE
     )
     assert loaded == params
+
+
+def test_log_precision_parametrization():
+    params = make_params()
+    names = [next(k for k in params.named_parameters() if getattr(params, k) is q) for q in params.parameters()]
+    assert names == ["weight_matrix", "weight_matrix_2", "vbias", "hbias", "log_precision"]
+    torch.testing.assert_close(params.precision, params.log_precision.exp())
+    # dL/dlog(lambda) = lambda * dL/dlambda
+    data = params.init_chains(30, start_v=torch.randn(30, NUM_VISIBLES, dtype=DTYPE))
+    chains = params.init_chains(40, start_v=torch.randn(40, NUM_VISIBLES, dtype=DTYPE))
+    params.compute_gradient(data, chains, centered=False)
+    lam = params.precision.clone().requires_grad_()
+    W, W2, b, c = (x.clone() for x in params.parameters()[:4])
+    p = GBRBM_VAR(W, W2, b, c, precision=lam)
+    (-(p.compute_energy_visibles(data).mean() - p.compute_energy_visibles(chains).mean())).backward()
+    torch.testing.assert_close(params.log_precision.grad, lam.grad * lam.detach())
+    # AIS interpolation stays between the two models in log space
+    mid = params.independent_model() * 0.5 + params * 0.5
+    torch.testing.assert_close(mid.precision, params.precision)
+
+
+def test_load_old_archive_with_precision():
+    params = make_params()
+    named = params.named_parameters()
+    named["precision"] = np.exp(named.pop("log_precision"))
+    loaded = GBRBM_VAR.set_named_parameters(named, device="cpu", dtype=DTYPE)
+    torch.testing.assert_close(loaded.precision, params.precision)
+    assert loaded == params
+
+    # Archives saved before the upper bound on the precision: no bound
+    named = params.named_parameters()
+    named.pop("max_precision")
+    loaded = GBRBM_VAR.set_named_parameters(named, device="cpu", dtype=DTYPE)
+    assert torch.isinf(loaded.max_precision).all()
+
+
+
+def test_centered_step_with_w2_bound():
+    # The centered gradient keeps the centered hidden bias c' = c + mu_v.W + mu_s.W2
+    # (mu: data means of v and s = v^2 / 2) moving as h_data - h_model. The entries of W2
+    # at the bound (0) pushed up by the gradient are clipped after the step, so they must
+    # not enter the centering corrections: after the step and the projection, c' must
+    # still have moved by lr * (h_data - h_model).
+    params = make_params()
+    assert (params.weight_matrix_2 == 0).any()
+    v = 3 * torch.randn(200, NUM_VISIBLES, dtype=DTYPE)
+    data = params.sample_hiddens(params.init_chains(200, start_v=v))
+    chains = params.init_chains(300)
+    mu_v, mu_s = v.mean(0), 0.5 * v.square().mean(0)
+
+    def centered_hbias(p):
+        return p.hbias + mu_v @ p.weight_matrix + mu_s @ p.weight_matrix_2
+
+    params.compute_gradient(data, chains, centered=False)
+    expected_change = params.hbias.grad.clone()
+    params.compute_gradient(data, chains, centered=True)
+    frozen = params.weight_matrix_2 >= 0
+    assert (params.weight_matrix_2.grad[frozen] <= 0).all()
+    before = centered_hbias(params)
+    lr = 1e-3
+    with torch.no_grad():
+        for p in params.parameters():
+            p += lr * p.grad
+    params.post_grad_update()
+    torch.testing.assert_close(centered_hbias(params) - before, lr * expected_change)
+
+
+def test_centered_step_of_log_precision():
+    # The centered gradient trains the centered precision lambda' = lambda - W2 @ mu_h
+    # (mu_h: data mean of h), whose plain log-scale step is lr * lambda * dL/dlambda,
+    # i.e. lambda' moves by lr * lambda^2 * dL/dlambda. The centering correction of
+    # lambda only compensates the step of W2 (absolute change of lambda): it must not be
+    # multiplied by lambda as the rest of the log-scale gradient. With precisions far
+    # from 1 the compensation was lambda^2 times too large and lambda blew up.
+    params = make_params()
+    params.log_precision += 2.0  # precisions far from 1
+    params.weight_matrix_2.clamp_(max=-0.1)  # no entry at the bound
+    v = 0.3 * torch.randn(200, NUM_VISIBLES, dtype=DTYPE)
+    data = params.sample_hiddens(params.init_chains(200, start_v=v))
+    chains = params.init_chains(300)
+    mu_h = data["hidden_mag"].mean(0)
+
+    def centered_precision(p):
+        return p.precision - p.weight_matrix_2 @ mu_h
+
+    params.compute_gradient(data, chains, centered=False)
+    lam = params.precision
+    expected_change = lam * params.log_precision.grad  # lambda^2 dL/dlambda
+    params.compute_gradient(data, chains, centered=True)
+    before = centered_precision(params)
+    lr = 1e-6
+    with torch.no_grad():
+        for p in params.parameters():
+            p += lr * p.grad
+    params.post_grad_update()
+    torch.testing.assert_close(
+        (centered_precision(params) - before) / lr, expected_change, rtol=1e-3, atol=1e-6
+    )

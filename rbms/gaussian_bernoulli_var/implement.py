@@ -105,7 +105,18 @@ def _compute_gradient(
     weight_matrix_2: Tensor,
     precision: Tensor,
     centered: bool = True,
-) -> None:
+) -> Tensor:
+    """Attach the gradients to the parameters (precision.grad is the full gradient
+    with respect to the precision).
+
+    Returns:
+        Tensor: The part of precision.grad that comes from the centering (zero when
+        not centered). The centering is a linear change of variables: it moves the
+        precision by the same absolute amount as the step of W2 changes the precision
+        at the mean hidden configuration. When the trained parameter is log(precision),
+        this part must not be multiplied by the precision as the rest of the gradient
+        (see `GBRBM_VAR.compute_gradient`).
+    """
     w_data = w_data.view(-1, 1)
     w_chain = w_chain.view(-1, 1)
     # Turn the weights of the chains into normalized weights
@@ -140,10 +151,16 @@ def _compute_gradient(
         grad_weight_matrix_2 = (
             (s_data_centered * w_data).T @ h_data_centered
         ) / w_data_norm - ((s_gen_centered * chain_weights).T @ h_gen_centered)
-        grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ h_data_mean)
-        grad_precision = -(
-            s_data_mean - s_gen_mean - (grad_weight_matrix_2 @ h_data_mean)
+        # W2 <= 0: the entries at the bound that the gradient pushes up are clipped back
+        # after the step. Their gradient must be removed before the centering corrections
+        # below, otherwise hbias (and the precision) compensate a change of W2 that never
+        # happens and drift systematically.
+        grad_weight_matrix_2 = torch.where(
+            (weight_matrix_2 >= 0) & (grad_weight_matrix_2 > 0), 0.0, grad_weight_matrix_2
         )
+        grad_vbias = v_data_mean - v_gen_mean - (grad_weight_matrix @ h_data_mean)
+        precision_correction = grad_weight_matrix_2 @ h_data_mean
+        grad_precision = -(s_data_mean - s_gen_mean) + precision_correction
         grad_hbias = (
             h_data_mean
             - h_gen_mean
@@ -161,6 +178,7 @@ def _compute_gradient(
         grad_vbias = v_data_mean - v_gen_mean
         grad_precision = -(s_data_mean - s_gen_mean)
         grad_hbias = h_data_mean - h_gen_mean
+        precision_correction = torch.zeros_like(grad_precision)
 
     # Attach to the parameters
     weight_matrix.grad = grad_weight_matrix
@@ -168,17 +186,33 @@ def _compute_gradient(
     vbias.grad = grad_vbias
     hbias.grad = grad_hbias
     precision.grad = grad_precision
+    return precision_correction
 
 
 @torch.no_grad()
 def _enforce_positive_precision(
-    precision: Tensor, weight_matrix_2: Tensor, min_precision: Tensor
+    precision: Tensor,
+    weight_matrix_2: Tensor,
+    min_precision: Tensor,
+    max_precision: Tensor,
 ) -> None:
-    """Raise (in-place) the precision so that P_i(h) = lambda_i - sum_a W2_ia h_a
-    is at least `min_precision` for every hidden configuration."""
-    precision.copy_(
-        torch.maximum(precision, weight_matrix_2.clamp(min=0).sum(1) + min_precision)
-    )
+    """Project (in-place) the parameters so that P_i(h) = lambda_i - sum_a W2_ia h_a
+    is at least `min_precision` for every hidden configuration, and lambda_i is at most
+    `max_precision`.
+
+    W2 is constrained to be <= 0: the hiddens can only increase the precision, and
+    lambda_i is the smallest precision (h = 0). Positivity then only needs
+    lambda_i >= min_precision, and the projection never raises lambda when W2 changes.
+    (Without the sign constraint, lambda had to follow sum_a max(W2_ia, 0): when the
+    model was too narrow the gradient increased W2, which raised lambda and made the
+    model even narrower for the typical hidden configurations.)
+
+    The upper bound is needed for the visibles that are (almost) constant in the data,
+    e.g. the border pixels of MNIST: the likelihood of a delta peak is unbounded and
+    their precision would grow forever.
+    """
+    weight_matrix_2.clamp_(max=0)
+    precision.copy_(torch.minimum(torch.maximum(precision, min_precision), max_precision))
 
 
 def _init_chains(
@@ -221,7 +255,8 @@ def _init_parameters(
     device: torch.device,
     dtype: torch.dtype,
     var_init: float = 1e-4,
-) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    min_precision_factor: float = 0.25,
+) -> tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
     _, num_visibles = data.shape
     data = data.to(device=device, dtype=dtype)
     weight_matrix = (
@@ -235,9 +270,22 @@ def _init_parameters(
     min_sigma = max(1e-1 * data.std().item(), 1e-6)
     sigma = data.std(0).clamp(min=min_sigma)
     precision = sigma.square().reciprocal()
-    # The conditional std can grow at most to sqrt(10) times the initial one
-    min_precision = 0.1 * precision
+    # The conditional std can grow at most to 1 / sqrt(min_precision_factor) times the
+    # std of the data (2 times by default). A lower floor lets a few chains sample values
+    # far outside the data, whose v^2 dominates the gradient of weight_matrix_2
+    min_precision = min_precision_factor * precision
+    # The precision at h = 0 cannot go above the one of the constant visibles: no
+    # conditional std below min_sigma (W2 can still sharpen it for some h)
+    max_precision = torch.full_like(precision, min_sigma**-2)
     # Match the mean of the data with the independent model
     vbias = data.mean(0) * precision
     hbias = torch.zeros(num_hiddens, device=device, dtype=dtype)
-    return vbias, hbias, weight_matrix, weight_matrix_2, precision, min_precision
+    return (
+        vbias,
+        hbias,
+        weight_matrix,
+        weight_matrix_2,
+        precision,
+        min_precision,
+        max_precision,
+    )

@@ -17,14 +17,16 @@ from rbms.gaussian_bernoulli_var.implement import (
     _sample_hiddens,
     _sample_visibles,
 )
+from rbms.gaussian_bernoulli.implement import _drop_identity_normalization
 
 PARAM_NAMES = [
     "weight_matrix",
     "weight_matrix_2",
     "vbias",
     "hbias",
-    "precision",
+    "log_precision",
     "min_precision",
+    "max_precision",
 ]
 
 
@@ -34,9 +36,18 @@ class GBRBM_VAR(RBM):
     Gaussian visibles and binary {0, 1} hiddens. The precision of each visible,
     P_i(h) = precision_i - sum_a W2_ia h_a, is trained and depends on the hidden
     configuration through `weight_matrix_2` (coupling between v^2 / 2 and h).
+    `weight_matrix_2` is constrained to be <= 0: the hiddens can only increase the
+    precision, and precision_i is the smallest one (h = 0).
 
-    After each gradient step, `precision` is raised if needed so that
-    P_i(h) >= `min_precision` for all h (otherwise p(v|h) is not normalizable).
+    The trained parameter is `log_precision` (precision = exp(log_precision)): a
+    gradient step changes the precision by a factor instead of an absolute amount,
+    which keeps it stable when the data have a large scale (the gradient of the
+    precision involves v^2).
+
+    After each gradient step, W2 is clipped to <= 0 and the precision is raised if
+    needed to `min_precision`, so that P_i(h) >= `min_precision` for all h (otherwise
+    p(v|h) is not normalizable). The precision is also lowered if needed to
+    `max_precision` (the constant visibles would otherwise sharpen forever).
     """
 
     visible_type: str = "continuous"
@@ -47,10 +58,12 @@ class GBRBM_VAR(RBM):
         weight_matrix_2: Tensor,
         vbias: Tensor,
         hbias: Tensor,
-        precision: Tensor,
+        precision: Tensor | None = None,
         min_precision: Tensor | None = None,
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
+        log_precision: Tensor | None = None,
+        max_precision: Tensor | None = None,
     ):
         """Initialize the parameters of the Gaussian-Bernoulli RBM with trainable variances.
 
@@ -59,13 +72,17 @@ class GBRBM_VAR(RBM):
             weight_matrix_2 (Tensor): Coupling between v^2 / 2 and h.
             vbias (Tensor): The visible bias of the RBM.
             hbias (Tensor): The hidden bias of the RBM.
-            precision (Tensor): Precision (inverse variance) of the visibles when h = 0.
+            precision (Tensor, optional): Precision (inverse variance) of the visibles
+                when h = 0. Either `precision` or `log_precision` must be given.
             min_precision (Tensor, optional): Lower bound on the conditional precision
-                of the visibles. Defaults to 1e-1 * precision.
+                of the visibles. Defaults to 0.25 * precision.
             device (Optional[torch.device], optional): The device for the parameters.
                 Defaults to the device of `weight_matrix`.
             dtype (Optional[torch.dtype], optional): The data type for the parameters.
                 Defaults to the data type of `weight_matrix`.
+            log_precision (Tensor, optional): Log of the precision (trained parameter).
+            max_precision (Tensor, optional): Upper bound on the precision at h = 0.
+                Defaults to no bound.
         """
         if device is None:
             device = weight_matrix.device
@@ -77,22 +94,34 @@ class GBRBM_VAR(RBM):
         self.weight_matrix_2 = weight_matrix_2.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
-        self.precision = precision.to(device=self.device, dtype=self.dtype)
+        if log_precision is None:
+            if precision is None:
+                raise ValueError("Either precision or log_precision must be given")
+            log_precision = torch.log(precision)
+        self.log_precision = log_precision.to(device=self.device, dtype=self.dtype)
         if min_precision is None:
-            min_precision = 1e-1 * self.precision
+            min_precision = 0.25 * self.precision
         self.min_precision = min_precision.to(device=self.device, dtype=self.dtype)
+        if max_precision is None:
+            max_precision = torch.full_like(self.log_precision, torch.inf)
+        self.max_precision = max_precision.to(device=self.device, dtype=self.dtype)
         self.name = "GBRBM_VAR"
         self.flags = []
 
-    def _with_trained(self, weight_matrix, weight_matrix_2, vbias, hbias, precision):
+    @property
+    def precision(self) -> Tensor:
+        return self.log_precision.exp()
+
+    def _with_trained(self, weight_matrix, weight_matrix_2, vbias, hbias, log_precision):
         # New instance sharing the non-trained attributes
         return GBRBM_VAR(
             weight_matrix=weight_matrix,
             weight_matrix_2=weight_matrix_2,
             vbias=vbias,
             hbias=hbias,
-            precision=precision,
+            log_precision=log_precision,
             min_precision=self.min_precision,
+            max_precision=self.max_precision,
         )
 
     def __add__(self, other):
@@ -101,7 +130,7 @@ class GBRBM_VAR(RBM):
             weight_matrix_2=self.weight_matrix_2 + other.weight_matrix_2,
             vbias=self.vbias + other.vbias,
             hbias=self.hbias + other.hbias,
-            precision=self.precision + other.precision,
+            log_precision=self.log_precision + other.log_precision,
         )
 
     def __mul__(self, other):
@@ -110,7 +139,7 @@ class GBRBM_VAR(RBM):
             weight_matrix_2=self.weight_matrix_2 * other,
             vbias=self.vbias * other,
             hbias=self.hbias * other,
-            precision=self.precision * other,
+            log_precision=self.log_precision * other,
         )
 
     def clone(
@@ -125,8 +154,9 @@ class GBRBM_VAR(RBM):
             weight_matrix_2=self.weight_matrix_2.clone(),
             vbias=self.vbias.clone(),
             hbias=self.hbias.clone(),
-            precision=self.precision.clone(),
+            log_precision=self.log_precision.clone(),
             min_precision=self.min_precision.clone(),
+            max_precision=self.max_precision.clone(),
             device=device,
             dtype=dtype,
         )
@@ -163,7 +193,8 @@ class GBRBM_VAR(RBM):
         )
 
     def compute_gradient(self, data, chains, centered=True):
-        _compute_gradient(
+        precision = self.precision
+        precision_correction = _compute_gradient(
             v_data=data["visible"],
             mh_data=data["hidden_mag"],
             w_data=data["weights"],
@@ -174,9 +205,19 @@ class GBRBM_VAR(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             weight_matrix_2=self.weight_matrix_2,
-            precision=self.precision,
+            precision=precision,
             centered=centered,
         )
+        # Chain rule: dL/dlog(precision) = precision * dL/dprecision, except for the
+        # centering correction. The correction compensates the change of the precision
+        # at the mean hidden configuration due to the step of W2: it is an absolute
+        # change of the precision, lr * correction, which in log scale is
+        # lr * correction / precision. Multiplying it by the precision instead makes
+        # the compensation precision^2 times too large: the precision then grows even
+        # when the model is already too narrow, faster and faster (dlambda/dt ~ lambda^2).
+        self.log_precision.grad = (
+            precision.grad - precision_correction
+        ) * precision + precision_correction / precision
 
     def independent_model(self):
         return self._with_trained(
@@ -184,7 +225,7 @@ class GBRBM_VAR(RBM):
             weight_matrix_2=torch.zeros_like(self.weight_matrix_2),
             vbias=self.vbias,
             hbias=torch.zeros_like(self.hbias),
-            precision=self.precision,
+            log_precision=self.log_precision,
         )
 
     def init_chains(self, num_samples, weights=None, start_v=None):
@@ -210,7 +251,9 @@ class GBRBM_VAR(RBM):
         )
 
     @staticmethod
-    def init_parameters(num_hiddens, dataset, device, dtype, var_init=0.0001):
+    def init_parameters(
+        num_hiddens, dataset, device, dtype, var_init=0.0001, min_precision_factor=0.25
+    ):
         data = dataset.data
         # Convert to torch Tensor if necessary
         if isinstance(data, np.ndarray):
@@ -222,12 +265,14 @@ class GBRBM_VAR(RBM):
             weight_matrix_2,
             precision,
             min_precision,
+            max_precision,
         ) = _init_parameters(
             num_hiddens=num_hiddens,
             data=data,
             device=device,
             dtype=dtype,
             var_init=var_init,
+            min_precision_factor=min_precision_factor,
         )
         return GBRBM_VAR(
             weight_matrix=weight_matrix,
@@ -236,6 +281,7 @@ class GBRBM_VAR(RBM):
             hbias=hbias,
             precision=precision,
             min_precision=min_precision,
+            max_precision=max_precision,
         )
 
     def named_parameters(self) -> dict[str, np.ndarray]:
@@ -250,13 +296,13 @@ class GBRBM_VAR(RBM):
         return self.vbias.shape[0]
 
     def parameters(self) -> list[Tensor]:
-        # min_precision is not trained
+        # min_precision and max_precision are not trained
         return [
             self.weight_matrix,
             self.weight_matrix_2,
             self.vbias,
             self.hbias,
-            self.precision,
+            self.log_precision,
         ]
 
     @property
@@ -298,6 +344,15 @@ class GBRBM_VAR(RBM):
         device: torch.device | str,
         dtype: torch.dtype,
     ) -> GBRBM_VAR:
+        if "log_precision" not in named_params and "precision" in named_params:
+            # Archives saved when the precision itself was the trained parameter
+            named_params["log_precision"] = np.log(named_params.pop("precision"))
+        if "max_precision" not in named_params:
+            # Archives saved before the upper bound existed: no bound
+            named_params["max_precision"] = np.full_like(
+                named_params["log_precision"], np.inf
+            )
+        _drop_identity_normalization(named_params)
         check_keys_dict(d=named_params, names=PARAM_NAMES)
         params = GBRBM_VAR(
             **{
@@ -325,11 +380,19 @@ class GBRBM_VAR(RBM):
     def get_metrics(self, metrics):
         return metrics
 
+    @torch.no_grad()
     def post_grad_update(self):
+        precision = self.precision
+        projected = precision.clone()
         _enforce_positive_precision(
-            precision=self.precision,
+            precision=projected,
             weight_matrix_2=self.weight_matrix_2,
             min_precision=self.min_precision,
+            max_precision=self.max_precision,
+        )
+        # Only the projected entries are changed (no round trip exp/log on the others)
+        self.log_precision.copy_(
+            torch.where(projected != precision, torch.log(projected), self.log_precision)
         )
 
     def pre_grad_update(self):
