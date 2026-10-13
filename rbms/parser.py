@@ -185,6 +185,39 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         help="(Defaults to 10). Maximum learning rate when adaptative learning rate is used.",
     )
     train_args.add_argument(
+        "--lr_kappa",
+        type=float,
+        default=None,
+        help="(Defaults to None, not used). Limit the initial learning rate to lr_kappa / mu, "
+        "with mu the initial growth rate of the weights computed from the data (the weights "
+        "grow by a factor ~exp(lr * mu) per update at the beginning of the training). The "
+        "adaptive learning rate (cossim) can increase it afterwards.",
+    )
+    train_args.add_argument(
+        "--ptt_speed",
+        type=float,
+        default=None,
+        help="(Defaults to 0.01). Optimizer cossim_ptt: target displacement of the model per "
+        "update, measured as std_x[F_now(x) - F_before(x)] / (number of updates) on the "
+        "chains of the sampler. The swap acceptance between two models is ~erfc(sigma / 2).",
+    )
+    train_args.add_argument(
+        "--ptt_window",
+        type=int,
+        default=None,
+        help="(Defaults to 10). Optimizer cossim_ptt: number of updates between two "
+        "measurements of the displacement (and adjustments of the learning rate).",
+    )
+    train_args.add_argument(
+        "--ptt_relative",
+        type=float,
+        default=None,
+        help="(Defaults to 0.01). Optimizer cossim_ptt with --mult_optim: rate at which the "
+        "learning rates of the parameters separate. At each update the lr of parameter i "
+        "is multiplied by exp(ptt_relative * (cos_i - mean cos)), with cos_i the cosine "
+        "between its gradient and the previous one. 0: same lr for all the parameters.",
+    )
+    train_args.add_argument(
         "--scale_lr",
         action="store_true",
         default=False,
@@ -277,6 +310,9 @@ default_args: dict[str, Any] = {
     "max_norm_grad": -1,
     "optim": "sgd",
     "max_lr": 10,
+    "ptt_speed": 0.01,
+    "ptt_window": 10,
+    "ptt_relative": 0.01,
     "training_type": "pcd",
 }
 

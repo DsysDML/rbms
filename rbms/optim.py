@@ -55,12 +55,148 @@ class SGD_cossim(SGD):
         return super().step(closure)
 
 
+class PTTSpeedController:
+    """Learning rate control on the displacement of the model "for PTT".
+
+    The swap acceptance between two models p_theta and p_theta' is ~erfc(sigma / 2),
+    with sigma the std over the samples of F_theta'(x) - F_theta(x) (F: free energy of
+    the visibles). Every `window` updates, the controller measures the displacement of
+    the model since the previous measurement on the current chains of the sampler,
+        v = std_x[F_now(x) - F_before(x)] / window,
+    and multiplies the learning rate of all the optimizers by (target / v)^gamma
+    (clipped to [1 / max_factor, max_factor]), so that the model moves by ~target per
+    update. The displacement is the real one (after the projections of the parameters),
+    over several updates: the noise of the gradient, which cancels between updates,
+    does not count (unlike the norm of the step of a single update).
+
+    With several optimizers (one per parameter, --mult_optim), the learning rates are
+    also distributed between the parameters: at each update, the lr of parameter i is
+    multiplied by exp(relative_rate * (cos_i - mean_j cos_j)), with cos_i the cosine
+    between its gradient and the previous one (coherent steps: the lr can grow;
+    oscillating steps: it must decrease). The factors are centered on their mean, so
+    they only change the ratios between the learning rates, and the scale stays set by
+    the displacement of the model.
+    """
+
+    def __init__(
+        self,
+        params: EBM,
+        sampler: Sampler,
+        target: float = 0.01,
+        window: int = 10,
+        gamma: float = 0.5,
+        max_factor: float = 2.0,
+        relative_rate: float = 0.01,
+    ):
+        self.params = params
+        self.sampler = sampler
+        self.target = target
+        self.window = window
+        self.gamma = gamma
+        self.max_factor = max_factor
+        self.relative_rate = relative_rate
+        self.optimizers: list[Optimizer] = []
+        self.prev_grads: list[Tensor] | None = None
+        self.last_cosines: np.ndarray | None = None
+        self.num_steps = 0
+        self.snapshot: EBM | None = None
+        self.last_speed: float | None = None
+
+    @torch.no_grad()
+    def _distribute(self):
+        """Relative learning rates of the parameters from the cosine between their
+        current and previous gradients (the gradients of all the parameters are already
+        computed when the first optimizer steps)."""
+        grads = [
+            torch.cat([p.grad.flatten() for group in opt.param_groups for p in group["params"]])
+            for opt in self.optimizers
+        ]
+        if self.prev_grads is not None:
+            cosines = np.array(
+                [
+                    (g @ g0 / (g.norm() * g0.norm() + 1e-30)).item()
+                    for g, g0 in zip(grads, self.prev_grads)
+                ]
+            )
+            self.last_cosines = cosines
+            factors = np.exp(self.relative_rate * (cosines - cosines.mean()))
+            for opt, factor in zip(self.optimizers, factors):
+                for group in opt.param_groups:
+                    group["lr"] = min(group["lr"] * factor, getattr(opt, "max_lr", np.inf))
+        self.prev_grads = [g.clone() for g in grads]
+
+    @torch.no_grad()
+    def step(self):
+        """Called once per update, after the gradients are computed and before the
+        parameters are changed."""
+        if len(self.optimizers) > 1 and self.relative_rate > 0:
+            self._distribute()
+        if self.snapshot is None:
+            self.snapshot = self.params.clone()
+            self.num_steps = 0
+            return
+        self.num_steps += 1
+        if self.num_steps < self.window:
+            return
+        chains = self.sampler.get_curr_conf()
+        delta = self.params.compute_energy_visibles(
+            chains
+        ) - self.snapshot.compute_energy_visibles(chains)
+        speed = delta.std().item() / self.num_steps
+        self.last_speed = speed
+        if speed > 0 and np.isfinite(speed):
+            factor = (self.target / speed) ** self.gamma
+        else:
+            factor = self.max_factor
+        factor = min(max(factor, 1 / self.max_factor), self.max_factor)
+        for opt in self.optimizers:
+            for group in opt.param_groups:
+                group["lr"] = min(group["lr"] * factor, getattr(opt, "max_lr", np.inf))
+        self.snapshot = self.params.clone()
+        self.num_steps = 0
+
+
+class SGD_cossim_ptt(SGD):
+    """SGD whose learning rate is set by a shared `PTTSpeedController`. With several
+    optimizers (one per parameter), they share the controller, which sets the scale of
+    all the learning rates and their ratios; the first one calls it once per update."""
+
+    def __init__(self, params, lr=0.001, maximize=True, **kwargs):
+        super().__init__(params, lr, maximize=maximize, **kwargs)
+        self.controller: PTTSpeedController | None = None
+        self.max_lr = np.inf
+
+    def step(self, closure=None):
+        if self.controller is not None and self.controller.optimizers[0] is self:
+            self.controller.step()
+        return super().step(closure)
+
+
+@torch.no_grad()
+def initial_growth_rate(params: EBM, data: Tensor, num_samples: int = 20000) -> float:
+    """Growth rate of the weights at the beginning of the training.
+
+    Near W = 0 (binary {0, 1} hiddens with zero bias, p(h = 1 | v) ~ 1/2 + v.W / 4) the
+    gradient of W is ~ (C_data - C_model) W / 4, with C the covariance of the visibles,
+    so W grows by a factor ~exp(lr * mu) per update, with mu the largest eigenvalue of
+    (C_data - C_model) / 4. C_model is that of the independent model of `params`.
+    """
+    perm = torch.randperm(data.shape[0], device=data.device)[:num_samples]
+    v_data = data[perm].reshape(len(perm), -1).to(torch.float64)
+    v_model = params.independent_model().init_chains(num_samples)["visible"]
+    v_model = v_model.reshape(num_samples, -1).to(device=v_data.device, dtype=torch.float64)
+    diff = (torch.cov(v_data.T) - torch.cov(v_model.T)) / 4
+    return torch.linalg.eigvalsh(diff).max().item()
+
+
 def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[Optimizer]:
     match optim:
         case "sgd":
             optim_class = SGD
         case "cossim":
             optim_class = SGD_cossim
+        case "cossim_ptt":
+            optim_class = SGD_cossim_ptt
         case "adam":
             optim_class = Adam
         case "ngd":
@@ -98,8 +234,21 @@ def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[O
             )
         ]
     for opt in optimizer:
-        if isinstance(opt, SGD_cossim):
+        if isinstance(opt, (SGD_cossim, SGD_cossim_ptt)):
             opt.max_lr = max_lr
+    if args["optim"] == "cossim_ptt":
+        controller = PTTSpeedController(
+            params=params,
+            sampler=sampler,
+            target=args.get("ptt_speed") or 0.01,
+            window=args.get("ptt_window") or 10,
+            relative_rate=args.get("ptt_relative")
+            if args.get("ptt_relative") is not None
+            else 0.01,
+        )
+        controller.optimizers = optimizer
+        for opt in optimizer:
+            opt.controller = controller
 
     if args["optim"] == "nag":
         optimizer = [
