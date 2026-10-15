@@ -201,7 +201,12 @@ def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[O
             optim_class = Adam
         case "ngd":
             optim_class = lambda p, **kwargs: NGD(
-                p, update_freq=1, warm_start=True, update_biases=True, **kwargs
+                p,
+                update_freq=1,
+                warm_start=True,
+                update_biases=params.train_biases,
+                max_dF=args.get("ptt_speed") or 0.01,
+                **kwargs,
             )
         case _:
             print(f"Unrecognized optimizer {args['optim']}, falling back to SGD.")
@@ -234,7 +239,7 @@ def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[O
             )
         ]
     for opt in optimizer:
-        if isinstance(opt, (SGD_cossim, SGD_cossim_ptt)):
+        if isinstance(opt, (SGD_cossim, SGD_cossim_ptt, NGD)):
             opt.max_lr = max_lr
     if args["optim"] == "cossim_ptt":
         controller = PTTSpeedController(
@@ -282,6 +287,7 @@ class NGD(Optimizer):
         maximize=True,
         update_biases=True,
         max_lr=0.01,
+        max_dF=None,
     ):
         self._model = None
         self._sampler = None
@@ -303,6 +309,57 @@ class NGD(Optimizer):
                 self.state[p]["last_dt"] = torch.zeros_like(p.data)
         self.max_lr = max_lr
         self.rescale_eigenvalue_lr = True
+        # Limit of std_x[F_new(x) - F(x)] per update on the chains of the sampler (None: no
+        # limit). The natural gradient can be huge where the Fisher matrix vanishes (Gaussian
+        # hiddens at W = 0), and the swap acceptance of PTT is ~erfc(std / 2)
+        self.max_dF = max_dF
+        self.last_lr = None
+
+    @torch.no_grad()
+    def _limit_lr(self, lr, direction, params, active_params, delta_theta, max_iter=20):
+        """Largest learning rate <= lr whose step changes the free energy of the chains of
+        the sampler by at most max_dF (std over the chains), on the exact free energy. The
+        change of F is not linear in the step (quadratic for large steps with Gaussian
+        hiddens): the learning rate is first reduced until the limit holds, then refined by
+        a bisection in log scale."""
+        chains = self._sampler.get_curr_conf()
+        energy = self._model.compute_energy_visibles(chains)
+        idx = [next(i for i, p in enumerate(params) if p is a) for a in active_params]
+
+        def std_dF(step):
+            model = self._model.clone()
+            new_params = model.parameters()
+            for i, dt in zip(idx, delta_theta):
+                new_params[i].add_(dt, alpha=direction * step)
+            return (model.compute_energy_visibles(chains) - energy).std().item()
+
+        def valid(step):
+            std = std_dF(step)
+            return np.isfinite(std) and std <= self.max_dF, std
+
+        ok, std = valid(lr)
+        if ok:
+            return lr
+        # Reduce until the limit holds (linear estimate: too small if F grows faster)
+        hi, lo = lr, lr
+        for _ in range(max_iter):
+            hi = lo
+            lo *= 0.9 * self.max_dF / std if np.isfinite(std) and std > 0 else 1e-3
+            ok, std = valid(lo)
+            if ok:
+                break
+        if not ok:
+            return 0.0
+        # Bisection in log scale between lo (valid) and hi (not valid), up to a factor 1.05
+        for _ in range(max_iter):
+            if hi / lo < 1.05:
+                break
+            mid = np.sqrt(lo * hi)
+            if valid(mid)[0]:
+                lo = mid
+            else:
+                hi = mid
+        return lo
 
     def set_sampler(self, sampler: Sampler):
         self._sampler = sampler
@@ -435,8 +492,11 @@ class NGD(Optimizer):
                         p_vec, v_chain_eff, tanh_term, self.reg, update_biases
                     )
                     p_Sp = sum(torch.sum(pv * spv) for pv, spv in zip(p_vec, S_p))
+                    p_p = sum(torch.sum(pv * pv) for pv in p_vec)
 
-                    if p_Sp.item() <= 1e-9:
+                    # Relative to |p|^2: the scale of the Fisher matrix depends on the model
+                    # (with Gaussian hiddens of variance 1/Nv it is tiny at the beginning)
+                    if not p_Sp.item() > 1e-12 * p_p.item():
                         print("CG broke due to non-positive curvature.")
                         break
 
@@ -487,7 +547,7 @@ class NGD(Optimizer):
             #     group["lr"] *= 1.005
             # elif self.cos_sim < -1e-06:
             #     group["lr"] *= 0.995
-            group["lr"] = min(group["lr"], 0.05)
+            group["lr"] = min(group["lr"], self.max_lr)
 
             # Rescale eigenvalues
             if self.rescale_eigenvalue_lr:
@@ -514,5 +574,11 @@ class NGD(Optimizer):
 
             # ------------------------------------------------------
             direction = 1 if group["maximize"] else -1
+            # A float: group["lr"] can be a tensor, which the limit must not modify in place
+            lr = float(group["lr"])
+            if self.max_dF is not None:
+                # Limit of this step only: group["lr"] keeps its own evolution
+                lr = self._limit_lr(lr, direction, params, active_params, delta_theta)
+            self.last_lr = lr
             for p_tensor, dt in zip(active_params, delta_theta):
-                p_tensor.add_(dt, alpha=direction * group["lr"])
+                p_tensor.add_(dt, alpha=direction * lr)

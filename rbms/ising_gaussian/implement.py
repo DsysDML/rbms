@@ -52,6 +52,18 @@ def _compute_energy_visibles(
     return -field - quad_term - const
 
 
+def _compute_energy_visibles_gradient(
+    v: Tensor, hbias: Tensor, weight_matrix: Tensor
+) -> tuple[Tensor, Tensor, Tensor]:
+    # F(v) = -v.vbias - |hbias + v W|^2 / (2 Nv): the derivatives are those of the Ising
+    # hiddens with the mean of the Gaussian hiddens instead of tanh
+    mean_hidden = (hbias + (v @ weight_matrix)) / weight_matrix.shape[0]
+    grad_vbias = -v
+    grad_hbias = -mean_hidden
+    grad_weight_matrix = -v.T @ mean_hidden
+    return grad_vbias, grad_hbias, grad_weight_matrix
+
+
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor
 ) -> Tensor:

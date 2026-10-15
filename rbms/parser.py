@@ -182,7 +182,7 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "--max_lr",
         type=float,
         default=None,
-        help="(Defaults to 10). Maximum learning rate when adaptative learning rate is used.",
+        help="(Defaults to 1). Maximum learning rate when adaptative learning rate is used.",
     )
     train_args.add_argument(
         "--lr_kappa",
@@ -199,7 +199,8 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default=None,
         help="(Defaults to 0.01). Optimizer cossim_ptt: target displacement of the model per "
         "update, measured as std_x[F_now(x) - F_before(x)] / (number of updates) on the "
-        "chains of the sampler. The swap acceptance between two models is ~erfc(sigma / 2).",
+        "chains of the sampler. The swap acceptance between two models is ~erfc(sigma / 2). "
+        "Optimizer ngd: maximal displacement of a single update, measured the same way.",
     )
     train_args.add_argument(
         "--ptt_window",
@@ -309,7 +310,7 @@ default_args: dict[str, Any] = {
     "L2": 0.0,
     "max_norm_grad": -1,
     "optim": "sgd",
-    "max_lr": 10,
+    "max_lr": 1,
     "ptt_speed": 0.01,
     "ptt_window": 10,
     "ptt_relative": 0.01,

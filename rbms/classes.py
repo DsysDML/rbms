@@ -17,6 +17,8 @@ class EBM(ABC):
     device: torch.device | str | None
     visible_type: str
     flags: list[str]
+    # False for the models whose biases are not trained (their gradient is set to 0)
+    train_biases: bool = True
 
     @abstractmethod
     def __init__(self): ...

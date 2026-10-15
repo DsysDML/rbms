@@ -48,6 +48,18 @@ def _compute_energy_visibles(
     return -field - log_term.sum(1)
 
 
+def _compute_energy_visibles_gradient(
+    v: Tensor, hbias: Tensor, weight_matrix: Tensor
+) -> tuple[Tensor, Tensor, Tensor]:
+    # F(v) = -v.vbias - sum_j log(1 + exp(hbias_j + (v W)_j)): the derivatives are those of the
+    # Ising hiddens with the sigmoid (mean of the {0, 1} hiddens) instead of tanh
+    mean_hidden = torch.sigmoid(hbias + (v @ weight_matrix))
+    grad_vbias = -v
+    grad_hbias = -mean_hidden
+    grad_weight_matrix = -v.T @ mean_hidden
+    return grad_vbias, grad_hbias, grad_weight_matrix
+
+
 @torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor

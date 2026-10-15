@@ -8,6 +8,7 @@ from tqdm.autonotebook import tqdm
 from rbms.classes import EBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model, save_sampler
+from rbms.optim import NGD
 
 
 # @torch.no_grad
@@ -35,6 +36,12 @@ def train(
         ascii="-#",
     )
     pbar.set_description(f"Training {params.name}")
+
+    # The natural gradient needs the gradient of the log-likelihood itself: the Fisher matrix
+    # is built with the uncentered scores, and F^-1 times the centered gradient is not an
+    # ascent direction (the natural gradient is already invariant under reparametrization)
+    if any(isinstance(opt, NGD) for opt in optimizer):
+        centered = False
 
     start = time.perf_counter()
     effective_time = np.zeros(len(optimizer))

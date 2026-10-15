@@ -8,6 +8,7 @@ from rbms.bernoulli_bernoulli.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
+    _compute_energy_visibles_gradient,
     _compute_gradient,
     _init_chains,
     _init_parameters,
@@ -105,6 +106,13 @@ class BBRBM(RBM):
         return _compute_energy_visibles(
             v=chains["visible"],
             vbias=self.vbias,
+            hbias=self.hbias,
+            weight_matrix=self.weight_matrix,
+        )
+
+    def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        return _compute_energy_visibles_gradient(
+            v=v,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
         )
