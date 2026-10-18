@@ -7,7 +7,7 @@ from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
-from rbms.utils import get_saved_updates
+from rbms.utils import get_saved_updates, make_weight_mask
 
 
 def _init_training(
@@ -42,6 +42,8 @@ def _init_training(
     device: torch.device | str,
     flags: list[str],
     map_model: dict[str, type[EBM]] = map_model,
+    sparsity: float = 1.0,
+    mask_type: str = "random",
 ):
     if model_type is None:
         match train_dataset.variable_type:
@@ -67,6 +69,16 @@ def _init_training(
         device=device,
         dtype=dtype,
     )
+    # Sparse training: the couplings out of the mask are zero and never trained
+    weight_mask = None
+    if sparsity < 1:
+        weight_mask, mask_info = make_weight_mask(
+            params.weight_matrix, sparsity, seed, mask_type
+        )
+        params.weight_matrix.mul_(weight_mask)
+        print(f"Sparse training ({mask_type} mask): {mask_info['mask_density']:.4f} of the "
+              "couplings are trained"
+              + (f", squares of side {mask_info['mask_side']}" if "mask_side" in mask_info else ""))
 
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)
@@ -84,6 +96,12 @@ def _init_training(
         hyperparameters["num_hiddens"] = num_hiddens
         hyperparameters["num_chains"] = num_chains
         hyperparameters["filename"] = str(filename)
+        hyperparameters["sparsity"] = sparsity
+        if weight_mask is not None:
+            file_model["weight_mask"] = weight_mask.cpu().numpy()
+            hyperparameters["mask_type"] = mask_type
+            for key, value in mask_info.items():
+                hyperparameters[key] = value
     effective_time = torch.zeros_like(lr).cpu().numpy()
     save_model(
         filename=filename,

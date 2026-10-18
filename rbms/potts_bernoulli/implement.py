@@ -95,6 +95,7 @@ def _compute_gradient(
     hbias: Tensor,
     weight_matrix: Tensor,
     centered: bool = True,
+    weight_mask: Tensor | None = None,
 ):
     w_data = w_data.view(-1, 1, 1)
     w_chain = w_chain.view(-1, 1, 1)
@@ -140,6 +141,8 @@ def _compute_gradient(
             )
             / v_chain.shape[0]
         )
+        if weight_mask is not None:
+            grad_weight_matrix = grad_weight_matrix * weight_mask
         grad_vbias = (
             v_data_mean
             - v_gen_mean
@@ -166,6 +169,8 @@ def _compute_gradient(
             )
             / v_chain.shape[0]
         )
+        if weight_mask is not None:
+            grad_weight_matrix = grad_weight_matrix * weight_mask
 
         grad_vbias = v_data_mean - v_gen_mean
         grad_hbias = h_data_mean - h_gen_mean

@@ -207,6 +207,7 @@ class GBRBM_VAR(RBM):
             weight_matrix_2=self.weight_matrix_2,
             precision=precision,
             centered=centered,
+            weight_mask=self.weight_mask,
         )
         # Chain rule: dL/dlog(precision) = precision * dL/dprecision, except for the
         # centering correction. The correction compensates the change of the precision

@@ -269,6 +269,11 @@ class EBM(ABC):
 class RBM(EBM):
     """An abstract class representing the parameters of a RBM."""
 
+    # Sparse training: couplings where the mask is 0 are fixed to zero (their gradient is
+    # removed before the centering corrections of the biases). None: all of them are trained.
+    # Broadcastable to weight_matrix, set by `train` (not kept by clone or the archive).
+    weight_mask: Tensor | None = None
+
     @abstractmethod
     def sample_hiddens(
         self, chains: dict[str, Tensor], beta: float = 1.0

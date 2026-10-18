@@ -329,3 +329,79 @@ def ising_to_bernoulli(params: IIRBM) -> BBRBM:
     vbias = 2.0 * params.vbias - 2.0 * params.weight_matrix.sum(dim=1)
     hbias = 2.0 * params.hbias - 2.0 * params.weight_matrix.sum(dim=0)
     return BBRBM(vbias=vbias, hbias=hbias, weight_matrix=weight_matrix)
+
+
+def local_square_mask(
+    centers: Tensor, side: int, height: int, width: int
+) -> Tensor:
+    """(height * width, num_centers) mask of the pixels in the square of side `side` around
+    each center (flattened index of a pixel), cut at the borders of the image. The square
+    spans the rows i - (side - 1) // 2, ..., i + side // 2 (same for the columns): for an odd
+    side 2 r + 1, the pixels at a distance at most r in each direction."""
+    rows, cols = centers // width, centers % width
+    lo, hi = (side - 1) // 2, side // 2
+    i = torch.arange(height).unsqueeze(1)
+    j = torch.arange(width).unsqueeze(1)
+    in_rows = (i >= rows - lo) & (i <= rows + hi)  # (height, num_centers)
+    in_cols = (j >= cols - lo) & (j <= cols + hi)  # (width, num_centers)
+    return (in_rows.unsqueeze(1) & in_cols.unsqueeze(0)).reshape(height * width, -1)
+
+
+def make_weight_mask(
+    weight_matrix: Tensor, sparsity: float, seed: int, mask_type: str = "random"
+) -> tuple[Tensor, dict]:
+    """Mask of the couplings for a sparse training: a fraction `sparsity` (rho) of the
+    couplings between a visible and a hidden unit is trained, the others are fixed to zero.
+
+    mask_type:
+        - "random": exactly round(rho * Nv * Nh) couplings chosen at random.
+        - "local": the visibles are the pixels of a square image. Each hidden unit is coupled
+          to the pixels of a square around its center (cut at the borders). The centers are
+          the pixels in random order, each one used once before any is repeated (with
+          Nh = Nv every pixel is the center of one hidden unit). The side of the squares is
+          the one whose fraction of couplings is the closest to rho.
+
+    Returns the mask, of shape (Nv, 1, ..., Nh), broadcastable to the weight matrix (for Potts
+    visibles, all the states of a visible are coupled or not to a hidden unit), and a dict
+    with the details of the mask to save in the archive (fraction of trained couplings, side
+    of the squares).
+    """
+    if not 0 < sparsity <= 1:
+        raise ValueError(f"The sparsity must be in (0, 1], got {sparsity}")
+    num_visibles, num_hiddens = weight_matrix.shape[0], weight_matrix.shape[-1]
+    num_couplings = num_visibles * num_hiddens
+    generator = torch.Generator().manual_seed(int(seed))
+    info = {}
+    match mask_type:
+        case "random":
+            kept = torch.randperm(num_couplings, generator=generator)[
+                : round(sparsity * num_couplings)
+            ]
+            mask = torch.zeros(num_couplings, dtype=torch.bool)
+            mask[kept] = True
+        case "local":
+            side_image = int(round(num_visibles**0.5))
+            if side_image**2 != num_visibles:
+                raise ValueError(
+                    f"Local mask: the {num_visibles} visibles are not a square image"
+                )
+            num_perms = -(-num_hiddens // num_visibles)
+            centers = torch.cat(
+                [torch.randperm(num_visibles, generator=generator) for _ in range(num_perms)]
+            )[:num_hiddens]
+            # Up to 2 L - 1 the square covers the whole image from any center
+            masks = [
+                local_square_mask(centers, side, side_image, side_image)
+                for side in range(1, 2 * side_image)
+            ]
+            densities = torch.tensor([m.float().mean().item() for m in masks])
+            best = int((densities - sparsity).abs().argmin())
+            mask = masks[best]
+            info["mask_side"] = best + 1
+            info["mask_centers"] = centers.numpy()
+        case _:
+            raise ValueError(f"Unknown mask type '{mask_type}', should be 'random' or 'local'")
+    info["mask_density"] = mask.float().mean().item()
+    shape = (num_visibles, *[1] * (weight_matrix.dim() - 2), num_hiddens)
+    mask = mask.reshape(shape).to(device=weight_matrix.device, dtype=weight_matrix.dtype)
+    return mask, info

@@ -7,6 +7,7 @@ from torch.optim.optimizer import Optimizer
 from rbms import get_saved_updates
 from rbms.dataset import load_dataset
 from rbms.dataset.parser import add_args_dataset
+from rbms.io import load_weight_mask
 from rbms.map_model import map_model
 from rbms.optim import setup_optim
 from rbms.parser import (
@@ -92,6 +93,8 @@ def main(args, map_model=map_model):
             device=args["device"],
             flags=flags,
             map_model=map_model,
+            sparsity=args["sparsity"],
+            mask_type=args["mask_type"],
         )
         args["update"] = 1
 
@@ -165,6 +168,7 @@ def main(args, map_model=map_model):
         checkpoints=checkpoints,
         num_updates=args["num_updates"],
         filename=args["filename"],
+        weight_mask=load_weight_mask(args["filename"], args["device"], args["dtype"]),
     )
 
 

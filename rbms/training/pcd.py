@@ -5,7 +5,7 @@ import torch
 from torch.optim import Optimizer
 from tqdm.autonotebook import tqdm
 
-from rbms.classes import EBM, Sampler
+from rbms.classes import EBM, RBM, Sampler
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import save_model, save_sampler
 from rbms.optim import NGD
@@ -27,6 +27,7 @@ def train(
     checkpoints: np.ndarray,
     num_updates: int,
     filename: str,
+    weight_mask: torch.Tensor | None = None,
 ):
     pbar = tqdm(
         initial=curr_update,
@@ -42,6 +43,18 @@ def train(
     # ascent direction (the natural gradient is already invariant under reparametrization)
     if any(isinstance(opt, NGD) for opt in optimizer):
         centered = False
+
+    # Sparse training: the gradient of the couplings out of the mask is removed by
+    # compute_gradient (before the centering corrections), and the couplings are set back to
+    # zero after each step (momentum, natural gradient, ...)
+    if weight_mask is not None:
+        if not isinstance(params, RBM):
+            raise NotImplementedError(f"Sparse training not implemented for {params.name}")
+        params.weight_mask = weight_mask
+        params.weight_matrix.mul_(weight_mask)
+        pbar.write(
+            f"Sparse training: {weight_mask.mean().item():.4f} of the couplings are trained"
+        )
 
     start = time.perf_counter()
     effective_time = np.zeros(len(optimizer))
@@ -73,6 +86,8 @@ def train(
 
         for opt in optimizer:
             opt.step()
+        if weight_mask is not None:
+            params.weight_matrix.mul_(weight_mask)
 
         params.post_grad_update()
         sampler.post_grad_update(params=params)

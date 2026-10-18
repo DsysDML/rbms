@@ -152,3 +152,14 @@ def save_sampler(filename: str, sampler: Sampler, update: int):
         if metrics is not None:
             for n, p in metrics.items():
                 f[f"update_{update}"][n] = p
+
+
+def load_weight_mask(
+    filename: str, device: torch.device | str, dtype: torch.dtype
+) -> Tensor | None:
+    """Mask of the trained couplings of a sparse training (see `make_weight_mask`), None if
+    all the couplings are trained."""
+    with h5py.File(filename, "r") as f:
+        if "weight_mask" not in f.keys():
+            return None
+        return torch.from_numpy(f["weight_mask"][()]).to(device=device, dtype=dtype)

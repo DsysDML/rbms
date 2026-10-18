@@ -121,6 +121,7 @@ class IIRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
+            weight_mask=self.weight_mask,
         )
 
     def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:

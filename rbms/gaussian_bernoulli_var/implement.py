@@ -105,6 +105,7 @@ def _compute_gradient(
     weight_matrix_2: Tensor,
     precision: Tensor,
     centered: bool = True,
+    weight_mask: Tensor | None = None,
 ) -> Tensor:
     """Attach the gradients to the parameters (precision.grad is the full gradient
     with respect to the precision).
@@ -148,6 +149,8 @@ def _compute_gradient(
         grad_weight_matrix = (
             (v_data_centered * w_data).T @ h_data_centered
         ) / w_data_norm - ((v_gen_centered * chain_weights).T @ h_gen_centered)
+        if weight_mask is not None:
+            grad_weight_matrix = grad_weight_matrix * weight_mask
         grad_weight_matrix_2 = (
             (s_data_centered * w_data).T @ h_data_centered
         ) / w_data_norm - ((s_gen_centered * chain_weights).T @ h_gen_centered)
@@ -172,6 +175,8 @@ def _compute_gradient(
         grad_weight_matrix = ((v_data * w_data).T @ mh_data) / w_data_norm - (
             (v_chain * chain_weights).T @ h_chain
         )
+        if weight_mask is not None:
+            grad_weight_matrix = grad_weight_matrix * weight_mask
         grad_weight_matrix_2 = ((s_data * w_data).T @ mh_data) / w_data_norm - (
             (s_chain * chain_weights).T @ h_chain
         )

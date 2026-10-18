@@ -129,6 +129,7 @@ class BBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             centered=centered,
+            weight_mask=self.weight_mask,
         )
 
     def independent_model(self):

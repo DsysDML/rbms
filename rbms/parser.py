@@ -219,6 +219,25 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "between its gradient and the previous one. 0: same lr for all the parameters.",
     )
     train_args.add_argument(
+        "--sparsity",
+        type=float,
+        default=None,
+        help="(Defaults to 1). Sparse training: fraction rho of the couplings of the weight "
+        "matrix that are trained. The other ones, chosen at random at the beginning of the "
+        "training, are fixed to zero. The mask is saved in the archive and used when the "
+        "training is restored. 1: all the couplings are trained.",
+    )
+    train_args.add_argument(
+        "--mask_type",
+        type=str,
+        default=None,
+        choices=["random", "local"],
+        help="(Defaults to 'random'). Sparse training: couplings that are trained. 'random': "
+        "chosen at random. 'local': each hidden unit is coupled to a square of pixels of the "
+        "image around a center (the visibles must be a square image), the side of the squares "
+        "is set by --sparsity (fraction of the couplings closest to rho).",
+    )
+    train_args.add_argument(
         "--scale_lr",
         action="store_true",
         default=False,
@@ -315,6 +334,8 @@ default_args: dict[str, Any] = {
     "ptt_window": 10,
     "ptt_relative": 0.01,
     "training_type": "pcd",
+    "sparsity": 1.0,
+    "mask_type": "random",
 }
 
 
