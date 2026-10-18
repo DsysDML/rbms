@@ -192,6 +192,29 @@ class GBRBM_VAR(RBM):
             precision=self.precision,
         )
 
+    def compute_scores(self, v: Tensor) -> list[Tensor | tuple[Tensor, Tensor]]:
+        # F(v) = -v.vbias + precision.(v^2 / 2) - sum_a softplus(hbias_a + (v W)_a + (s W2)_a),
+        # with s = v^2 / 2. Same order as `parameters()`
+        half_sq = 0.5 * v.square()
+        mean_hidden = torch.sigmoid(
+            self.hbias + (v @ self.weight_matrix) + half_sq @ self.weight_matrix_2
+        )
+        return [
+            (v, mean_hidden),
+            (half_sq, mean_hidden),
+            v,
+            mean_hidden,
+            -half_sq * self.precision,
+        ]
+
+    def ngd_coupling(self) -> Tensor:
+        # Linear coupling W: Gaussian visibles of variance 1 / precision (at h = 0), {0, 1}
+        # hiddens of variance p (1 - p)
+        p_h = torch.sigmoid(self.hbias)
+        return (
+            self.precision.rsqrt().unsqueeze(1) * self.weight_matrix * (p_h * (1 - p_h)).sqrt()
+        )
+
     def compute_gradient(self, data, chains, centered=True):
         precision = self.precision
         precision_correction = _compute_gradient(

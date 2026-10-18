@@ -110,6 +110,12 @@ class BBRBM(RBM):
             weight_matrix=self.weight_matrix,
         )
 
+    def ngd_coupling(self) -> Tensor:
+        # {0, 1} units of the independent model: variances p (1 - p), p = sigmoid(bias)
+        p_v, p_h = torch.sigmoid(self.vbias), torch.sigmoid(self.hbias)
+        std_v, std_h = (p_v * (1 - p_v)).sqrt(), (p_h * (1 - p_h)).sqrt()
+        return std_v.unsqueeze(1) * self.weight_matrix * std_h
+
     def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         return _compute_energy_visibles_gradient(
             v=v,

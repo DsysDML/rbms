@@ -274,6 +274,37 @@ class RBM(EBM):
     # Broadcastable to weight_matrix, set by `train` (not kept by clone or the archive).
     weight_mask: Tensor | None = None
 
+    def compute_scores(self, v: Tensor) -> list[Tensor | tuple[Tensor, Tensor]]:
+        """Derivatives of -F(v) with respect to each parameter of `parameters()`, for each
+        sample (natural gradient). An entry is a (num_samples, *shape) tensor, or a pair
+        (left, right) for a matrix whose derivative is the outer product of left[k] and
+        right[k] (not built: num_samples x Nv x Nh).
+
+        Default: parameters [weight_matrix, vbias, hbias], from
+        `compute_energy_visible_gradient`.
+        """
+        grad_v, grad_h, _ = self.compute_energy_visible_gradient(v)
+        return [(-grad_v, -grad_h), -grad_v, -grad_h]
+
+    def ngd_blocks(self) -> list[list[int]]:
+        """Indices of `parameters()` updated by the natural gradient, as a list of blocks of
+        the Fisher matrix. All the models use a single block with all the parameters (full
+        Fisher matrix): a block diagonal Fisher matrix neglects the coupling between the
+        blocks, and for GBRBM_VAR, whose mean (b + W h) / P(h) depends on the precision, the
+        blocks of (W, vbias, hbias) and of the variances worked against each other (the
+        generated digits faded). A subset of the parameters can be returned to freeze the
+        others."""
+        return [list(range(len(self.parameters())))]
+
+    def ngd_coupling(self) -> Tensor:
+        """Matrix A = Sigma_v^1/2 W_eff Sigma_h^1/2 of the linear response of the model around
+        the independent one (Sigma: conditional variances of the visibles and the hiddens,
+        W_eff: the coupling of v and h in the energy). Its largest singular value squared is
+        the gain of the loop visibles -> hiddens -> visibles: the first transition happens
+        when it reaches 1. The natural gradient slows down the main direction of the step of
+        the weight matrix until then. Default: W (+-1 units without field)."""
+        return self.weight_matrix
+
     @abstractmethod
     def sample_hiddens(
         self, chains: dict[str, Tensor], beta: float = 1.0

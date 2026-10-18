@@ -53,6 +53,18 @@ def _compute_energy_visibles(
     return quad - field - log_term.sum(1)
 
 
+def _compute_energy_visibles_gradient(
+    v: Tensor, hbias: Tensor, weight_matrix: Tensor
+) -> tuple[Tensor, Tensor, Tensor]:
+    # F(v) = sum_i v_i^2 / (2 sigma_i^2) - v.vbias - sum_a softplus(hbias_a + (v W)_a): sigma is
+    # fixed, the derivatives with respect to the trained parameters are those of the BBRBM
+    mean_hidden = torch.sigmoid(hbias + (v @ weight_matrix))
+    grad_vbias = -v
+    grad_hbias = -mean_hidden
+    grad_weight_matrix = -v.T @ mean_hidden
+    return grad_vbias, grad_hbias, grad_weight_matrix
+
+
 @torch.jit.script
 def _compute_energy_hiddens(
     h: Tensor, vbias: Tensor, hbias: Tensor, weight_matrix: Tensor, sigma: Tensor

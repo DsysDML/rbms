@@ -116,6 +116,10 @@ class IGRBM(RBM):
             const=self.const,
         )
 
+    def ngd_coupling(self) -> Tensor:
+        # +-1 visibles without field (variance 1), Gaussian hiddens of variance 1 / Nv
+        return self.weight_matrix / np.sqrt(self.num_visibles)
+
     def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         return _compute_energy_visibles_gradient(
             v=v,

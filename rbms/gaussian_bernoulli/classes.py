@@ -10,6 +10,7 @@ from rbms.gaussian_bernoulli.implement import (
     _compute_energy,
     _compute_energy_hiddens,
     _compute_energy_visibles,
+    _compute_energy_visibles_gradient,
     _compute_gradient,
     _drop_identity_normalization,
     _init_chains,
@@ -127,6 +128,18 @@ class GBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
             sigma=self.sigma,
+        )
+
+    def ngd_coupling(self) -> Tensor:
+        # Gaussian visibles of variance sigma^2, {0, 1} hiddens of variance p (1 - p)
+        p_h = torch.sigmoid(self.hbias)
+        return self.sigma.unsqueeze(1) * self.weight_matrix * (p_h * (1 - p_h)).sqrt()
+
+    def compute_energy_visible_gradient(self, v: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        return _compute_energy_visibles_gradient(
+            v=v,
+            hbias=self.hbias,
+            weight_matrix=self.weight_matrix,
         )
 
     def compute_gradient(self, data, chains, centered=True):

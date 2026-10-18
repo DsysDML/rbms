@@ -316,32 +316,32 @@ class NGD(Optimizer):
         self.last_lr = None
 
     @torch.no_grad()
-    def _limit_lr(self, lr, direction, params, active_params, delta_theta, max_iter=20):
-        """Largest learning rate <= lr whose step changes the free energy of the chains of
-        the sampler by at most max_dF (std over the chains), on the exact free energy. The
+    def _limit_scale(self, direction, params, steps, max_iter=20):
+        """Largest factor s <= 1 such that the step sum_i s * lr_i * delta_i, with steps the
+        list of (index of the parameter, delta_i, lr_i), changes the free energy of the chains
+        of the sampler by at most max_dF (std over the chains), on the exact free energy. The
         change of F is not linear in the step (quadratic for large steps with Gaussian
-        hiddens): the learning rate is first reduced until the limit holds, then refined by
-        a bisection in log scale."""
+        hiddens): the factor is first reduced until the limit holds, then refined by a
+        bisection in log scale."""
         chains = self._sampler.get_curr_conf()
         energy = self._model.compute_energy_visibles(chains)
-        idx = [next(i for i, p in enumerate(params) if p is a) for a in active_params]
 
-        def std_dF(step):
+        def std_dF(factor):
             model = self._model.clone()
             new_params = model.parameters()
-            for i, dt in zip(idx, delta_theta):
-                new_params[i].add_(dt, alpha=direction * step)
+            for i, dt, lr in steps:
+                new_params[i].add_(dt, alpha=direction * factor * lr)
             return (model.compute_energy_visibles(chains) - energy).std().item()
 
-        def valid(step):
-            std = std_dF(step)
+        def valid(factor):
+            std = std_dF(factor)
             return np.isfinite(std) and std <= self.max_dF, std
 
-        ok, std = valid(lr)
+        ok, std = valid(1.0)
         if ok:
-            return lr
+            return 1.0
         # Reduce until the limit holds (linear estimate: too small if F grows faster)
-        hi, lo = lr, lr
+        hi, lo = 1.0, 1.0
         for _ in range(max_iter):
             hi = lo
             lo *= 0.9 * self.max_dF / std if np.isfinite(std) and std > 0 else 1e-3
@@ -367,218 +367,216 @@ class NGD(Optimizer):
     def set_model(self, model: EBM):
         self._model = model
 
-    @torch.no_grad()
-    def _get_adaptive_reg(
-        self, v_chain_eff, tanh_term, model, base_reg
-    ):  # <-- Use v_chain_eff
-        B = v_chain_eff.size(0)
-
-        # Flatten the 3D one-hot tensor to 2D
-        v_flat = v_chain_eff.view(B, -1)
-
-        v_sq_sum = (v_flat**2).sum(dim=1)
-        t_sq_sum = (tanh_term**2).sum(dim=1)
-
-        mean_norm_s_k_sq = (v_sq_sum * t_sq_sum).mean()
-        mean_s_w = (v_flat.T @ tanh_term) / B  # Now safe!
-        norm_mean_s_sq = (mean_s_w**2).sum()
-
-        trace_F = mean_norm_s_k_sq - norm_mean_s_sq
-        D = model.weight_matrix.numel()
-
-        adaptive_reg = base_reg * trace_F.item() / (2 * D)
-        return adaptive_reg  # Ensure strict positivity
+    @staticmethod
+    def _score_dot(scores, p_list) -> Tensor:
+        """O_k . p for each sample k, with O_k the scores (see `RBM.compute_scores`)."""
+        out = 0
+        for score, p in zip(scores, p_list):
+            if isinstance(score, tuple):
+                left, right = score
+                num_samples = left.shape[0]
+                out = out + (
+                    (left.reshape(num_samples, -1) @ p.reshape(-1, p.shape[-1])) * right
+                ).sum(1)
+            else:
+                out = out + score.reshape(score.shape[0], -1) @ p.reshape(-1)
+        return out
 
     @torch.no_grad()
-    def _fvp(self, p_list, v_chain, tanh_term, reg, update_biases):
-        B = v_chain.size(0)
-
-        # 1. Flatten v_chain to 2D: (B, N_v * N_s)
-        v_chain_flat = v_chain.view(B, -1)
-
-        if update_biases:
-            p_w, p_v, p_h = p_list
-
-            # Flatten weights and biases to match
-            p_w_flat = p_w.view(-1, p_w.size(-1))  # (N_v * N_s, N_h)
-            p_v_flat = p_v.view(-1)  # (N_v * N_s,)
-
-            O_dot_p = (
-                ((v_chain_flat @ p_w_flat) * tanh_term).sum(dim=1)
-                + (v_chain_flat @ p_v_flat)
-                + (tanh_term @ p_h)
-            )
+    def _get_adaptive_reg(self, scores, base_reg, num_elements):
+        """base_reg * tr(F_1) / (2 D), with F_1 the block of the Fisher matrix of the first
+        parameter of `scores` (the weight matrix of the block) and D = num_elements its
+        number of elements."""
+        score = scores[0]
+        if isinstance(score, tuple):
+            left, right = score
+            num_samples = left.shape[0]
+            left = left.reshape(num_samples, -1)
+            mean_norm_sq = ((left**2).sum(1) * (right**2).sum(1)).mean()
+            norm_mean_sq = ((left.T @ right / num_samples) ** 2).sum()
         else:
-            p_w = p_list[0]
-            p_w_flat = p_w.view(-1, p_w.size(-1))
-            O_dot_p = ((v_chain_flat @ p_w_flat) * tanh_term).sum(dim=1)
+            flat = score.reshape(score.shape[0], -1)
+            mean_norm_sq = (flat**2).sum(1).mean()
+            norm_mean_sq = (flat.mean(0) ** 2).sum()
+        trace_F = mean_norm_sq - norm_mean_sq
+        return base_reg * trace_F.item() / (2 * num_elements)
 
-        O_dot_p_c = O_dot_p - O_dot_p.mean()
+    @torch.no_grad()
+    def _fvp(self, p_list, scores, reg, masks=None):
+        """(F + reg) p, with F the covariance of the scores over the chains. With masks (None
+        or a mask per parameter), P (F + reg) P p, with P the projection on the trained
+        entries (sparse training)."""
+        o = self._score_dot(scores, p_list)
+        o = o - o.mean()
+        num_samples = o.shape[0]
+        if masks is None:
+            masks = [None] * len(p_list)
+        out = []
+        for score, p, mask in zip(scores, p_list, masks):
+            if isinstance(score, tuple):
+                left, right = score
+                F_p = left.reshape(num_samples, -1).T @ (right * o.unsqueeze(1)) / num_samples
+            else:
+                F_p = score.reshape(num_samples, -1).T @ o / num_samples
+            F_p = F_p.view_as(p) + reg * p
+            out.append(F_p if mask is None else F_p * mask)
+        return out
 
-        # 2. Compute flat gradients
-        Sx_w_flat = (v_chain_flat.T @ (tanh_term * O_dot_p_c.unsqueeze(1))) / B
-
-        # 3. Reshape back to original parameter shape using .view_as()
-        Sx_w = Sx_w_flat.view_as(p_w)
-
-        if update_biases:
-            Sx_v_flat = (v_chain_flat.T @ O_dot_p_c) / B
-            Sx_v = Sx_v_flat.view_as(p_v)
-            Sx_h = (tanh_term.T @ O_dot_p_c) / B
-            return [Sx_w + reg * p_w, Sx_v + reg * p_v, Sx_h + reg * p_h]
+    @torch.no_grad()
+    def _solve(self, block_params, block_grads, block_scores, reg, group, block_masks):
+        """Solve (F + reg) delta = g on one block by conjugate gradient (warm start from the
+        solution of the previous update). With a mask (sparse training), the system is
+        restricted to the trained entries: all the iterates stay zero out of the mask."""
+        if group["warm_start"] and group["step"] > 1:
+            delta_theta = [
+                self.state[p]["last_dt"].clone() if m is None else self.state[p]["last_dt"] * m
+                for p, m in zip(block_params, block_masks)
+            ]
+            S_dt = self._fvp(delta_theta, block_scores, reg, block_masks)
+            residual = [g_i - s_i for g_i, s_i in zip(block_grads, S_dt)]
         else:
-            return [Sx_w + reg * p_w]
+            delta_theta = [torch.zeros_like(p) for p in block_params]
+            residual = [g_i.clone() for g_i in block_grads]
+        residual = [r if m is None else r * m for r, m in zip(residual, block_masks)]
+
+        p_vec = [r_i.clone() for r_i in residual]
+        r_dot_r = sum(torch.sum(r * r) for r in residual)
+        self.cg_step = 0
+        for _ in range(group["cg_steps"]):
+            S_p = self._fvp(p_vec, block_scores, reg, block_masks)
+            p_Sp = sum(torch.sum(pv * spv) for pv, spv in zip(p_vec, S_p))
+            p_p = sum(torch.sum(pv * pv) for pv in p_vec)
+
+            # Relative to |p|^2: the scale of the Fisher matrix depends on the model
+            # (with Gaussian hiddens of variance 1/Nv it is tiny at the beginning)
+            if not p_Sp.item() > 1e-12 * p_p.item():
+                print("CG broke due to non-positive curvature.")
+                break
+
+            alpha = (r_dot_r / p_Sp).item()
+            for dt, pv in zip(delta_theta, p_vec):
+                dt.add_(pv, alpha=alpha)
+            for r, spv in zip(residual, S_p):
+                r.sub_(spv, alpha=alpha)
+
+            new_r_dot_r = sum(torch.sum(r * r) for r in residual)
+            if new_r_dot_r.item() < 1e-20:
+                print("CG broke due to tiny residual norm.")
+                break
+
+            beta = (new_r_dot_r / r_dot_r).item()
+            for pv, r in zip(p_vec, residual):
+                pv.mul_(beta).add_(r)
+            r_dot_r = new_r_dot_r
+            self.cg_step += 1
+
+        for p_tensor, dt in zip(block_params, delta_theta):
+            self.state[p_tensor]["last_dt"].copy_(dt)
+        return delta_theta
 
     @torch.no_grad()
     def step(self, scale=1, closure=None):
         assert self._model is not None
         assert self._sampler is not None
         v_chain = self._sampler.get_curr_conf()["visible"]
-        # v_chain = self._model.sample_state(self._sampler.get_curr_conf(), 10)["visible"]
         for group in self.param_groups:
             group["step"] += 1
             params = group["params"]
-            lr = group["lr"]
             update_biases = group["update_biases"]
 
             g = [p.grad.clone() for p in params]
+            # Sparse training: mask of the trained couplings of the weight matrix
+            weight_mask = getattr(self._model, "weight_mask", None)
+            masks = [
+                weight_mask if p is self._model.weight_matrix else None for p in params
+            ]
+
+            # Blocks of the Fisher matrix (block diagonal), each one with its own step limit.
+            # Only the weight matrix is trained when the model does not train its biases
+            blocks = self._model.ngd_blocks()
+            if not update_biases:
+                blocks = [
+                    [i for i in block if params[i] is self._model.weight_matrix]
+                    for block in blocks
+                ]
+            blocks = [block for block in blocks if len(block) > 0]
+            assert len(blocks) > 0
 
             if group["step"] % group["update_freq"] == 0 or group["step"] == 1:
-                grad_v, grad_h, _ = self._model.compute_energy_visible_gradient(v_chain)
-
-                v_chain_eff = -grad_v
-                tanh_term = -grad_h
-                self.reg = scale * self._get_adaptive_reg(
-                    v_chain, tanh_term, self._model, group["reg"]
-                )
-
-                # FLAG LOGIC: Filter parameters fed to the Conjugate Gradient solver
-                if update_biases:
-                    active_params = params
-                    active_grads = g
-                else:
-                    active_params = [p for p in params if p is self._model.weight_matrix]
-                    active_grads = [p.grad.clone() for p in active_params]
-                assert len(active_params) > 0
-                if group["warm_start"] and group["step"] > 1:
-                    delta_theta = [
-                        self.state[p]["last_dt"].clone() for p in active_params
-                    ]
-                    S_dt = self._fvp(
-                        delta_theta, v_chain_eff, tanh_term, self.reg, update_biases
+                # Scores of all the parameters, in the order of the parameter group
+                scores = self._model.compute_scores(v_chain)
+                assert len(scores) == len(params)
+                block_deltas = []
+                self.reg = []
+                for block in blocks:
+                    reg = scale * self._get_adaptive_reg(
+                        [scores[i] for i in block], group["reg"], params[block[0]].numel()
                     )
-                    residual = [g_i - s_i for g_i, s_i in zip(active_grads, S_dt)]
-                else:
-                    delta_theta = [torch.zeros_like(p) for p in active_params]
-                    residual = [g_i.clone() for g_i in active_grads]
-
-                p_vec = [r_i.clone() for r_i in residual]
-                r_dot_r = sum(torch.sum(r * r) for r in residual)
-
-                # Fix: Do not add an artificial 1e-8. If it's exactly 0, replace it with machine epsilon.
-                initial_r_norm = torch.sqrt(r_dot_r).item()
-                if initial_r_norm == 0:
-                    initial_r_norm = 1e-20
-
-                current_r_norm = initial_r_norm
-                self.cg_step = 0
-
-                # while (current_r_norm / initial_r_norm) > 0.001:
-                #     if self.cg_step >= group["cg_steps"]:
-                #         # print("CG broke due to reaching max iterations.")
-                #         break
-                for _ in range(group["cg_steps"]):
-                    S_p = self._fvp(
-                        p_vec, v_chain_eff, tanh_term, self.reg, update_biases
+                    self.reg.append(reg)
+                    block_deltas.append(
+                        self._solve(
+                            [params[i] for i in block],
+                            [g[i] for i in block],
+                            [scores[i] for i in block],
+                            reg,
+                            group,
+                            [masks[i] for i in block],
+                        )
                     )
-                    p_Sp = sum(torch.sum(pv * spv) for pv, spv in zip(p_vec, S_p))
-                    p_p = sum(torch.sum(pv * pv) for pv in p_vec)
-
-                    # Relative to |p|^2: the scale of the Fisher matrix depends on the model
-                    # (with Gaussian hiddens of variance 1/Nv it is tiny at the beginning)
-                    if not p_Sp.item() > 1e-12 * p_p.item():
-                        print("CG broke due to non-positive curvature.")
-                        break
-
-                    alpha = (r_dot_r / p_Sp).item()
-
-                    for dt, pv in zip(delta_theta, p_vec):
-                        dt.add_(pv, alpha=alpha)
-
-                    for r, spv in zip(residual, S_p):
-                        r.sub_(spv, alpha=alpha)
-
-                    new_r_dot_r = sum(torch.sum(r * r) for r in residual)
-                    current_r_norm = torch.sqrt(new_r_dot_r).item()
-
-                    if new_r_dot_r.item() < 1e-20:
-                        print("CG broke due to tiny residual norm.")
-                        break
-
-                    beta = (new_r_dot_r / r_dot_r).item()
-
-                    for pv, r in zip(p_vec, residual):
-                        pv.mul_(beta).add_(r)
-
-                    r_dot_r = new_r_dot_r
-                    self.cg_step += 1
-
-                for p_tensor, dt in zip(active_params, delta_theta):
-                    self.state[p_tensor]["last_dt"].copy_(dt)
-
             else:
-                delta_theta = g
-                active_params = params
-                active_grads = g
-            # --- Added Cosine Similarity ---
+                block_deltas = [[g[i] for i in block] for block in blocks]
+
+            indices = [i for block in blocks for i in block]
+            delta_theta = [dt for deltas in block_deltas for dt in deltas]
+            active_grads = [g[i] for i in indices]
+
+            # --- Raise learning rate based on cosine similarity ---
             dot_product = sum(
                 torch.sum(dt * g_i) for dt, g_i in zip(delta_theta, active_grads)
             )
             norm_dt = torch.sqrt(sum(torch.sum(dt**2) for dt in delta_theta))
             norm_g = torch.sqrt(sum(torch.sum(g_i**2) for g_i in active_grads))
-
             self.cos_sim = (dot_product / (norm_dt * norm_g + 1e-20)).item()
-            # -------------------------------
-            # --- Raise learning rate based on cosine similarity ---
-            # Increases lr if the similarity is positive (up to 2x if perfectly aligned)
             group["lr"] *= 1 + self.cos_sim * 0.001
-
-            # if self.cos_sim > 1e-06:
-            #     group["lr"] *= 1.005
-            # elif self.cos_sim < -1e-06:
-            #     group["lr"] *= 0.995
             group["lr"] = min(group["lr"], self.max_lr)
 
-            # Rescale eigenvalues
+            # Rescale eigenvalues: the step of the weight matrix along its main direction is
+            # divided by Nv while the gain of the linear response of the model is below 1, i.e.
+            # before the first transition (see `RBM.ngd_coupling`)
             if self.rescale_eigenvalue_lr:
                 self.rescale_eigenvalue_lr = (
-                    torch.lobpcg(
-                        self._model.weight_matrix @ self._model.weight_matrix.T,
-                        k=1,
-                        largest=True,
-                    )[0][0]
-                    < 1
-                )
+                    torch.linalg.matrix_norm(self._model.ngd_coupling(), ord=2) ** 2 < 1
+                ).item()
             if self.rescale_eigenvalue_lr:
-                _, eig_vector = torch.lobpcg(
-                    delta_theta[0] @ delta_theta[0].T, k=1, largest=True
-                )
-                contrib = ((delta_theta[0].T @ eig_vector) @ eig_vector.T).T
-                rest = delta_theta[0] - contrib
-                delta_theta[0] = rest + contrib / self._model.num_visibles
-
-                # if self._model.weight_matrix.svd().S[0] < 1:
-                # U, S, V = delta_theta[0].svd()
-                # S[0] /= self._model.num_visibles
-                # delta_theta[0] = U @ torch.diag_embed(S) @ V.T
+                k = next(k for k, i in enumerate(indices) if params[i] is self._model.weight_matrix)
+                _, eig_vector = torch.lobpcg(delta_theta[k] @ delta_theta[k].T, k=1, largest=True)
+                contrib = ((delta_theta[k].T @ eig_vector) @ eig_vector.T).T
+                delta_theta[k] = delta_theta[k] - contrib + contrib / self._model.num_visibles
+                if weight_mask is not None:
+                    delta_theta[k] = delta_theta[k] * weight_mask
 
             # ------------------------------------------------------
             direction = 1 if group["maximize"] else -1
             # A float: group["lr"] can be a tensor, which the limit must not modify in place
             lr = float(group["lr"])
+            block_of = [b for b, block in enumerate(blocks) for _ in block]
+            lrs = [lr] * len(blocks)
             if self.max_dF is not None:
-                # Limit of this step only: group["lr"] keeps its own evolution
-                lr = self._limit_lr(lr, direction, params, active_params, delta_theta)
-            self.last_lr = lr
-            for p_tensor, dt in zip(active_params, delta_theta):
-                p_tensor.add_(dt, alpha=direction * lr)
+                # Limit of this step only (group["lr"] keeps its own evolution): each block is
+                # limited on its own, then the joint step if the blocks together exceed it
+                for b in range(len(blocks)):
+                    steps = [
+                        (i, dt, lr)
+                        for i, dt, bb in zip(indices, delta_theta, block_of)
+                        if bb == b
+                    ]
+                    lrs[b] = lr * self._limit_scale(direction, params, steps)
+                if len(blocks) > 1:
+                    steps = [
+                        (i, dt, lrs[bb]) for i, dt, bb in zip(indices, delta_theta, block_of)
+                    ]
+                    factor = self._limit_scale(direction, params, steps)
+                    lrs = [lr_b * factor for lr_b in lrs]
+            self.last_lr = lrs if len(lrs) > 1 else lrs[0]
+            for i, dt, b in zip(indices, delta_theta, block_of):
+                params[i].add_(dt, alpha=direction * lrs[b])
