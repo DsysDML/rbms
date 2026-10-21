@@ -133,7 +133,6 @@ class RBMDataset(Dataset):
         self.data = convert_data[self.variable_type][visible_type](self.data)
         if self.variable_type != visible_type and verbose:
             print(f"Converting from '{self.variable_type}' to '{visible_type}'")
-            print(self.data)
         self.variable_type = visible_type
 
     def astype(self, target_variable_type: str):
