@@ -197,10 +197,11 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "--ptt_speed",
         type=float,
         default=None,
-        help="(Defaults to 0.01). Optimizer cossim_ptt: target displacement of the model per "
-        "update, measured as std_x[F_now(x) - F_before(x)] / (number of updates) on the "
-        "chains of the sampler. The swap acceptance between two models is ~erfc(sigma / 2). "
-        "Optimizer ngd: maximal displacement of a single update, measured the same way.",
+        help="(Defaults to 0.01). Optimizers ngd and cossim_ptt: maximal displacement of the "
+        "model in a single update, measured as std_x[F_new(x) - F(x)] on the chains of the "
+        "sampler (the swap acceptance between two models is ~erfc(sigma / 2)). The step is "
+        "reduced to satisfy the limit, and the lr grows by 1.01 per update when it does not "
+        "act.",
     )
     train_args.add_argument(
         "--ngd_brake",
@@ -218,8 +219,8 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "--ptt_window",
         type=int,
         default=None,
-        help="(Defaults to 10). Optimizer cossim_ptt: number of updates between two "
-        "measurements of the displacement (and adjustments of the learning rate).",
+        help="Not used anymore (cossim_ptt limits the displacement of every update, as ngd). "
+        "Kept so that old scripts and archives still work.",
     )
     train_args.add_argument(
         "--ptt_relative",

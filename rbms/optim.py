@@ -55,27 +55,89 @@ class SGD_cossim(SGD):
         return super().step(closure)
 
 
+@torch.no_grad()
+def limit_step_scale(
+    model: EBM,
+    chains: dict[str, Tensor],
+    steps: list[tuple[int, Tensor, float]],
+    max_dF: float,
+    direction: int = 1,
+    project: bool = False,
+    max_iter: int = 20,
+) -> tuple[float, float]:
+    """Largest factor s <= 1 such that the step sum_i s * lr_i * delta_i, with steps the list
+    of (index of the parameter in model.parameters(), delta_i, lr_i), changes the free energy
+    of the chains by at most max_dF (std over the chains), on the exact free energy. The
+    change of F is not linear in the step (quadratic for large steps with Gaussian hiddens):
+    the factor is first reduced until the limit holds, then refined by a bisection in log
+    scale. With project, the constraints of the parameters (post_grad_update, mask of the
+    sparse training) are applied to the new model, so the displacement is the real one.
+    Returns the factor (0 if no step is valid) and the std of dF of the scaled step."""
+    energy = model.compute_energy_visibles(chains)
+    weight_mask = getattr(model, "weight_mask", None)
+
+    def std_dF(factor):
+        new_model = model.clone()
+        new_params = new_model.parameters()
+        for i, dt, lr in steps:
+            new_params[i].add_(dt, alpha=direction * factor * lr)
+        if project:
+            if weight_mask is not None:
+                new_model.weight_matrix.mul_(weight_mask)
+            new_model.post_grad_update()
+        return (new_model.compute_energy_visibles(chains) - energy).std().item()
+
+    def valid(factor):
+        std = std_dF(factor)
+        return np.isfinite(std) and std <= max_dF, std
+
+    ok, std = valid(1.0)
+    if ok:
+        return 1.0, std
+    # Reduce until the limit holds (linear estimate: too small if F grows faster)
+    hi, lo = 1.0, 1.0
+    for _ in range(max_iter):
+        hi = lo
+        lo *= 0.9 * max_dF / std if np.isfinite(std) and std > 0 else 1e-3
+        ok, std = valid(lo)
+        if ok:
+            break
+    if not ok:
+        return 0.0, 0.0
+    # Bisection in log scale between lo (valid) and hi (not valid), up to a factor 1.05
+    lo_std = std
+    for _ in range(max_iter):
+        if hi / lo < 1.05:
+            break
+        mid = np.sqrt(lo * hi)
+        ok, std = valid(mid)
+        if ok:
+            lo, lo_std = mid, std
+        else:
+            hi = mid
+    return lo, lo_std
+
+
 class PTTSpeedController:
-    """Learning rate control on the displacement of the model "for PTT".
+    """Limit of the displacement of the model "for PTT", with the same principle as the
+    optimizer ngd.
 
     The swap acceptance between two models p_theta and p_theta' is ~erfc(sigma / 2),
     with sigma the std over the samples of F_theta'(x) - F_theta(x) (F: free energy of
-    the visibles). Every `window` updates, the controller measures the displacement of
-    the model since the previous measurement on the current chains of the sampler,
-        v = std_x[F_now(x) - F_before(x)] / window,
-    and multiplies the learning rate of all the optimizers by (target / v)^gamma
-    (clipped to [1 / max_factor, max_factor]), so that the model moves by ~target per
-    update. The displacement is the real one (after the projections of the parameters),
-    over several updates: the noise of the gradient, which cancels between updates,
-    does not count (unlike the norm of the step of a single update).
+    the visibles). At each update, before the parameters are changed, the step
+    lr * grad is evaluated on the current chains of the sampler, on the exact free energy
+    (after the projections of the parameters): if it moves the model by more than
+    `target`, the lr is reduced to the largest one that satisfies the limit, and this
+    limited lr becomes the lr of the training. When the limit does not act, the lr grows
+    by `lr_growth` per update (up to max_lr), so it follows the largest displacement
+    allowed.
 
-    With several optimizers (one per parameter, --mult_optim), the learning rates are
-    also distributed between the parameters: at each update, the lr of parameter i is
-    multiplied by exp(relative_rate * (cos_i - mean_j cos_j)), with cos_i the cosine
-    between its gradient and the previous one (coherent steps: the lr can grow;
-    oscillating steps: it must decrease). The factors are centered on their mean, so
-    they only change the ratios between the learning rates, and the scale stays set by
-    the displacement of the model.
+    With several optimizers (one per parameter, --mult_optim), the step of each parameter
+    is limited on its own, then the joint step if the parameters together exceed the
+    limit. The learning rates are also distributed between the parameters: at each
+    update, the lr of parameter i is multiplied by exp(relative_rate * (cos_i - mean_j
+    cos_j)), with cos_i the cosine between its gradient and the previous one (coherent
+    steps: the lr can grow; oscillating steps: it must decrease).
     """
 
     def __init__(
@@ -83,23 +145,18 @@ class PTTSpeedController:
         params: EBM,
         sampler: Sampler,
         target: float = 0.01,
-        window: int = 10,
-        gamma: float = 0.5,
-        max_factor: float = 2.0,
         relative_rate: float = 0.01,
+        lr_growth: float = 1.01,
     ):
         self.params = params
         self.sampler = sampler
         self.target = target
-        self.window = window
-        self.gamma = gamma
-        self.max_factor = max_factor
         self.relative_rate = relative_rate
+        self.lr_growth = lr_growth
         self.optimizers: list[Optimizer] = []
         self.prev_grads: list[Tensor] | None = None
         self.last_cosines: np.ndarray | None = None
-        self.num_steps = 0
-        self.snapshot: EBM | None = None
+        # Displacement std_x[F_new(x) - F(x)] of the last update
         self.last_speed: float | None = None
 
     @torch.no_grad()
@@ -128,48 +185,78 @@ class PTTSpeedController:
     @torch.no_grad()
     def step(self):
         """Called once per update, after the gradients are computed and before the
-        parameters are changed."""
+        parameters are changed. Sets the lr of each optimizer and what it does after its
+        step (`lr_action`)."""
         if len(self.optimizers) > 1 and self.relative_rate > 0:
             self._distribute()
-        if self.snapshot is None:
-            self.snapshot = self.params.clone()
-            self.num_steps = 0
-            return
-        self.num_steps += 1
-        if self.num_steps < self.window:
-            return
         chains = self.sampler.get_curr_conf()
-        delta = self.params.compute_energy_visibles(
-            chains
-        ) - self.snapshot.compute_energy_visibles(chains)
-        speed = delta.std().item() / self.num_steps
+        index = {id(p): i for i, p in enumerate(self.params.parameters())}
+        direction = 1 if self.optimizers[0].param_groups[0]["maximize"] else -1
+        # A float: group["lr"] can be a tensor, which must not be modified in place
+        lrs = [float(opt.param_groups[0]["lr"]) for opt in self.optimizers]
+
+        def steps_of(opt, lr):
+            return [
+                (index[id(p)], p.grad, lr) for group in opt.param_groups for p in group["params"]
+            ]
+
+        # Each optimizer is limited on its own, then the joint step
+        factors = []
+        for opt, lr in zip(self.optimizers, lrs):
+            factor, speed = limit_step_scale(
+                self.params, chains, steps_of(opt, lr), self.target, direction, project=True
+            )
+            factors.append(factor)
+        if len(self.optimizers) > 1:
+            steps = [
+                step
+                for opt, lr, factor in zip(self.optimizers, lrs, factors)
+                for step in steps_of(opt, lr * factor)
+            ]
+            joint, speed = limit_step_scale(
+                self.params, chains, steps, self.target, direction, project=True
+            )
+            factors = [factor * joint for factor in factors]
         self.last_speed = speed
-        if speed > 0 and np.isfinite(speed):
-            factor = (self.target / speed) ** self.gamma
-        else:
-            factor = self.max_factor
-        factor = min(max(factor, 1 / self.max_factor), self.max_factor)
-        for opt in self.optimizers:
-            for group in opt.param_groups:
-                group["lr"] = min(group["lr"] * factor, getattr(opt, "max_lr", np.inf))
-        self.snapshot = self.params.clone()
-        self.num_steps = 0
+
+        # The limited lr becomes the lr of the training (the one saved, halved by the
+        # restarts and restored). When the limit does not act, it grows by lr_growth after
+        # the step. If no step is valid (s = 0), the lr is kept and the step is skipped
+        for opt, lr, factor in zip(self.optimizers, lrs, factors):
+            if factor >= 1:
+                opt.lr_action = "grow"
+            elif factor > 0:
+                for group in opt.param_groups:
+                    group["lr"] = lr * factor
+                opt.lr_action = "keep"
+            else:
+                opt.lr_action = "skip"
 
 
 class SGD_cossim_ptt(SGD):
     """SGD whose learning rate is set by a shared `PTTSpeedController`. With several
-    optimizers (one per parameter), they share the controller, which sets the scale of
-    all the learning rates and their ratios; the first one calls it once per update."""
+    optimizers (one per parameter), they share the controller, which limits the step of
+    all the parameters and sets the ratios of their learning rates; the first one calls it
+    once per update."""
 
     def __init__(self, params, lr=0.001, maximize=True, **kwargs):
         super().__init__(params, lr, maximize=maximize, **kwargs)
         self.controller: PTTSpeedController | None = None
         self.max_lr = np.inf
+        # Set by the controller at each update: "keep", "grow" (the lr grows after the
+        # step) or "skip" (no step)
+        self.lr_action = "keep"
 
     def step(self, closure=None):
         if self.controller is not None and self.controller.optimizers[0] is self:
             self.controller.step()
-        return super().step(closure)
+        if self.lr_action == "skip":
+            return None
+        loss = super().step(closure)
+        if self.lr_action == "grow":
+            for group in self.param_groups:
+                group["lr"] = min(group["lr"] * self.controller.lr_growth, self.max_lr)
+        return loss
 
 
 @torch.no_grad()
@@ -246,7 +333,6 @@ def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[O
             params=params,
             sampler=sampler,
             target=args.get("ptt_speed") or 0.01,
-            window=args.get("ptt_window") or 10,
             relative_rate=args.get("ptt_relative")
             if args.get("ptt_relative") is not None
             else 0.01,
@@ -332,50 +418,11 @@ class NGD(Optimizer):
         self.last_lr = None
 
     @torch.no_grad()
-    def _limit_scale(self, direction, params, steps, max_iter=20):
-        """Largest factor s <= 1 such that the step sum_i s * lr_i * delta_i, with steps the
-        list of (index of the parameter, delta_i, lr_i), changes the free energy of the chains
-        of the sampler by at most max_dF (std over the chains), on the exact free energy. The
-        change of F is not linear in the step (quadratic for large steps with Gaussian
-        hiddens): the factor is first reduced until the limit holds, then refined by a
-        bisection in log scale."""
+    def _limit_scale(self, direction, params, steps):
+        """Largest factor s <= 1 such that the step changes the free energy of the chains
+        of the sampler by at most max_dF (see `limit_step_scale`)."""
         chains = self._sampler.get_curr_conf()
-        energy = self._model.compute_energy_visibles(chains)
-
-        def std_dF(factor):
-            model = self._model.clone()
-            new_params = model.parameters()
-            for i, dt, lr in steps:
-                new_params[i].add_(dt, alpha=direction * factor * lr)
-            return (model.compute_energy_visibles(chains) - energy).std().item()
-
-        def valid(factor):
-            std = std_dF(factor)
-            return np.isfinite(std) and std <= self.max_dF, std
-
-        ok, std = valid(1.0)
-        if ok:
-            return 1.0
-        # Reduce until the limit holds (linear estimate: too small if F grows faster)
-        hi, lo = 1.0, 1.0
-        for _ in range(max_iter):
-            hi = lo
-            lo *= 0.9 * self.max_dF / std if np.isfinite(std) and std > 0 else 1e-3
-            ok, std = valid(lo)
-            if ok:
-                break
-        if not ok:
-            return 0.0
-        # Bisection in log scale between lo (valid) and hi (not valid), up to a factor 1.05
-        for _ in range(max_iter):
-            if hi / lo < 1.05:
-                break
-            mid = np.sqrt(lo * hi)
-            if valid(mid)[0]:
-                lo = mid
-            else:
-                hi = mid
-        return lo
+        return limit_step_scale(self._model, chains, steps, self.max_dF, direction)[0]
 
     def set_sampler(self, sampler: Sampler):
         self._sampler = sampler
