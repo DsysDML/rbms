@@ -327,6 +327,8 @@ class NGD(Optimizer):
         # limit). The natural gradient can be huge where the Fisher matrix vanishes (Gaussian
         # hiddens at W = 0), and the swap acceptance of PTT is ~erfc(std / 2)
         self.max_dF = max_dF
+        # Growth factor of the lr per update when the limit max_dF does not act
+        self.lr_growth = 1.01
         self.last_lr = None
 
     @torch.no_grad()
@@ -586,8 +588,8 @@ class NGD(Optimizer):
             block_of = [b for b, block in enumerate(blocks) for _ in block]
             lrs = [lr] * len(blocks)
             if self.max_dF is not None:
-                # Limit of this step only (group["lr"] keeps its own evolution): each block is
-                # limited on its own, then the joint step if the blocks together exceed it
+                # Limit of the step: each block is limited on its own, then the joint step if
+                # the blocks together exceed it
                 for b in range(len(blocks)):
                     steps = [
                         (i, dt, lr)
@@ -601,6 +603,14 @@ class NGD(Optimizer):
                     ]
                     factor = self._limit_scale(direction, params, steps)
                     lrs = [lr_b * factor for lr_b in lrs]
+                # The limited lr becomes the lr of the training (the one saved, halved by the
+                # restarts and restored). When the limit does not act, it grows by lr_growth
+                # per update (the rule of the cosine alone is too slow to recover). If no step
+                # is valid (s = 0), the lr is kept
+                if 0 < max(lrs) < lr:
+                    group["lr"] = max(lrs)
+                elif max(lrs) >= lr:
+                    group["lr"] = min(lr * self.lr_growth, self.max_lr)
             self.last_lr = lrs if len(lrs) > 1 else lrs[0]
             for i, dt, b in zip(indices, delta_theta, block_of):
                 params[i].add_(dt, alpha=direction * lrs[b])
