@@ -271,6 +271,16 @@ def setup_optim(optim: str, args: dict, params: EBM, sampler: Sampler) -> list[O
             assert isinstance(opt, NGD)
             opt.set_sampler(sampler)
             opt.set_model(params)
+            # --ngd_brake: when the brake on the main direction of the step of W is released (see
+            # NGD.step). "gain" (default): when the gain of the model reaches 1; with many sparse
+            # visibles it stays below 1 and the brake is never released. "weights": when the
+            # largest singular value of W reaches 1. "none": no brake (with W ~ 0 the first steps
+            # are then huge along the main direction)
+            brake = args.get("ngd_brake") or "gain"
+            if brake == "none":
+                opt.rescale_eigenvalue_lr = False
+            else:
+                opt.brake_criterion = brake
     return optimizer
 
 
@@ -309,6 +319,10 @@ class NGD(Optimizer):
                 self.state[p]["last_dt"] = torch.zeros_like(p.data)
         self.max_lr = max_lr
         self.rescale_eigenvalue_lr = True
+        # When the brake on the main direction of the step of W is released (see step):
+        # "gain" when the gain of the linear response of the model reaches 1, "weights" when the
+        # largest singular value of W reaches 1
+        self.brake_criterion = "gain"
         # Limit of std_x[F_new(x) - F(x)] per update on the chains of the sampler (None: no
         # limit). The natural gradient can be huge where the Fisher matrix vanishes (Gaussian
         # hiddens at W = 0), and the swap acceptance of PTT is ~erfc(std / 2)
@@ -542,16 +556,26 @@ class NGD(Optimizer):
 
             # Rescale eigenvalues: the step of the weight matrix along its main direction is
             # divided by Nv while the gain of the linear response of the model is below 1, i.e.
-            # before the first transition (see `RBM.ngd_coupling`)
+            # before the first transition (see `RBM.ngd_coupling`), or with the criterion
+            # "weights" while the largest singular value of W is below 1
             if self.rescale_eigenvalue_lr:
+                if self.brake_criterion == "weights":
+                    W = self._model.weight_matrix
+                    coupling = W.reshape(-1, W.shape[-1])
+                else:
+                    coupling = self._model.ngd_coupling()
                 self.rescale_eigenvalue_lr = (
-                    torch.linalg.matrix_norm(self._model.ngd_coupling(), ord=2) ** 2 < 1
+                    torch.linalg.matrix_norm(coupling, ord=2) ** 2 < 1
                 ).item()
             if self.rescale_eigenvalue_lr:
                 k = next(k for k, i in enumerate(indices) if params[i] is self._model.weight_matrix)
-                _, eig_vector = torch.lobpcg(delta_theta[k] @ delta_theta[k].T, k=1, largest=True)
-                contrib = ((delta_theta[k].T @ eig_vector) @ eig_vector.T).T
-                delta_theta[k] = delta_theta[k] - contrib + contrib / self._model.num_visibles
+                # Step of W as a matrix (Nv * q, Nh) for Potts visibles (Nv, q, Nh)
+                shape = delta_theta[k].shape
+                step_W = delta_theta[k].reshape(-1, shape[-1])
+                _, eig_vector = torch.lobpcg(step_W @ step_W.T, k=1, largest=True)
+                contrib = eig_vector @ (eig_vector.T @ step_W)
+                step_W = step_W - contrib + contrib / self._model.num_visibles
+                delta_theta[k] = step_W.reshape(shape)
                 if weight_mask is not None:
                     delta_theta[k] = delta_theta[k] * weight_mask
 

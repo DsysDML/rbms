@@ -95,6 +95,10 @@ def main(args, map_model=map_model):
             map_model=map_model,
             sparsity=args["sparsity"],
             mask_type=args["mask_type"],
+            cell_sx=args["cell_sx"],
+            cell_sy=args["cell_sy"],
+            cell_radius=args["cell_radius"],
+            mask_file=args["mask_file"],
         )
         args["update"] = 1
 

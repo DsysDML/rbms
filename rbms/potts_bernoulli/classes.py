@@ -7,7 +7,7 @@ import torch
 from torch import Tensor
 
 from rbms.classes import RBM
-from rbms.custom_fn import check_keys_dict
+from rbms.custom_fn import check_keys_dict, one_hot
 from rbms.potts_bernoulli.implement import (
     _compute_energy,
     _compute_energy_hiddens,
@@ -111,6 +111,31 @@ class PBRBM(RBM):
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
         )
+
+    def compute_scores(self, v: Tensor) -> list[Tensor | tuple[Tensor, Tensor]]:
+        # -dF/dtheta, same order as `parameters()`: F(v) = -sum_i vbias_i[v_i]
+        # - sum_a softplus(hbias_a + sum_i W_i[v_i]_a), so the derivatives are the one-hot
+        # visibles (W: outer product with the mean hiddens) and the mean hiddens
+        num_visibles, num_states, num_hiddens = self.weight_matrix.shape
+        v_oh = one_hot(v.long(), num_classes=num_states).to(dtype=self.weight_matrix.dtype)
+        mean_hidden = torch.sigmoid(
+            self.hbias
+            + v_oh.view(-1, num_visibles * num_states)
+            @ self.weight_matrix.view(num_visibles * num_states, num_hiddens)
+        )
+        return [(v_oh, mean_hidden), v_oh, mean_hidden]
+
+    def ngd_coupling(self) -> Tensor:
+        # Potts visibles of the independent model: covariance diag(p) - p p^T of the one-hot
+        # variable of each site, p = softmax(vbias); {0, 1} hiddens of variance p (1 - p).
+        # Matrix (Nv * q, Nh)
+        p_v = torch.softmax(self.vbias, dim=-1)
+        cov = torch.diag_embed(p_v) - p_v.unsqueeze(2) * p_v.unsqueeze(1)
+        eigval, eigvec = torch.linalg.eigh(cov)
+        sqrt_cov = eigvec @ torch.diag_embed(eigval.clamp(min=0).sqrt()) @ eigvec.transpose(1, 2)
+        p_h = torch.sigmoid(self.hbias)
+        coupling = (sqrt_cov @ self.weight_matrix) * (p_h * (1 - p_h)).sqrt()
+        return coupling.reshape(-1, self.num_hiddens)
 
     def compute_gradient(self, data, chains, centered=True):
         _compute_gradient(

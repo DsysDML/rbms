@@ -7,7 +7,14 @@ from rbms.classes import EBM
 from rbms.dataset.dataset_class import RBMDataset
 from rbms.io import load_model, save_model
 from rbms.map_model import map_model
-from rbms.utils import get_saved_updates, make_weight_mask
+from rbms.utils import (
+    cells_num_hiddens,
+    get_saved_updates,
+    make_weight_mask,
+    z1_local_num_hiddens,
+    read_mask_file,
+    z1_num_hiddens,
+)
 
 
 def _init_training(
@@ -44,6 +51,10 @@ def _init_training(
     map_model: dict[str, type[EBM]] = map_model,
     sparsity: float = 1.0,
     mask_type: str = "random",
+    cell_sx: int = 2,
+    cell_sy: int = 2,
+    cell_radius: float = 5.0,
+    mask_file: str | None = None,
 ):
     if model_type is None:
         match train_dataset.variable_type:
@@ -61,6 +72,20 @@ def _init_training(
     train_dataset.match_model_variable_type(map_model[model_type].visible_type)
     # Setup dataset
     num_visibles = train_dataset.get_num_visibles()
+    if mask_type == "z1":
+        # The connectivity of the chip fixes the number of hidden units
+        num_hiddens = z1_num_hiddens(num_visibles)
+        print(f"Z1 connectivity: {num_hiddens} hidden units (--num_hiddens not used)")
+    elif mask_type == "cells":
+        # The cell layout fixes the number of hidden units
+        num_hiddens = cells_num_hiddens(num_visibles, cell_sx, cell_sy)
+        print(f"Cell layout: {num_hiddens} hidden units (--num_hiddens not used)")
+    elif mask_type == "z1_local":
+        num_hiddens = z1_local_num_hiddens(num_visibles)
+        print(f"Z1 local layout: {num_hiddens} hidden units (--num_hiddens not used)")
+    elif mask_type == "file":
+        num_hiddens = read_mask_file(mask_file).shape[1]
+        print(f"Mask of {mask_file}: {num_hiddens} hidden units (--num_hiddens not used)")
 
     # Setup RBM
     params = map_model[model_type].init_parameters(
@@ -71,14 +96,23 @@ def _init_training(
     )
     # Sparse training: the couplings out of the mask are zero and never trained
     weight_mask = None
-    if sparsity < 1:
+    if sparsity < 1 or mask_type in ("z1", "cells", "z1_local", "file"):
         weight_mask, mask_info = make_weight_mask(
-            params.weight_matrix, sparsity, seed, mask_type
+            params.weight_matrix, sparsity, seed, mask_type, cell_sx, cell_sy, cell_radius,
+            mask_file,
         )
         params.weight_matrix.mul_(weight_mask)
         print(f"Sparse training ({mask_type} mask): {mask_info['mask_density']:.4f} of the "
               "couplings are trained"
-              + (f", squares of side {mask_info['mask_side']}" if "mask_side" in mask_info else ""))
+              + (f", squares of side {mask_info['mask_side']}" if mask_type == "local" else "")
+              + (f", grid of side {mask_info['mask_side']}" if mask_type == "z1" else "")
+              + (f", spacings sx={cell_sx} sy={cell_sy}, all the pixels within the radius "
+                 f"(radius {mask_info['mask_radius']:.2f} <= {cell_radius})"
+                 if mask_type == "cells" else "")
+              + (f", all the pixels within the radius "
+                 f"(radius {mask_info['mask_radius']:.2f} <= {cell_radius})"
+                 if mask_type == "z1_local" else "")
+              + (f", read from {mask_file}" if mask_type == "file" else ""))
 
     # Permanent chains
     parallel_chains = params.init_chains(num_samples=num_chains)

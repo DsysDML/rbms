@@ -203,6 +203,18 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "Optimizer ngd: maximal displacement of a single update, measured the same way.",
     )
     train_args.add_argument(
+        "--ngd_brake",
+        type=str,
+        default=None,
+        choices=["gain", "weights", "none"],
+        help="(Defaults to 'gain'). Optimizer ngd: the main direction of the step of the weight "
+        "matrix is divided by Nv at the beginning of the training, until the brake is released. "
+        "'gain': when the gain of the linear response of the model reaches 1 (with many sparse "
+        "visibles it stays below 1: the brake is never released and the model does not learn). "
+        "'weights': when the largest singular value of W reaches 1. 'none': no brake (the first "
+        "steps are then huge along the main direction).",
+    )
+    train_args.add_argument(
         "--ptt_window",
         type=int,
         default=None,
@@ -231,11 +243,52 @@ def add_args_train(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         "--mask_type",
         type=str,
         default=None,
-        choices=["random", "local"],
+        choices=["random", "local", "z1", "cells", "z1_local", "file"],
         help="(Defaults to 'random'). Sparse training: couplings that are trained. 'random': "
         "chosen at random. 'local': each hidden unit is coupled to a square of pixels of the "
         "image around a center (the visibles must be a square image), the side of the squares "
-        "is set by --sparsity (fraction of the couplings closest to rho).",
+        "is set by --sparsity (fraction of the couplings closest to rho). 'z1': connectivity "
+        "of the Z1 chip, the pixels on one color of the chessboard of the chip and the hidden "
+        "units on the other (--sparsity and --num_hiddens not used). 'cells': pixels every "
+        "--cell_sx (--cell_sy) nodes of a 2D chip, the other nodes are hidden units, each one "
+        "coupled to all the pixels within --cell_radius "
+        "(--sparsity and --num_hiddens not used). 'z1_local': variant of Z1, the pixels on one "
+        "color of its chessboard and one hidden unit at the centre of each cell between 4 "
+        "pixels, coupled to all the pixels within --cell_radius (--sparsity and "
+        "--num_hiddens not used). 'file': the mask (Nv x Nh, dataset 'weight_mask') read from "
+        "the h5 file --mask_file, e.g. made by PLM_clustering.ipynb (--sparsity and "
+        "--num_hiddens not used).",
+    )
+    train_args.add_argument(
+        "--mask_file",
+        type=str,
+        default=None,
+        help="--mask_type file: h5 file with the mask of the couplings in the dataset "
+        "'weight_mask' (Nv x Nh, nonzero: trained coupling).",
+    )
+    train_args.add_argument(
+        "--cell_sx",
+        type=int,
+        default=None,
+        help="(Defaults to 2). --mask_type cells: spacing sx on the chip between neighboring "
+        "pixels of a row of the image (horizontal). Each cell between 4 pixels has sx sy - 1 "
+        "hidden units; sx = sy = 1 is an error (one hidden unit at the centre of each "
+        "cell: --mask_type z1_local).",
+    )
+    train_args.add_argument(
+        "--cell_sy",
+        type=int,
+        default=None,
+        help="(Defaults to 2). --mask_type cells: spacing sy on the chip between neighboring "
+        "pixels of a column of the image (vertical). See --cell_sx.",
+    )
+    train_args.add_argument(
+        "--cell_radius",
+        type=float,
+        default=None,
+        help="(Defaults to 5). --mask_type cells and z1_local: maximal distance R on the chip "
+        "between a visible and a hidden unit coupled: each hidden unit is coupled to all the "
+        "pixels within R.",
     )
     train_args.add_argument(
         "--scale_lr",
@@ -336,6 +389,10 @@ default_args: dict[str, Any] = {
     "training_type": "pcd",
     "sparsity": 1.0,
     "mask_type": "random",
+    "cell_sx": 2,
+    "cell_sy": 2,
+    "cell_radius": 5.0,
+    "mask_file": None,
 }
 
 

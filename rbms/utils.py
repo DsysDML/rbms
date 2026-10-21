@@ -347,8 +347,205 @@ def local_square_mask(
     return (in_rows.unsqueeze(1) & in_cols.unsqueeze(0)).reshape(height * width, -1)
 
 
+# Connection rules (a, b) of the Z1 chip: a node at (x, y) is connected to (x + a, y + b),
+# (x - b, y + a), (x - a, y - b) and (x + b, y - a), degree 16 away from the borders. a + b is
+# odd for all of them: the edges join the two colors of the chessboard (bipartite graph).
+Z1_RULES = [(1, 0), (2, 1), (2, 3), (4, 1)]
+
+
+def z1_offsets(rules=Z1_RULES) -> list[tuple[int, int]]:
+    offsets = set()
+    for a, b in rules:
+        offsets |= {(a, b), (-b, a), (-a, -b), (b, -a)}
+    return sorted(offsets)
+
+
+def z1_layout(height: int, width: int, rules=Z1_RULES) -> dict:
+    """RBM with the connectivity of the Z1 chip (grid without periodic borders).
+
+    The pixels of the height x width image are the nodes of one color of the chessboard of the
+    chip, rotated by 45 degrees: pixel (r, c) -> node (r - c + width - 1, r + c), so that
+    neighboring pixels are at the same distance on the chip. The hidden units are the nodes of
+    the other color coupled to at least one pixel. W_ia can be nonzero only if the chip has the
+    edge (i, a).
+
+    Returns a dict with the side of the grid (even, as in the thrml grids), the coordinates of
+    the visible and hidden nodes and the (Nv, Nh) boolean mask of the edges.
+    """
+    side = height + width - 1
+    side += side % 2
+    rows, cols = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
+    visible_sites = torch.stack([(rows - cols + width - 1).flatten(), (rows + cols).flatten()], 1)
+    # Index of the pixel on each node of the grid (-1: no pixel)
+    pixel_of_site = torch.full((side, side), -1, dtype=torch.long)
+    pixel_of_site[visible_sites[:, 0], visible_sites[:, 1]] = torch.arange(height * width)
+    parity = int(visible_sites[0].sum()) % 2
+    x, y = torch.meshgrid(torch.arange(side), torch.arange(side), indexing="ij")
+    candidates = torch.stack([x.flatten(), y.flatten()], 1)
+    candidates = candidates[candidates.sum(1) % 2 != parity]
+    edges = torch.zeros(height * width, len(candidates), dtype=torch.bool)
+    for dx, dy in z1_offsets(rules):
+        nx, ny = candidates[:, 0] + dx, candidates[:, 1] + dy
+        inside = (nx >= 0) & (nx < side) & (ny >= 0) & (ny < side)
+        pixel = torch.full((len(candidates),), -1, dtype=torch.long)
+        pixel[inside] = pixel_of_site[nx[inside], ny[inside]]
+        hidden = torch.where(pixel >= 0)[0]
+        edges[pixel[hidden], hidden] = True
+    coupled = edges.any(0)
+    return {
+        "side": side,
+        "visible_sites": visible_sites,
+        "hidden_sites": candidates[coupled],
+        "mask": edges[:, coupled],
+    }
+
+
+def image_shape(num_visibles: int) -> tuple[int, int]:
+    side = int(round(num_visibles**0.5))
+    if side**2 != num_visibles:
+        raise ValueError(f"The {num_visibles} visibles are not a square image")
+    return side, side
+
+
+def z1_num_hiddens(num_visibles: int) -> int:
+    """Number of hidden units of the RBM with the connectivity of Z1 (see `z1_layout`)."""
+    return z1_layout(*image_shape(num_visibles))["mask"].shape[1]
+
+
+def check_cell_spacing(spacing_x: int, spacing_y: int) -> None:
+    if spacing_x < 1 or spacing_y < 1:
+        raise ValueError(
+            f"Cell layout: the spacings must be >= 1, got sx={spacing_x}, sy={spacing_y}"
+        )
+    if spacing_x == spacing_y == 1:
+        raise ValueError(
+            "Cell layout: sx = sy = 1 leaves no node for the hidden units (the variant of Z1 "
+            "with one hidden unit at the centre of each cell is --mask_type z1_local)"
+        )
+
+
+def cell_positions(
+    height: int, width: int, spacing_x: int, spacing_y: int
+) -> tuple[Tensor, Tensor]:
+    """Positions (row, column) on the chip of the pixels (Nv, 2) and of the hidden units
+    (num_cells, K, 2) of the cell layout (see `cell_layout`). The cells are the rectangles between
+    4 neighboring pixels, in row-major order."""
+    check_cell_spacing(spacing_x, spacing_y)
+    r, c = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
+    cr, cc = torch.meshgrid(torch.arange(height - 1), torch.arange(width - 1), indexing="ij")
+    visible = torch.stack([spacing_y * r.flatten(), spacing_x * c.flatten()], 1)
+    di, dj = torch.meshgrid(torch.arange(spacing_y), torch.arange(spacing_x), indexing="ij")
+    offsets = torch.stack([di.flatten(), dj.flatten()], 1)[1:]  # all but the pixel (0, 0)
+    corners = torch.stack([spacing_y * cr.flatten(), spacing_x * cc.flatten()], 1)
+    return visible, corners.unsqueeze(1) + offsets.unsqueeze(0)
+
+
+def z1_local_positions(height: int, width: int) -> tuple[Tensor, Tensor]:
+    """Positions (row, column) on the chip of the pixels (Nv, 2) and of the hidden units
+    (num_cells, 1, 2) of the Z1 local layout (see `z1_local_layout`): chessboard of Z1, pixel
+    (r, c) -> node (r - c + width - 1, r + c), and the hidden unit of the cell between the pixels
+    r, r + 1 and c, c + 1 at its centre, node (r - c + width - 1, r + c + 1)."""
+    r, c = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
+    r, c = r.flatten(), c.flatten()
+    cr, cc = torch.meshgrid(torch.arange(height - 1), torch.arange(width - 1), indexing="ij")
+    cr, cc = cr.flatten(), cc.flatten()
+    visible = torch.stack([r - c + width - 1, r + c], 1)
+    hidden = torch.stack([cr - cc + width - 1, cr + cc + 1], 1).unsqueeze(1)
+    return visible, hidden
+
+
+def radius_layout(visible: Tensor, hidden: Tensor, radius: float) -> dict:
+    """Each hidden unit (hidden: (num_cells, K, 2) positions on the chip) coupled to all the
+    pixels (visible: (Nv, 2) positions) at a distance at most `radius` on the chip.
+
+    Returns a dict with the mask (Nv, Nh) (the hidden units of a cell are consecutive), the
+    largest distance of a coupling and the positions of the visible and hidden nodes.
+    """
+    hidden = hidden.reshape(-1, 2)
+    dist = torch.cdist(visible.double(), hidden.double())
+    mask = dist <= radius + 1e-9
+    if not mask.any(0).all():
+        raise ValueError(f"Radius {radius} too small: some hidden units have no pixel within it")
+    return {
+        "radius": dist[mask].max().item(),
+        "visible_sites": visible,
+        "hidden_sites": hidden,
+        "mask": mask,
+    }
+
+
+def cell_layout(
+    height: int, width: int, spacing_x: int, spacing_y: int, radius: float
+) -> dict:
+    """RBM on a 2D chip where a visible and a hidden unit can only be coupled if they are at a
+    distance at most `radius` on the chip.
+
+    The pixels are placed every `spacing_x` nodes along the rows of the image and every
+    `spacing_y` nodes along its columns, at (sy r, sx c), and the sx sy - 1 nodes of each cell
+    (rectangle between 4 neighboring pixels) are hidden units. Each hidden unit is coupled to
+    all the pixels within `radius` (see `radius_layout`). sx = sy = 1 is an error (no node left
+    for the hidden units, see `z1_local_layout`). The dict also has the number of rows and
+    columns of the chip.
+    """
+    visible, hidden = cell_positions(height, width, spacing_x, spacing_y)
+    layout = radius_layout(visible, hidden, radius)
+    nodes = torch.cat([visible, hidden.reshape(-1, 2)])
+    layout["chip_rows"] = int(nodes[:, 0].max()) + 1
+    layout["chip_cols"] = int(nodes[:, 1].max()) + 1
+    return layout
+
+
+def z1_local_layout(height: int, width: int, radius: float) -> dict:
+    """Variant of Z1 with local couplings: the pixels on one color of the chessboard of Z1 (image
+    rotated by 45 degrees, see `z1_local_positions`), one hidden unit at the centre of each cell
+    between 4 pixels, coupled to all the pixels within `radius` on the chip (see
+    `radius_layout`). The dict also has the side of the (square) chip, even as in the thrml
+    grids."""
+    visible, hidden = z1_local_positions(height, width)
+    layout = radius_layout(visible, hidden, radius)
+    side = int(max(visible.max(), hidden.max())) + 1
+    layout["chip_rows"] = layout["chip_cols"] = side + side % 2
+    return layout
+
+
+def cells_num_hiddens(num_visibles: int, spacing_x: int, spacing_y: int) -> int:
+    """Number of hidden units of the cell layout (see `cell_layout`): sx sy - 1 per cell."""
+    check_cell_spacing(spacing_x, spacing_y)
+    height, width = image_shape(num_visibles)
+    return (spacing_x * spacing_y - 1) * (height - 1) * (width - 1)
+
+
+def z1_local_num_hiddens(num_visibles: int) -> int:
+    """Number of hidden units of the Z1 local layout (see `z1_local_layout`): one per cell."""
+    height, width = image_shape(num_visibles)
+    return (height - 1) * (width - 1)
+
+
+def read_mask_file(mask_file: str | None) -> Tensor:
+    """Mask of the couplings (Nv, Nh) of the dataset 'weight_mask' of an h5 file (nonzero:
+    trained coupling), e.g. made by PLM_clustering.ipynb."""
+    if mask_file is None:
+        raise ValueError("--mask_type file needs the mask file (--mask_file)")
+    with h5py.File(mask_file, "r") as f:
+        if "weight_mask" not in f:
+            raise ValueError(f"Mask file {mask_file}: no dataset 'weight_mask'")
+        mask = torch.from_numpy(np.asarray(f["weight_mask"][()]) != 0)
+    if mask.dim() != 2:
+        raise ValueError(f"Mask file {mask_file}: the mask must be (Nv, Nh), got {tuple(mask.shape)}")
+    if not mask.any(0).all():
+        raise ValueError(f"Mask file {mask_file}: some hidden units have no coupling")
+    return mask
+
+
 def make_weight_mask(
-    weight_matrix: Tensor, sparsity: float, seed: int, mask_type: str = "random"
+    weight_matrix: Tensor,
+    sparsity: float,
+    seed: int,
+    mask_type: str = "random",
+    cell_spacing_x: int = 2,
+    cell_spacing_y: int = 2,
+    cell_radius: float = 5.0,
+    mask_file: str | None = None,
 ) -> tuple[Tensor, dict]:
     """Mask of the couplings for a sparse training: a fraction `sparsity` (rho) of the
     couplings between a visible and a hidden unit is trained, the others are fixed to zero.
@@ -360,6 +557,17 @@ def make_weight_mask(
           the pixels in random order, each one used once before any is repeated (with
           Nh = Nv every pixel is the center of one hidden unit). The side of the squares is
           the one whose fraction of couplings is the closest to rho.
+        - "z1": connectivity of the Z1 chip (see `z1_layout`), rho is not used. The number of
+          hidden units must be `z1_num_hiddens(Nv)`.
+        - "cells": pixels every `cell_spacing_x` (`cell_spacing_y`) nodes of a 2D chip along the
+          rows (columns), not both 1, the other nodes are hidden units, each one coupled to all
+          the pixels within `cell_radius` (see `cell_layout`), rho is not used. The number of
+          hidden units must be `cells_num_hiddens(Nv, sx, sy)`.
+        - "z1_local": chessboard of Z1 with one hidden unit per cell, coupled to all the pixels
+          within `cell_radius` (see `z1_local_layout`), rho is not used. The number of hidden
+          units must be `z1_local_num_hiddens(Nv)`.
+        - "file": the mask read from the h5 file `mask_file` (see `read_mask_file`), rho is
+          not used. The number of hidden units must be its number of columns.
 
     Returns the mask, of shape (Nv, 1, ..., Nh), broadcastable to the weight matrix (for Potts
     visibles, all the states of a visible are coupled or not to a hidden unit), and a dict
@@ -380,11 +588,7 @@ def make_weight_mask(
             mask = torch.zeros(num_couplings, dtype=torch.bool)
             mask[kept] = True
         case "local":
-            side_image = int(round(num_visibles**0.5))
-            if side_image**2 != num_visibles:
-                raise ValueError(
-                    f"Local mask: the {num_visibles} visibles are not a square image"
-                )
+            side_image = image_shape(num_visibles)[0]
             num_perms = -(-num_hiddens // num_visibles)
             centers = torch.cat(
                 [torch.randperm(num_visibles, generator=generator) for _ in range(num_perms)]
@@ -399,8 +603,51 @@ def make_weight_mask(
             mask = masks[best]
             info["mask_side"] = best + 1
             info["mask_centers"] = centers.numpy()
+        case "z1":
+            layout = z1_layout(*image_shape(num_visibles))
+            mask = layout["mask"]
+            if mask.shape[1] != num_hiddens:
+                raise ValueError(
+                    f"Z1 mask: {mask.shape[1]} hidden units needed, the model has {num_hiddens}"
+                )
+            info["mask_side"] = layout["side"]
+            info["mask_visible_sites"] = layout["visible_sites"].numpy()
+            info["mask_hidden_sites"] = layout["hidden_sites"].numpy()
+        case "cells" | "z1_local":
+            if mask_type == "cells":
+                layout = cell_layout(
+                    *image_shape(num_visibles), cell_spacing_x, cell_spacing_y, cell_radius
+                )
+                info["mask_spacing_x"] = cell_spacing_x
+                info["mask_spacing_y"] = cell_spacing_y
+            else:
+                layout = z1_local_layout(*image_shape(num_visibles), cell_radius)
+            mask = layout["mask"]
+            if mask.shape[1] != num_hiddens:
+                raise ValueError(
+                    f"{mask_type} mask: {mask.shape[1]} hidden units needed, the model has "
+                    f"{num_hiddens}"
+                )
+            info["mask_side"] = max(layout["chip_rows"], layout["chip_cols"])
+            info["mask_chip_rows"] = layout["chip_rows"]
+            info["mask_chip_cols"] = layout["chip_cols"]
+            info["mask_radius_max"] = cell_radius
+            info["mask_radius"] = layout["radius"]
+            info["mask_visible_sites"] = layout["visible_sites"].numpy()
+            info["mask_hidden_sites"] = layout["hidden_sites"].numpy()
+        case "file":
+            mask = read_mask_file(mask_file)
+            if mask.shape != (num_visibles, num_hiddens):
+                raise ValueError(
+                    f"Mask file {mask_file}: mask of shape {tuple(mask.shape)}, the model needs "
+                    f"({num_visibles}, {num_hiddens})"
+                )
+            info["mask_file"] = str(mask_file)
         case _:
-            raise ValueError(f"Unknown mask type '{mask_type}', should be 'random' or 'local'")
+            raise ValueError(
+                f"Unknown mask type '{mask_type}', should be 'random', 'local', 'z1', 'cells', "
+                "'z1_local' or 'file'"
+            )
     info["mask_density"] = mask.float().mean().item()
     shape = (num_visibles, *[1] * (weight_matrix.dim() - 2), num_hiddens)
     mask = mask.reshape(shape).to(device=weight_matrix.device, dtype=weight_matrix.dtype)
