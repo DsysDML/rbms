@@ -43,6 +43,12 @@ def _get_freq_two_points(
     return fij.reshape(L, q, L, q)
 
 
+def _mask_self_couplings(weight_matrix: Tensor) -> None:
+    """Set to 0, in place, the couplings between the states of a same site."""
+    idx = torch.arange(weight_matrix.shape[0], device=weight_matrix.device)
+    weight_matrix[idx, :, idx, :] = 0.0
+
+
 @torch.jit.script
 def _sample_one_visible_potts(
     v: Tensor, weight_matrix: Tensor, bias: Tensor, beta: float
