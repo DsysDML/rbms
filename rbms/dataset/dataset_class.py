@@ -33,10 +33,13 @@ class RBMDataset(Dataset):
         self.dtype = dtype
         self.variable_type: str = variable_type
         self.data = torch.from_numpy(data).to(device=self.device, dtype=self.dtype)
-        # Weights should have shape n_visibles
-        self.weights = (
-            torch.from_numpy(weights).view(-1).to(device=self.device, dtype=self.dtype)
-        )
+        # Weights should have shape n_samples and are normalized to sum to 1
+        weights = torch.from_numpy(weights).view(-1).to(device=self.device, dtype=self.dtype)
+        if (weights < 0).any() or weights.sum() <= 0:
+            raise ValueError("Weights must be non-negative with a positive sum.")
+        # Sum of the unnormalized weights, kept for the effective size
+        self.weight_sum = weights.sum().item()
+        self.weights = weights / weights.sum()
         # Labels are int
         self.labels = torch.from_numpy(labels).to(device=self.device, dtype=torch.int32)
 
@@ -101,7 +104,7 @@ class RBMDataset(Dataset):
         Returns:
             int: The effective size of the dataset.
         """
-        return int(self.weights.sum())
+        return int(self.weight_sum)
 
     def get_gzip_entropy(self, mean_size: int = 50, num_samples: int = 100):
         """Compute the gzip entropy of the dataset.
@@ -152,11 +155,13 @@ class RBMDataset(Dataset):
         permutation_index = rng.permutation(num_samples)
         train_size = int(train_size * num_samples)
         test_size = int(test_size * num_samples)
+        # Pass the unnormalized weights so each split keeps its effective size
+        raw_weights = self.weights * self.weight_sum
 
         train_dataset = RBMDataset(
             data=self.data[permutation_index[:train_size]].cpu().numpy(),
             labels=self.labels[permutation_index[:train_size]].cpu().numpy(),
-            weights=self.weights[permutation_index[:train_size]].cpu().numpy(),
+            weights=raw_weights[permutation_index[:train_size]].cpu().numpy(),
             names=self.names[permutation_index[:train_size]],
             dataset_name=self.dataset_name,
             variable_type=self.variable_type,
@@ -172,7 +177,7 @@ class RBMDataset(Dataset):
                 labels=self.labels[permutation_index[train_size : train_size + test_size]]
                 .cpu()
                 .numpy(),
-                weights=self.weights[
+                weights=raw_weights[
                     permutation_index[train_size : train_size + test_size]
                 ]
                 .cpu()
