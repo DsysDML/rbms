@@ -1,6 +1,5 @@
 import torch
 from torch import Tensor
-from torch.nn.functional import softmax
 
 from rbms.bm.utils import get_freq_single_point
 from rbms.custom_fn import one_hot
@@ -96,8 +95,6 @@ def _compute_gradient(
     weight_matrix: Tensor,
     centered: bool = True,
 ):
-    w_data = w_data.view(-1, 1, 1)
-    w_chain = w_chain.view(-1, 1, 1)
     dtype = weight_matrix.dtype
     num_states = weight_matrix.shape[1]
 
@@ -105,17 +102,15 @@ def _compute_gradient(
     v_data_one_hot = one_hot(v_data.long(), num_classes=num_states).to(dtype)
     v_gen_one_hot = one_hot(v_chain.long(), num_classes=num_states).to(dtype=dtype)
 
-    # Turn the weights of the chains into normalized weights
-    chain_weights = softmax(-w_chain, dim=0)
-    w_chain_norm = chain_weights.sum()
-    # The weights should be normalized on the batch by dividing with the sum
-    # of the weights of the batch
-    w_data_norm = w_data.sum()
+    # Normalize the weights on the batch and on the chains
+    data_weights = (w_data / w_data.sum()).view(-1, 1, 1)
+    chain_weights = (w_chain / w_chain.sum()).view(-1, 1, 1)
+
     # Averages over data and generated samples
-    v_data_mean = (v_data_one_hot * w_data).sum(0) / w_data_norm
-    h_data_mean = (mh_data * w_data.view(-1, 1)).sum(0) / w_data_norm
-    v_gen_mean = (v_gen_one_hot * chain_weights).sum(0) / w_chain_norm
-    h_gen_mean = (h_chain * chain_weights.view(-1, 1)).sum(0) / w_chain_norm
+    v_data_mean = (v_data_one_hot * data_weights).sum(0)
+    h_data_mean = (mh_data * data_weights.view(-1, 1)).sum(0)
+    v_gen_mean = (v_gen_one_hot * chain_weights).sum(0)
+    h_gen_mean = (h_chain * chain_weights.view(-1, 1)).sum(0)
     torch.clamp_(v_data_mean, min=1e-7, max=(1.0 - 1e-7))
     torch.clamp_(v_gen_mean, min=1e-7, max=(1.0 - 1e-7))
     if centered:
@@ -126,19 +121,14 @@ def _compute_gradient(
         h_gen_centered = h_chain - h_data_mean
 
         # Gradient
-        grad_weight_matrix = (
-            torch.tensordot(
-                v_data_centered,
-                h_data_centered,
-                dims=[[0], [0]],
-            )
-            / v_data.shape[0]
-            - torch.tensordot(
-                v_gen_centered,
-                h_gen_centered,
-                dims=[[0], [0]],
-            )
-            / v_chain.shape[0]
+        grad_weight_matrix = torch.tensordot(
+            v_data_centered * data_weights,
+            h_data_centered,
+            dims=[[0], [0]],
+        ) - torch.tensordot(
+            v_gen_centered * chain_weights,
+            h_gen_centered,
+            dims=[[0], [0]],
         )
         grad_vbias = (
             v_data_mean
@@ -152,19 +142,14 @@ def _compute_gradient(
         )
     else:
         # Gradient
-        grad_weight_matrix = (
-            torch.tensordot(
-                v_data_one_hot,
-                mh_data,
-                dims=[[0], [0]],
-            )
-            / v_data.shape[0]
-            - torch.tensordot(
-                v_gen_one_hot,
-                h_chain,
-                dims=[[0], [0]],
-            )
-            / v_chain.shape[0]
+        grad_weight_matrix = torch.tensordot(
+            v_data_one_hot * data_weights,
+            mh_data,
+            dims=[[0], [0]],
+        ) - torch.tensordot(
+            v_gen_one_hot * chain_weights,
+            h_chain,
+            dims=[[0], [0]],
         )
 
         grad_vbias = v_data_mean - v_gen_mean
