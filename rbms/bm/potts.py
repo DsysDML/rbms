@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.bm.implement import _sample_one_visible_potts
+from rbms.bm.implement import _mask_self_couplings, _sample_one_visible_potts
 from rbms.bm.utils import get_freq_single_point, get_freq_two_points
 from rbms.classes import EBM
 from rbms.custom_fn import check_keys_dict, one_hot
@@ -22,6 +22,7 @@ class PBM(EBM):
         bias: Tensor,
         device: torch.device | str | None = None,
         dtype: torch.dtype | None = None,
+        pseudo_count: float = 0.0,
     ):
         if device is None:
             device = weight_matrix.device
@@ -31,6 +32,8 @@ class PBM(EBM):
         self.dtype = dtype
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.bias = bias.to(device=self.device, dtype=self.dtype)
+        # Pseudo count applied to the data statistics in the gradient
+        self.pseudo_count = pseudo_count
         self.name = "PBM"
         self.flags = []
 
@@ -39,13 +42,15 @@ class PBM(EBM):
         return PBM(
             weight_matrix=self.weight_matrix + other.weight_matrix,
             bias=self.bias + other.bias,
+            pseudo_count=self.pseudo_count,
         )
 
     def __mul__(self, other):
-        """Multiplies the p ofsy a float."""
+        """Multiplies the parameters of the EBM by a float."""
         return PBM(
             weight_matrix=self.weight_matrix * other,
             bias=self.bias * other,
+            pseudo_count=self.pseudo_count,
         )
 
     def sample_one_visible(self, chains: dict[str, Tensor], beta: float = 1.0):
@@ -104,11 +109,11 @@ class PBM(EBM):
         weights: Tensor | None = None,
         start_v: Tensor | None = None,
     ) -> dict[str, Tensor]:
-        """Initialize a Markov chain for the EBM by sampling a uniform distribution on the visible layer
-        and sampling the hidden layer according to the visible one.
+        """Initialize Markov chains by sampling the profile model (local fields only).
 
         Args:
             num_samples (int): The number of samples to initialize.
+            weights (Tensor, optional): The weights of the chains. Defaults to None (all ones).
             start_v (Tensor, optional): The initial visible states. Defaults to None.
 
         Returns:
@@ -123,21 +128,17 @@ class PBM(EBM):
             else:
                 raise ValueError(f"Got negative num_samples arg: {num_samples}")
 
+        # Marginals of the profile model, shape (num_visibles, num_states)
+        profile = torch.softmax(self.bias, dim=-1)
         if start_v is None:
-            # Dummy mean visible
-            mv = (
-                torch.ones(
-                    size=(num_samples, self.num_visibles),
-                    device=self.device,
-                    dtype=self.dtype,
-                )
-                / 2
+            v = (
+                torch.multinomial(profile, num_samples=num_samples, replacement=True)
+                .T.contiguous()
+                .to(self.dtype)
             )
-            v = torch.bernoulli(mv)
         else:
-            # Dummy mean visible
-            mv = torch.ones_like(start_v, device=self.device, dtype=self.dtype) / 2
             v = start_v.to(device=self.device, dtype=self.dtype)
+        mv = profile.expand(v.shape[0], -1, -1)
 
         # Initialize chains
         if weights is None:
@@ -159,19 +160,22 @@ class PBM(EBM):
         Args:
             data (dict[str, Tensor]): The data state.
             chains (dict[str, Tensor]): The parallel chains used for gradient computation.
-            centered (bool, optional): Whether to use centered gradients. Defaults to True.
-            lambda_l1 (float, optional): factor for the L1 regularization. Defaults to 0.
-            lambda_l2 (float, optional): factor for the L2 regularization. Defaults to 0.
+            centered (bool, optional): Unused. Defaults to True.
+
+        Notes:
+            - The pseudo count is only applied to the data statistics, so that the model is
+              pulled towards frequencies that are non-zero for every state.
+            - The couplings between the states of a same site are not trained.
         """
-        pseudo_count = 1e-4
         one_hot_data = one_hot(data["visible"].long(), self.num_states).to(self.dtype)
         one_hot_gen = one_hot(chains["visible"].long(), self.num_states).to(self.dtype)
-        fi_data = get_freq_single_point(one_hot_data, data["weights"], pseudo_count)
-        fi_gen = get_freq_single_point(one_hot_gen, chains["weights"], pseudo_count)
-        fij_data = get_freq_two_points(one_hot_data, data["weights"], pseudo_count)
-        fij_gen = get_freq_two_points(one_hot_gen, chains["weights"], pseudo_count)
+        fi_data = get_freq_single_point(one_hot_data, data["weights"], self.pseudo_count)
+        fi_gen = get_freq_single_point(one_hot_gen, chains["weights"])
+        fij_data = get_freq_two_points(one_hot_data, data["weights"], self.pseudo_count)
+        fij_gen = get_freq_two_points(one_hot_gen, chains["weights"])
         self.bias.grad = fi_data - fi_gen
         self.weight_matrix.grad = fij_data - fij_gen
+        _mask_self_couplings(self.weight_matrix.grad)
 
     def parameters(self) -> list[Tensor]:
         """Returns a list containing the parameters of the RBM.
@@ -185,6 +189,7 @@ class PBM(EBM):
         return {
             "weight_matrix": self.weight_matrix.cpu().numpy(),
             "bias": self.bias.cpu().numpy(),
+            "pseudo_count": np.asarray(self.pseudo_count),
         }
 
     @staticmethod
@@ -202,6 +207,8 @@ class PBM(EBM):
             bias=torch.from_numpy(named_params.pop("bias")).to(
                 device=device, dtype=dtype
             ),
+            # Archives saved before the pseudo count was stored have none
+            pseudo_count=float(named_params.pop("pseudo_count", 0.0)),
         )
         if len(named_params.keys()) > 0:
             raise ValueError(
@@ -257,6 +264,7 @@ class PBM(EBM):
             self.bias.clone(),
             device=device,
             dtype=dtype,
+            pseudo_count=self.pseudo_count,
         )
 
     @staticmethod
@@ -266,38 +274,44 @@ class PBM(EBM):
         device: torch.device | str,
         dtype: torch.dtype,
         var_init: float = 1e-4,
+        pseudo_count: float | None = None,
     ) -> PBM:
-        """Initialize the parameters of the RBM.
+        """Initialize the parameters of the Potts BM.
 
         Args:
-            num_hiddens (int): Number of hidden units.
+            num_hiddens (int): Unused, the model has no hidden units.
             dataset (RBMDataset): Training dataset.
             device (torch.device): PyTorch device for the parameters.
             dtype (torch.dtype): PyTorch dtype for the parameters.
-            var_init (float, optional): Variance of the weight matrix. Defaults to 1e-4.
+            var_init (float, optional): Unused, the couplings are initialized to 0.
+            pseudo_count (float, optional): Pseudo count applied to the data statistics.
+                Defaults to 1 / Meff, with Meff the effective number of samples of the dataset.
 
         Notes:
             - The number of visible units is induced from the dataset provided.
-            - Hidden biases are set to 0.
-            - Visible biases are set to the frequencies of the dataset.
-            - The weight matrix is initialized with a Gaussian distribution of variance `var_init`.
+            - Biases are set to the log of the frequencies of the dataset, with the pseudo count.
+            - Couplings are set to 0.
         """
-
+        if pseudo_count is None:
+            pseudo_count = 1.0 / dataset.weight_sum
         fi = get_freq_single_point(
-            one_hot(dataset.data.long(), dataset.get_num_states()), dataset.weights, 1e-4
+            one_hot(dataset.data.long(), dataset.get_num_states()).to(
+                device=device, dtype=dtype
+            ),
+            dataset.weights.to(device=device, dtype=dtype),
+            pseudo_count,
         )
+        num_visibles, num_states = fi.shape
         return PBM(
             weight_matrix=torch.zeros(
-                (
-                    dataset.get_num_visibles(),
-                    dataset.get_num_states(),
-                    dataset.get_num_visibles(),
-                    dataset.get_num_states(),
-                ),
-                device=fi.device,
-                dtype=fi.dtype,
+                (num_visibles, num_states, num_visibles, num_states),
+                device=device,
+                dtype=dtype,
             ),
             bias=torch.log(fi),
+            device=device,
+            dtype=dtype,
+            pseudo_count=pseudo_count,
         )
 
     @property
@@ -317,6 +331,7 @@ class PBM(EBM):
             self.bias.clone(),
             device=self.device,
             dtype=self.dtype,
+            pseudo_count=self.pseudo_count,
         )
 
     def sample_state(
@@ -349,7 +364,8 @@ class PBM(EBM):
         pass
 
     def post_grad_update(self) -> None:
-        pass
+        # The Gibbs sampler assumes no coupling between the states of a same site
+        _mask_self_couplings(self.weight_matrix)
 
     @property
     def effective_number_variables(self) -> float:
