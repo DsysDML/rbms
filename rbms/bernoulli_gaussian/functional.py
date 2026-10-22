@@ -20,7 +20,7 @@ from rbms.dataset.dataset_class import RBMDataset
 def sample_hiddens(
     chains: dict[str, Tensor], params: BGRBM, beta: float = 1.0
 ) -> dict[str, Tensor]:
-    """Sample h|v(Gaussian hidden with fixed var = 1/Nv)"""
+    """Sample h|v (Gaussian hidden with unit variance)"""
     chains["hidden"], chains["hidden_mag"] = _sample_hiddens(
         v=chains["visible"],
         weight_matrix=params.weight_matrix,

@@ -9,11 +9,9 @@ from rbms.custom_fn import log2cosh
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> Tuple[Tensor, Tensor]:
+    # E = ... + |h|^2 / 2  =>  h | v ~ N(hbias + v W, 1 / beta)
     mh = hbias + (v @ weight_matrix)
-    h = (
-        torch.randn_like(mh) / torch.sqrt(torch.ones_like(mh) * weight_matrix.shape[0])
-        + mh
-    )
+    h = torch.randn_like(mh) / beta**0.5 + mh
     return h, mh
 
 
@@ -39,7 +37,7 @@ def _compute_energy(
     interaction = torch.multiply(
         v, torch.tensordot(h, weight_matrix, dims=[[1], [1]])
     ).sum(1)
-    quad = 0.5 * float(weight_matrix.shape[0]) * (h * h).sum(1)
+    quad = 0.5 * (h * h).sum(1)
     return -fields - interaction + quad
 
 
@@ -48,7 +46,7 @@ def _compute_energy_visibles(
 ) -> Tensor:
     field = v @ vbias
     t = hbias + (v @ weight_matrix)
-    quad_term = 0.5 * (t * t).sum(1) / float(weight_matrix.shape[0])
+    quad_term = 0.5 * (t * t).sum(1)
     return -field - quad_term + const
 
 
@@ -59,7 +57,7 @@ def _compute_energy_hiddens(
     exponent = vbias + (h @ weight_matrix.T)
     # log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
     log_term = log2cosh(exponent)
-    quad = 0.5 * float(weight_matrix.shape[0]) * (h * h).sum(1)
+    quad = 0.5 * (h * h).sum(1)
     return -field - log_term.sum(1) + quad
 
 

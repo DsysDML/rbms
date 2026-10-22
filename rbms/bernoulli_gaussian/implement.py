@@ -5,15 +5,16 @@ from torch import Tensor
 def _sample_hiddens(
     v: Tensor, weight_matrix: Tensor, hbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
+    # E = ... + |h|^2 / 2  =>  h | v ~ N(hbias + v W, 1 / beta)
     mh = hbias + (v @ weight_matrix)
-    h = torch.randn_like(mh) + mh
+    h = torch.randn_like(mh) / beta**0.5 + mh
     return h, mh
 
 
 def _sample_visibles(
     h: Tensor, weight_matrix: Tensor, vbias: Tensor, beta: float = 1.0
 ) -> tuple[Tensor, Tensor]:
-    mv = torch.sigmoid(vbias + h @ weight_matrix.T)
+    mv = torch.sigmoid(beta * (vbias + h @ weight_matrix.T))
     v = torch.bernoulli(mv)
     return v, mv
 
@@ -31,8 +32,7 @@ def _compute_energy(
     interaction = torch.multiply(
         v, torch.tensordot(h, weight_matrix, dims=[[1], [1]])
     ).sum(1)
-    num_visibles = weight_matrix.shape[0]
-    quad = 0.5 * num_visibles * (h * h).sum(1)
+    quad = 0.5 * (h * h).sum(1)
     return -fields - interaction + quad
 
 
@@ -45,8 +45,7 @@ def _compute_energy_visibles(
 ) -> Tensor:
     field = v @ vbias
     t = hbias + (v @ weight_matrix)
-    num_visibles = weight_matrix.shape[0]
-    quad_term = 0.5 * (t * t).sum(1) / num_visibles
+    quad_term = 0.5 * (t * t).sum(1)
     return -field - quad_term + const
 
 
@@ -56,8 +55,7 @@ def _compute_energy_hiddens(
     field = h @ hbias
     exponent = vbias + (h @ weight_matrix.T)
     log_term = torch.where(exponent < 10, torch.log1p(torch.exp(exponent)), exponent)
-    num_visibles = weight_matrix.shape[0]
-    quad = 0.5 * (h * h).sum(1) * num_visibles
+    quad = 0.5 * (h * h).sum(1)
     return -field - log_term.sum(1) + quad
 
 
