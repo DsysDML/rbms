@@ -21,7 +21,10 @@ from rbms.ising_gaussian.implement import (
 
 
 class IGRBM(RBM):
-    """Ising-Gaussian RBM with fixed hidden variance = 1/Nv, +- 1 visibles, without any bias"""
+    """Ising-Gaussian RBM with unit hidden variance, +- 1 visibles, without any bias
+
+    E(v, h) = -vbias.v - hbias.h - v^T W h + |h|^2 / 2
+    """
 
     visible_type: str = "ising"
 
@@ -43,20 +46,8 @@ class IGRBM(RBM):
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
 
-        log_two_pi = torch.log(torch.tensor(2.0 * torch.pi, dtype=dtype, device=device))
-        const = (
-            0.5
-            * float(self.weight_matrix.shape[1])
-            * (
-                -torch.log(
-                    torch.tensor(
-                        float(self.weight_matrix.shape[0]), dtype=dtype, device=device
-                    )
-                )
-                + log_two_pi
-            )
-        )
-        self.const = const
+        # Gaussian integral over the hiddens: F(v) = ... - (Nh / 2) log(2 pi)
+        self.const = -0.5 * float(self.weight_matrix.shape[1]) * np.log(2.0 * np.pi)
         self.name = "IGRBM"
         self.flags = []
 
@@ -196,13 +187,10 @@ class IGRBM(RBM):
 
     @property
     def ref_log_z(self):
-        K = self.num_hiddens
-        # logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
+        # log Z of independent_model(): W = 0, biases kept
         logZ_v = log2cosh(self.vbias).sum()
-        quad = 0.5 * torch.dot(self.hbias, self.hbias) / float(self.num_visibles)
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(
-            float(self.num_visibles)
-        )
+        quad = 0.5 * torch.dot(self.hbias, self.hbias)
+        log_norm = 0.5 * self.num_hiddens * np.log(2.0 * np.pi)
         return (logZ_v + quad + log_norm).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:

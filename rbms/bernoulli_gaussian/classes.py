@@ -19,7 +19,10 @@ from rbms.classes import RBM
 
 
 class BGRBM(RBM):
-    """Bernoulli-Gaussian RBM with fixed hidden variance = 1/Nv, 0-1 visibles, hidden and visible biases"""
+    """Bernoulli-Gaussian RBM with unit hidden variance, 0-1 visibles, hidden and visible biases
+
+    E(v, h) = -vbias.v - hbias.h - v^T W h + |h|^2 / 2
+    """
 
     visible_type: str = "bernoulli"
 
@@ -40,28 +43,13 @@ class BGRBM(RBM):
         self.weight_matrix = weight_matrix.to(device=self.device, dtype=self.dtype)
         self.vbias = vbias.to(device=self.device, dtype=self.dtype)
         self.hbias = hbias.to(device=self.device, dtype=self.dtype)
-        log_two_pi = torch.log(torch.tensor(2.0 * torch.pi, dtype=dtype, device=device))
-
-        self.const = (
-            0.5
-            * float(weight_matrix.shape[1])
-            * (
-                torch.log(
-                    torch.tensor(
-                        float(weight_matrix.shape[0]),
-                        dtype=vbias.dtype,
-                        device=vbias.device,
-                    )
-                )
-                - log_two_pi
-            )
-        )
+        # Gaussian integral over the hiddens: F(v) = ... - (Nh / 2) log(2 pi)
+        self.const = -0.5 * float(weight_matrix.shape[1]) * np.log(2.0 * np.pi)
 
         self.name = "BGRBM"
         self.flags = []
 
     def __add__(self, other):
-        # keep fixed variance policy; recompute eta from resulting vbias size
         out = BGRBM(
             weight_matrix=self.weight_matrix + other.weight_matrix,
             vbias=self.vbias + other.vbias,
@@ -72,7 +60,6 @@ class BGRBM(RBM):
         return out
 
     def __mul__(self, other):
-        # scalar multiply trained params only; variance stays fixed to Nv
         out = BGRBM(
             weight_matrix=self.weight_matrix * other,
             vbias=self.vbias * other,
@@ -104,7 +91,6 @@ class BGRBM(RBM):
             vbias=self.vbias,
             hbias=self.hbias,
             weight_matrix=self.weight_matrix,
-            const=self.const,
         )
 
     def compute_energy_hiddens(self, h: Tensor) -> Tensor:
@@ -122,7 +108,6 @@ class BGRBM(RBM):
         )
 
     def compute_gradient(self, data, chains, centered=True):
-        # backend should ignore grads on eta or treat it as const; we pass it for conditionals
         _compute_gradient(
             v_data=data["visible"],
             h_data=data["hidden_mag"],
@@ -205,13 +190,10 @@ class BGRBM(RBM):
 
     @property
     def ref_log_z(self) -> float:
-        K = self.num_hiddens
-        Nv = self.num_visibles
+        # log Z of independent_model(): W = 0 and hbias = 0
         logZ_v = torch.log1p(torch.exp(self.vbias)).sum()
-        inv_gamma = 1.0 / float(Nv)
-        quad = 0.5 * inv_gamma * torch.dot(self.hbias, self.hbias)
-        log_norm = 0.5 * K * np.log(2.0 * np.pi) - 0.5 * K * np.log(float(Nv))
-        return (logZ_v + quad + log_norm).item()
+        log_norm = 0.5 * self.num_hiddens * np.log(2.0 * np.pi)
+        return (logZ_v + log_norm).item()
 
     def sample_hiddens(self, chains: dict[str, Tensor], beta=1) -> dict[str, Tensor]:
         chains["hidden"], chains["hidden_mag"] = _sample_hiddens(
