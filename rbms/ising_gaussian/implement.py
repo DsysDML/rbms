@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 import torch
 from torch import Tensor
 from torch.nn.functional import softmax
+
 from rbms.custom_fn import log2cosh
 
 
@@ -79,10 +80,10 @@ def _compute_gradient(
     w_data_norm = w_data.sum()
 
     v_data_mean = (v_data * w_data).sum(0) / w_data_norm
-    torch.clamp_(v_data_mean, min=1e-4, max=(1.0 - 1e-4))
+    torch.clamp_(v_data_mean, min=-1 + 1e-4, max=(1.0 - 1e-4))
     h_data_mean = (mh_data * w_data).sum(0) / w_data_norm
     v_gen_mean = v_chain.mean(0)
-    torch.clamp_(v_gen_mean, min=1e-4, max=(1.0 - 1e-4))
+    torch.clamp_(v_gen_mean, min=-1 + 1e-4, max=(1.0 - 1e-4))
 
     if centered:
         v_data_centered = v_data - v_data_mean
