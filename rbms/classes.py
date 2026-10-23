@@ -10,6 +10,16 @@ from torch import Tensor
 from rbms.dataset.dataset_class import RBMDataset
 
 
+def compute_energy_chains(model: EBM, chains: dict[str, Tensor]) -> Tensor:
+    """Energy of the configurations of the chains used by the samplers (PTT swaps, partition
+    function along the ladder, AIS, step limit of cossim_ptt): the visible energy E(v),
+    or the energy of the whole system (visibles and hiddens) for the models whose visible energy
+    E(v) is not tractable (`joint_energy = True`, e.g. the DBMs of dbms)."""
+    if getattr(model, "joint_energy", False):
+        return model.compute_energy(chains)
+    return model.compute_energy_visibles(chains)
+
+
 class EBM(ABC):
     """An abstract class representing the parameters of an Energy-Based Model."""
 

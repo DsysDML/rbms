@@ -28,6 +28,7 @@ def train(
     num_updates: int,
     filename: str,
     weight_mask: torch.Tensor | None = None,
+    sampler_positive: Sampler | None = None,
 ):
     pbar = tqdm(
         initial=curr_update,
@@ -65,12 +66,16 @@ def train(
         for opt in optimizer:
             opt.zero_grad(set_to_none=False)
 
-        # Initialize batch
-        curr_batch = params.init_chains(
-            num_samples=data.shape[0],
-            weights=weights,
-            start_v=data,
-        )
+        # Initialize batch (positive term): the data, or the configurations of the positive
+        # sampler for the models with several hidden layers (e.g. mean field for the DBMs)
+        if sampler_positive is None:
+            curr_batch = params.init_chains(
+                num_samples=data.shape[0],
+                weights=weights,
+                start_v=data,
+            )
+        else:
+            curr_batch = sampler_positive.get_conf_grad(batch=data, weights=weights)
         parallel_chains = sampler.get_conf_grad(batch=data)
 
         params.compute_gradient(
@@ -90,6 +95,8 @@ def train(
             params.weight_matrix.mul_(weight_mask)
 
         params.post_grad_update()
+        if sampler_positive is not None:
+            sampler_positive.post_grad_update(params=params)
         sampler.post_grad_update(params=params)
         learning_rates = np.asarray([opt.param_groups[0]["lr"] for opt in optimizer])
         effective_time += learning_rates

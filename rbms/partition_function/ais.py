@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rbms.classes import EBM
+from rbms.classes import EBM, compute_energy_chains
 
 
 def update_weights_ais(
@@ -26,8 +26,8 @@ def update_weights_ais(
         Tuple[Tensor, dict[str, Tensor]]: A tuple containing the updated log weights and the updated chains.
     """
     chains = prev_params.sample_state(n_steps=n_steps, chains=chains)
-    energy_prev = prev_params.compute_energy_visibles(chains)
-    energy_curr = curr_params.compute_energy_visibles(chains)
+    energy_prev = compute_energy_chains(prev_params, chains)
+    energy_curr = compute_energy_chains(curr_params, chains)
     log_weights += -energy_curr + energy_prev
     return log_weights, chains
 

@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 from torch.optim import SGD, Adam, Optimizer
 
-from rbms.classes import EBM, Sampler
+from rbms.classes import EBM, Sampler, compute_energy_chains
 
 
 class SGD_cossim(SGD):
@@ -73,7 +73,7 @@ def limit_step_scale(
     scale. With project, the constraints of the parameters (post_grad_update, mask of the
     sparse training) are applied to the new model, so the displacement is the real one.
     Returns the factor (0 if no step is valid) and the std of dF of the scaled step."""
-    energy = model.compute_energy_visibles(chains)
+    energy = compute_energy_chains(model, chains)
     weight_mask = getattr(model, "weight_mask", None)
 
     def std_dF(factor):
@@ -85,7 +85,7 @@ def limit_step_scale(
             if weight_mask is not None:
                 new_model.weight_matrix.mul_(weight_mask)
             new_model.post_grad_update()
-        return (new_model.compute_energy_visibles(chains) - energy).std().item()
+        return (compute_energy_chains(new_model, chains) - energy).std().item()
 
     def valid(factor):
         std = std_dF(factor)
@@ -405,6 +405,9 @@ class NGD(Optimizer):
                 self.state[p]["last_dt"] = torch.zeros_like(p.data)
         self.max_lr = max_lr
         self.rescale_eigenvalue_lr = True
+        # Brake of each weight matrix of the model (one for a RBM, one per layer for a DBM): set
+        # at the first step, released for each matrix by the criterion below
+        self._brake_layers: list[bool] | None = None
         # When the brake on the main direction of the step of W is released (see step):
         # "gain" when the gain of the linear response of the model reaches 1, "weights" when the
         # largest singular value of W reaches 1
@@ -429,6 +432,17 @@ class NGD(Optimizer):
 
     def set_model(self, model: EBM):
         self._model = model
+
+    def _weight_matrices(self) -> list[Tensor]:
+        """Weight matrices of the model: one for a RBM, one per layer for a DBM."""
+        weight_matrices = getattr(self._model, "weight_matrices", None)
+        return list(weight_matrices) if weight_matrices is not None else [self._model.weight_matrix]
+
+    def _couplings(self) -> list[Tensor]:
+        """Coupling of the linear response of each weight matrix (see `RBM.ngd_coupling`)."""
+        if hasattr(self._model, "ngd_couplings"):
+            return self._model.ngd_couplings()
+        return [self._model.ngd_coupling()]
 
     @staticmethod
     def _score_dot(scores, p_list) -> Tensor:
@@ -541,7 +555,12 @@ class NGD(Optimizer):
     def step(self, scale=1, closure=None):
         assert self._model is not None
         assert self._sampler is not None
-        v_chain = self._sampler.get_curr_conf()["visible"]
+        chains = self._sampler.get_curr_conf()
+        # Scores of the visible energy for the RBMs; of the joint energy, on the visibles and the
+        # hidden layers of the chains, for the models whose visible energy is not tractable
+        # (DBMs): Fisher matrix of the joint distribution p(v, h)
+        conf = chains if getattr(self._model, "joint_energy", False) else chains["visible"]
+        weight_matrices = self._weight_matrices()
         for group in self.param_groups:
             group["step"] += 1
             params = group["params"]
@@ -551,7 +570,8 @@ class NGD(Optimizer):
             # Sparse training: mask of the trained couplings of the weight matrix
             weight_mask = getattr(self._model, "weight_mask", None)
             masks = [
-                weight_mask if p is self._model.weight_matrix else None for p in params
+                weight_mask if p is getattr(self._model, "weight_matrix", None) else None
+                for p in params
             ]
 
             # Blocks of the Fisher matrix (block diagonal), each one with its own step limit.
@@ -559,7 +579,7 @@ class NGD(Optimizer):
             blocks = self._model.ngd_blocks()
             if not update_biases:
                 blocks = [
-                    [i for i in block if params[i] is self._model.weight_matrix]
+                    [i for i in block if any(params[i] is w for w in weight_matrices)]
                     for block in blocks
                 ]
             blocks = [block for block in blocks if len(block) > 0]
@@ -567,7 +587,7 @@ class NGD(Optimizer):
 
             if group["step"] % group["update_freq"] == 0 or group["step"] == 1:
                 # Scores of all the parameters, in the order of the parameter group
-                scores = self._model.compute_scores(v_chain)
+                scores = self._model.compute_scores(conf)
                 assert len(scores) == len(params)
                 block_deltas = []
                 self.reg = []
@@ -603,29 +623,37 @@ class NGD(Optimizer):
             group["lr"] *= 1 + self.cos_sim * 0.001
             group["lr"] = min(group["lr"], self.max_lr)
 
-            # Rescale eigenvalues: the step of the weight matrix along its main direction is
-            # divided by Nv while the gain of the linear response of the model is below 1, i.e.
-            # before the first transition (see `RBM.ngd_coupling`), or with the criterion
-            # "weights" while the largest singular value of W is below 1
-            if self.rescale_eigenvalue_lr:
+            # Rescale eigenvalues: the step of each weight matrix along its main direction is
+            # divided by the number of units of its lower layer (Nv for W of a RBM) while the gain
+            # of its linear response is below 1, i.e. before the first transition (see
+            # `RBM.ngd_coupling`), or with the criterion "weights" while its largest singular
+            # value is below 1. Each weight matrix of a DBM has its own brake
+            if self._brake_layers is None:
+                self._brake_layers = [self.rescale_eigenvalue_lr] * len(weight_matrices)
+            if any(self._brake_layers):
                 if self.brake_criterion == "weights":
-                    W = self._model.weight_matrix
-                    coupling = W.reshape(-1, W.shape[-1])
+                    couplings = [W.reshape(-1, W.shape[-1]) for W in weight_matrices]
                 else:
-                    coupling = self._model.ngd_coupling()
-                self.rescale_eigenvalue_lr = (
-                    torch.linalg.matrix_norm(coupling, ord=2) ** 2 < 1
-                ).item()
-            if self.rescale_eigenvalue_lr:
-                k = next(k for k, i in enumerate(indices) if params[i] is self._model.weight_matrix)
+                    couplings = self._couplings()
+                self._brake_layers = [
+                    brake and (torch.linalg.matrix_norm(c, ord=2) ** 2 < 1).item()
+                    for brake, c in zip(self._brake_layers, couplings)
+                ]
+                self.rescale_eigenvalue_lr = any(self._brake_layers)
+            for W, brake in zip(weight_matrices, self._brake_layers):
+                if not brake:
+                    continue
+                k = next((k for k, i in enumerate(indices) if params[i] is W), None)
+                if k is None:
+                    continue
                 # Step of W as a matrix (Nv * q, Nh) for Potts visibles (Nv, q, Nh)
                 shape = delta_theta[k].shape
                 step_W = delta_theta[k].reshape(-1, shape[-1])
                 _, eig_vector = torch.lobpcg(step_W @ step_W.T, k=1, largest=True)
                 contrib = eig_vector @ (eig_vector.T @ step_W)
-                step_W = step_W - contrib + contrib / self._model.num_visibles
+                step_W = step_W - contrib + contrib / shape[0]
                 delta_theta[k] = step_W.reshape(shape)
-                if weight_mask is not None:
+                if weight_mask is not None and W is getattr(self._model, "weight_matrix", None):
                     delta_theta[k] = delta_theta[k] * weight_mask
 
             # ------------------------------------------------------
