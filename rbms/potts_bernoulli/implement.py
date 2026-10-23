@@ -203,7 +203,10 @@ def _init_chains(
         .to(dtype=weight_matrix_oh.dtype)
         .view(-1, num_visibles * num_states)
     )
-    mv = torch.zeros(v.shape[0], v.shape[1], num_states)
+    # Uniform probabilities of the states (not used before the visibles are sampled), on the device
+    # of the model: the PTT swaps exchange every key of the chains
+    mv = torch.full((v.shape[0], v.shape[1], num_states), 1 / num_states,
+                    device=weight_matrix.device, dtype=weight_matrix.dtype)
     mh = torch.sigmoid(hbias + v_oh @ weight_matrix_oh)
     h = torch.bernoulli(mh)
     return v, h, mv, mh
