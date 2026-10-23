@@ -649,7 +649,11 @@ class NGD(Optimizer):
                 # Step of W as a matrix (Nv * q, Nh) for Potts visibles (Nv, q, Nh)
                 shape = delta_theta[k].shape
                 step_W = delta_theta[k].reshape(-1, shape[-1])
-                _, eig_vector = torch.lobpcg(step_W @ step_W.T, k=1, largest=True)
+                if step_W.shape[0] >= 3:
+                    _, eig_vector = torch.lobpcg(step_W @ step_W.T, k=1, largest=True)
+                else:
+                    # lobpcg needs at least 3 rows (small layers of a DBM): exact SVD
+                    eig_vector = torch.linalg.svd(step_W, full_matrices=False)[0][:, :1]
                 contrib = eig_vector @ (eig_vector.T @ step_W)
                 step_W = step_W - contrib + contrib / shape[0]
                 delta_theta[k] = step_W.reshape(shape)
