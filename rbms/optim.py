@@ -538,7 +538,9 @@ class NGD(Optimizer):
 
             new_r_dot_r = sum(torch.sum(r * r) for r in residual)
             if new_r_dot_r.item() < 1e-20:
-                print("CG broke due to tiny residual norm.")
+                # Converged (|r| < 1e-10): usual for small layers or when the warm start is
+                # already the solution, not a problem
+                # print("CG broke due to tiny residual norm.")
                 break
 
             beta = (new_r_dot_r / r_dot_r).item()
